@@ -1,0 +1,13 @@
+// Simple linear process — order fulfillment
+// Demonstrates: start event, sequential tasks, end event.
+
+process "Order Fulfillment" {
+  start ->
+  task "Receive Order" ->
+  task "Validate Order" ->
+  task "Process Payment" ->
+  task "Prepare Shipment" ->
+  task "Ship Order" ->
+  task "Send Confirmation" ->
+  end
+}

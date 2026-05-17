@@ -1,0 +1,26 @@
+// Loan approval process with exclusive (XOR) gateway
+// Demonstrates: xor gateway, conditional branches, typed end events,
+//               default branch, convergence after gateway.
+
+process "Loan Approval" {
+  start:message("loan-application-received") ->
+  task "Register Application" ->
+  service "Check Credit Score" (performer="credit-bureau") ->
+  xor "Credit Acceptable?" {
+    [score >= 700] ->
+      task "Approve Loan" ->
+      task "Generate Contract" ->
+      task "Disburse Funds"
+    [300 <= score < 700] ->
+      task "Request Additional Documents" ->
+      task "Manual Underwriting Review" ->
+      xor "Underwriter Decision" {
+        [approved] -> task "Approve Loan with Conditions"
+        [rejected] -> task "Reject Application"
+      }
+    [default] ->
+      task "Reject Application"
+  } ->
+  task "Notify Customer" ->
+  end
+}

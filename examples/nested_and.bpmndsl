@@ -1,0 +1,73 @@
+// Insurance claim processing with parallel AND gateway, nested XOR, and lanes
+// Demonstrates: lanes (membership declaration), AND gateway (3 parallel branches),
+//               XOR nested inside AND branch, subprocess, typed events, props.
+//
+// Lane structure: declares which lane each element belongs to.
+// Sequence flow: declared after lane blocks (using the same -> syntax).
+
+process "Insurance Claim Processing" {
+
+  lane "Customer Service" {
+    start:message("claim-submitted"),
+    task "Register Claim",
+    task "Send Decision Letter",
+    end,
+    end:message("claim-resolved")
+  }
+
+  lane "Medical Team" {
+    task "Medical Assessment",
+    task "Approve Full Medical Benefit",
+    task "Approve Partial Medical Benefit",
+    task "Reject Medical Claim"
+  }
+
+  lane "Financial Team" {
+    task "Request Financial Documents",
+    task "Verify Financial Documents",
+    service "Calculate Financial Benefit"
+  }
+
+  lane "Fraud Prevention" {
+    subprocess "Fraud Screening" {
+      service "Run Automated Fraud Check" ->
+      xor "Fraud Detected?" {
+        [yes] -> task "Flag for Investigation" -> throw:signal("fraud-alert")
+        [no]  -> note "Screening passed"
+      }
+    }
+  }
+
+  lane "Claims Manager" {
+    task "Consolidate Assessment",
+    task "Issue Payment",
+    task "Send Rejection Letter"
+  }
+
+  // Sequence flow (cross-lane, declared independently of lane membership)
+  start:message("claim-submitted") ->
+  task "Register Claim" (performer="claims-team") ->
+  and "Parallel Assessment" {
+    task "Medical Assessment" ->
+    xor "Medical Result" {
+      [fully covered]     -> task "Approve Full Medical Benefit"
+      [partially covered] -> task "Approve Partial Medical Benefit"
+      [not covered]       -> task "Reject Medical Claim"
+    },
+    task "Request Financial Documents" ->
+    task "Verify Financial Documents" ->
+    service "Calculate Financial Benefit" (performer="actuarial-system"),
+    subprocess "Fraud Screening" {
+      service "Run Automated Fraud Check" ->
+      xor "Fraud Detected?" {
+        [yes] -> task "Flag for Investigation" -> throw:signal("fraud-alert")
+        [no]  -> note "Screening passed"
+      }
+    }
+  } ->
+  task "Consolidate Assessment" ->
+  xor "Final Decision" {
+    [approved] -> task "Issue Payment" -> task "Send Decision Letter" -> end:message("claim-resolved")
+    [rejected] -> task "Send Rejection Letter" -> task "Send Decision Letter" -> end
+  }
+}

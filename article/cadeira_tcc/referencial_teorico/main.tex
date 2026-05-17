@@ -1,0 +1,115 @@
+% !TeX root = main.tex
+% !TeX program = pdflatex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Entrega da disciplina de TCC - Fundamentação Teórica
+%% Aluno: Rafael Marins Florenzano
+%% Template: UniforTeX2 (abnTeX2)
+%%
+%% Como compilar (pdfLaTeX + bibtex):
+%%   pdflatex main
+%%   bibtex   main
+%%   pdflatex main
+%%   pdflatex main
+%%
+%% Ou usando latexmk:
+%%   latexmk -pdf main
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{lib/preambulo}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%          Configurações do uniforTeX2            %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\trabalhoacademico{tccgraduacao}
+\removerbordasdohyperlink{sim}
+\cordohyperlink{nao}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%               Informação sobre a IES            %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\ies{Universidade de Fortaleza}
+\iessigla{UNIFOR}
+\centro{Centro de Ciências Tecnológicas}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%            Informações de graduação             %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\graduacaoem{Ciência da Computação}
+\habilitacao{bacharel}
+
+% Os blocos abaixo são exigidos pelo template, mas não impactam
+% a entrega parcial (Fundamentação). Mantidos para evitar erros
+% de compilação dos comandos do uniforTeX2.
+\especializacaoem{N/A}
+\programamestrado{N/A}
+\nomedomestrado{N/A}
+\mestreem{N/A}
+\areadeconcentracaomestrado{N/A}
+\programadoutorado{N/A}
+\nomedodoutorado{N/A}
+\doutorem{N/A}
+\areadeconcentracaodoutorado{N/A}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%   Informações sobre o trabalho            %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\autor{Rafael Marins Florenzano}
+\titulo{Protocolo de Compressão Semântica para Geração de Markup XML por Modelos de Linguagem: \\ Validação Empírica com BPMN 2.0}
+\data{2026}
+\local{Fortaleza -- Ceará}
+\dataaprovacao{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%      Informações sobre o orientador       %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% TODO: substituir pelo nome real do(a) orientador(a) antes da submissão.
+\orientador{João José Vasco Peixoto Furtado}
+\orientadories{Universidade de Fortaleza -- UNIFOR}
+\orientadorcentro{Centro de Ciências Tecnológicas -- CCT}
+\orientadorfeminino{não}
+
+\coorientador{}
+\coorientadories{}
+\coorientadorcentro{}
+\coorientadorfeminino{nao}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%   Banca (não aplicável nesta entrega)    %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\membrodabancadois{}
+\membrodabancadoiscentro{}
+\membrodabancadoisies{}
+\membrodabancatres{}
+\membrodabancatrescentro{}
+\membrodabancatresies{}
+\membrodabancaquatro{}
+\membrodabancaquatrocentro{}
+\membrodabancaquatroies{}
+\membrodabancacinco{}
+\membrodabancacincocentro{}
+\membrodabancacincoies{}
+\membrodabancaseis{}
+\membrodabancaseiscentro{}
+\membrodabancaseisies{}
+
+\begin{document}
+
+    % Elementos pré-textuais mínimos para entrega de disciplina
+    \imprimircapa
+    \imprimirfolhaderosto{}
+    \imprimirsumario
+
+    % Elementos textuais: apenas a Fundamentação Teórica nesta entrega
+    \textual
+    \input{elementos-textuais/fundamentacao-teorica}
+
+    % Elementos pós-textuais
+    \bibliography{elementos-pos-textuais/referencias}
+
+\end{document}

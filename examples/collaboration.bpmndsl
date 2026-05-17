@@ -1,0 +1,59 @@
+// E-commerce order processing — collaboration between Customer and Online Shop
+// Demonstrates: collaboration, multiple pools, pool with lanes,
+//               message events for inter-pool communication.
+//
+// Message flow (inferred by transpiler from matching event names):
+//   Customer end:message("order-submitted")  → Shop start:message("order-submitted")
+//   Shop throw:message("order-confirmed")    → Customer catch:message("order-confirmed")
+//   Shop end:message("order-cancelled")      → Customer catch:message("order-cancelled")
+
+collaboration "E-Commerce Order" {
+
+  pool "Customer" {
+    start ->
+    task "Browse Products" ->
+    task "Add to Cart" ->
+    task "Submit Order" ->
+    xor "Order Outcome" {
+      [confirmed] -> catch:message("order-confirmed") -> task "Receive Package" -> end
+      [cancelled] -> catch:message("order-cancelled") -> task "Contact Support" -> end
+    }
+  }
+
+  pool "Online Shop" {
+
+    lane "Sales" {
+      start:message("order-submitted"),
+      task "Validate Order",
+      task "Confirm Order",
+      task "Send Invoice"
+    }
+
+    lane "Warehouse" {
+      task "Pick Items",
+      task "Pack Order",
+      task "Dispatch Package"
+    }
+
+    lane "Customer Support" {
+      task "Notify Out of Stock"
+    }
+
+    // Sequence flow within the Online Shop pool
+    start:message("order-submitted") ->
+    task "Validate Order" ->
+    xor "Stock Available?" {
+      [yes] ->
+        task "Confirm Order" ->
+        task "Pick Items" ->
+        task "Pack Order" ->
+        task "Dispatch Package" ->
+        throw:message("order-confirmed")
+      [no] ->
+        task "Notify Out of Stock" ->
+        throw:message("order-cancelled")
+    } ->
+    task "Send Invoice" ->
+    end
+  }
+}
