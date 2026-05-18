@@ -15,6 +15,7 @@ from src.data.manipulation.llm.utils import (
     DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MODELS,
     DEFAULT_RPM,
+    DEFAULT_TIMEOUT,
     append_input,
     load_prompt,
     parse_models,
@@ -24,6 +25,9 @@ from src.data.manipulation.llm.utils import (
 DEFAULT_PROMPT_VERSION = "bpmn_json_generator_v1"
 DEFAULT_STAGE = "json_bpmn"
 DEFAULT_PREPROCESS_STAGE = "preprocess"
+DEFAULT_THINK = True
+DEFAULT_JSON_BPMN_TIMEOUT = 900
+DEFAULT_ERROR_PREVIEW_CHARS = 4000
 PROMPT_TEMPLATE = load_prompt("BPMN_JSON_generator.md")
 
 
@@ -113,11 +117,52 @@ def _extract_json_object(output: str) -> str:
         raise ValueError("response does not contain a JSON object")
 
     decoder = json.JSONDecoder()
-    obj, end = decoder.raw_decode(output[start:])
-    trailing = output[start + end :].strip()
-    if trailing:
-        raise ValueError("response contains text after the JSON object")
+    obj, _ = decoder.raw_decode(output[start:])
     return json.dumps(obj, ensure_ascii=False)
+
+
+def _json_extraction_note(output: str) -> str:
+    """Return a short diagnostic note about non-JSON text around the extracted object."""
+    start = output.find("{")
+    if start < 0:
+        return "no_json"
+
+    decoder = json.JSONDecoder()
+    _, end = decoder.raw_decode(output[start:])
+    before = output[:start].strip()
+    after = output[start + end :].strip()
+    if before and after:
+        return "stripped_before_after"
+    if before:
+        return "stripped_before"
+    if after:
+        return "stripped_after"
+    return "clean"
+
+
+def _compact_preview(text: str, max_chars: int) -> str:
+    """Return a compact preview preserving start/end of long model outputs."""
+    compact = text.replace("\r", "\\r")
+    if max_chars < 1 or len(compact) <= max_chars:
+        return compact
+
+    head_len = max_chars // 2
+    tail_len = max_chars - head_len
+    return (
+        compact[:head_len]
+        + f"\n...[truncated {len(compact) - max_chars} chars]...\n"
+        + compact[-tail_len:]
+    )
+
+
+def _format_output_error(reason: str, output: str, *, max_chars: int) -> str:
+    """Build a useful persisted error message for invalid model JSON output."""
+    return (
+        f"{reason}\n"
+        f"output_chars={len(output)}\n"
+        f"output_preview_chars={max_chars}\n"
+        f"output_preview:\n{_compact_preview(output, max_chars)}"
+    )
 
 
 def _prune_duplicate_json_generations(db: Database, *, stage: str) -> int:
@@ -204,6 +249,9 @@ def run_json_bpmn_generation(
     prompt_version: str,
     source: str | None,
     split: str | None,
+    think: bool,
+    timeout: int = DEFAULT_JSON_BPMN_TIMEOUT,
+    error_preview_chars: int = DEFAULT_ERROR_PREVIEW_CHARS,
 ) -> int:
     load_dotenv()
     limiter = RateLimiter(rpm)
@@ -248,6 +296,8 @@ def run_json_bpmn_generation(
                     models,
                     api_key=api_key,
                     limiter=limiter,
+                    think=think,
+                    timeout=timeout,
                     max_attempts=max_attempts,
                 ): row
                 for row, system_prompt, user_prompt in contexts
@@ -280,7 +330,11 @@ def run_json_bpmn_generation(
                             output_json = _extract_json_object(attempt["output"])
                         except ValueError as exc:
                             status = "failed"
-                            error = str(exc)
+                            error = _format_output_error(
+                                str(exc),
+                                attempt["output"],
+                                max_chars=error_preview_chars,
+                            )
 
                     gid = db.create_json_bpmn_generation(
                         row["id"],
@@ -294,9 +348,15 @@ def run_json_bpmn_generation(
                     )
                     tag = "ok" if status == "succeeded" else "failed"
                     detail = "" if status == "succeeded" else f": {error}"
+                    note = ""
+                    if status == "succeeded":
+                        note = f" json={_json_extraction_note(attempt['output'])}"
+                    elif attempt.get("output"):
+                        note = f" output_chars={len(attempt['output'])}"
                     print(
                         f"{prefix} [{tag}] {row['id']} generation_id={gid} "
-                        f"attempt={attempt['attempt']} model={attempt['model']}{detail}"
+                        f"attempt={attempt['attempt']} model={attempt['model']}"
+                        f" think={think} timeout={timeout}{note}{detail}"
                     )
 
         deleted = _prune_duplicate_json_generations(db, stage=stage)
@@ -347,6 +407,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", help="Filter samples by source.")
     parser.add_argument("--split", help="Filter samples by split, e.g. sft or grpo.")
     parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_JSON_BPMN_TIMEOUT,
+        help=(
+            "Provider request timeout in seconds. "
+            f"Default {DEFAULT_JSON_BPMN_TIMEOUT} for thinking JSON generation."
+        ),
+    )
+    parser.add_argument(
+        "--error-preview-chars",
+        type=int,
+        default=DEFAULT_ERROR_PREVIEW_CHARS,
+        help=(
+            "Number of raw model-output characters to persist in error when JSON "
+            f"parsing fails. Default {DEFAULT_ERROR_PREVIEW_CHARS}."
+        ),
+    )
+    parser.add_argument(
         "--execute",
         action="store_true",
         help="Actually call the provider. Without this flag, only prints selected rows.",
@@ -355,6 +433,20 @@ def parse_args() -> argparse.Namespace:
         "--print-defaults",
         action="store_true",
         help="Print default model/rate choices as JSON and exit.",
+    )
+    thinking = parser.add_mutually_exclusive_group()
+    thinking.add_argument(
+        "--think",
+        dest="think",
+        action="store_true",
+        default=DEFAULT_THINK,
+        help="Enable Ollama thinking mode for supported models. Default for this script.",
+    )
+    thinking.add_argument(
+        "--no-think",
+        dest="think",
+        action="store_false",
+        help="Disable Ollama thinking mode for supported models.",
     )
     return parser.parse_args()
 
@@ -369,6 +461,10 @@ def main() -> None:
         "stage": DEFAULT_STAGE,
         "preprocess_stage": DEFAULT_PREPROCESS_STAGE,
         "prompt_version": DEFAULT_PROMPT_VERSION,
+        "think": DEFAULT_THINK,
+        "timeout": DEFAULT_JSON_BPMN_TIMEOUT,
+        "base_timeout": DEFAULT_TIMEOUT,
+        "error_preview_chars": DEFAULT_ERROR_PREVIEW_CHARS,
     }
     if args.print_defaults:
         print(json.dumps(defaults, indent=2, ensure_ascii=False))
@@ -387,6 +483,9 @@ def main() -> None:
         prompt_version=args.prompt_version,
         source=args.source,
         split=args.split,
+        think=args.think,
+        timeout=args.timeout,
+        error_preview_chars=args.error_preview_chars,
     )
 
 

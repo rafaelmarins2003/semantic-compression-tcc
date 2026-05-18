@@ -1,0 +1,665 @@
+================================================================================
+BPMN-DSL v2 — Especificação e Lógica de Design
+================================================================================
+
+Projeto: Semantic Compression TCC
+Autor:   Rafael Marins Florenzano
+Data:    2026-05-17
+Status:  Design proposal — pendente aprovação antes da implementação
+
+Esta especificação substitui a BPMN-DSL v1 atual (src/dsl/grammar.lark) após
+constatadas três limitações funcionais (bugs A/B/C documentados em
+src/data/manipulation/deterministic/json_to_dsl.py) e duas limitações
+estruturais (refs frágeis por nome; lanes duplicam o fluxo). O objetivo é
+oferecer uma representação de processo BPMN 2.0 que seja:
+
+  1. semanticamente completa (todo elemento do JSON-fonte representável sem
+     truques como `task "empty"` ou perda de nomes em events);
+  2. robusta (refs estáveis, sem dependência de unicidade de nomes);
+  3. compressa (objetivo: manter razão de compressão ≥ 85% vs XML BPMN
+     canônico — v1 atinge ~91%, aceitamos pequena perda em troca de
+     completude semântica);
+  4. fácil para o LLM emitir (sintaxe regular, poucas exceções).
+
+
+================================================================================
+1. PRINCÍPIOS DE DESIGN
+================================================================================
+
+P1. UM elemento, UMA forma. Cada conceito BPMN tem exatamente uma
+    representação sintática. Não há dois jeitos diferentes de declarar a
+    mesma coisa.
+
+P2. Nomes são opcionais e SEMPRE posicionais.
+    Quando um elemento aceita nome, o nome aparece imediatamente após o
+    keyword, antes de quaisquer modificadores. Padrão consistente:
+        keyword "Nome opcional" [modificadores...]
+
+P3. IDs separados de nomes.
+    Nomes servem para legibilidade; refs (back-edges, loops, comparações)
+    usam IDs estáveis (sufixo `#id`). Um nome pode mudar sem quebrar o
+    grafo; um ID nunca muda. Apenas elementos referenciados precisam de ID.
+
+P4. Lane é escopo, não declaração separada.
+    Em v1 cada task aparece duas vezes (na declaração `lane { ... }` e
+    novamente no fluxo). Em v2 o fluxo é declarado uma vez, dentro de
+    blocos `@lane "Nome" { ... }` que escopam o pertencimento.
+
+P5. Branches vazias são explícitas.
+    O grafo BPMN admite legitimamente uma branch que vá direto ao ponto de
+    convergência ("skip"). Representado por `()` — sintaxe inequívoca, sem
+    necessidade de tarefa-placebo ou ref-hack.
+
+P6. Composição plana no topo.
+    Múltiplos processos, pools, collaborations e annotations podem
+    coexistir no nível superior do arquivo. Sem nesting forçado.
+
+P7. Padronização de propriedades.
+    Qualquer elemento nomeável aceita `(chave="valor", ...)` para metadados
+    (documentation, performer, dueDate, etc.). Sintaxe única, em vez de
+    casos especiais por tipo.
+
+
+================================================================================
+2. MUDANÇAS DESTACADAS (v1 → v2)
+================================================================================
+
+(a) Events nomeados
+    v1: `start`                              (sem nome — bug C)
+    v1: `end:error("timeout")`               (nome só via event_kind)
+    v2: `start "Início"`                     (nome posicional, opcional)
+    v2: `end:error "Timeout do processo"`    (nome posicional, opcional, com kind)
+
+(b) Branches vazias
+    v1: `task "empty"` ou `#"<nome do join>"` (workarounds)
+    v2: `()` (sintaxe dedicada)
+
+(c) Tasks como ponto de convergência
+    v1: corrigido no transpiler (json_to_dsl_v3), mas DSL não impedia o bug
+    v2: pode ser explicitamente referenciado por ID (`#proc_order`) em
+        múltiplos branches sem ambiguidade
+
+(d) Refs estáveis
+    v1: `#"Nome do nó"` (frágil — quebra com rename, colisão de nomes)
+    v2: `#order_proc` (CNAME, ASCII, estável). Nomes não são refs.
+
+(e) Lanes
+    v1: declaração `lane "X" { task "A", task "B" }` + repetição no fluxo
+    v2: escopo `@lane "X" { start -> task "A" -> task "B" }` — declaração única
+
+(f) Multi-processo / collaboration
+    v1: já permitia múltiplos top-level, mas semântica de message flow
+        entre pools era implícita ("inferida por matching de nomes")
+    v2: collaboration pode declarar explicitamente `message ... -> ...`
+        cross-pool por ID. Compatível com inferência por nome como fallback.
+
+(g) Subprocess com fluxo interno completo
+    v1: `subprocess "X" { seq }` (apenas sequência interna)
+    v2: idem, mas o seq interno é um process_body completo (suporta lanes
+        internas, gateways, refs, etc.)
+
+
+================================================================================
+3. GRAMÁTICA FORMAL (EBNF — Lark)
+================================================================================
+
+// Top-level: zero ou mais constructos paralelos
+start: top_level*
+
+?top_level: process
+          | pool
+          | collaboration
+          | note          // annotation autônoma
+
+// ── Process / Pool / Collaboration ────────────────────────────────────────
+
+process:        "process" name id_opt "{" process_body "}"
+pool:           "pool"    name id_opt "{" process_body "}"
+collaboration:  "collaboration" name id_opt "{" pool+ message_flow* "}"
+
+// Pool e process têm corpo idêntico. Diferença é semântica (pool = ator
+// em collaboration; process standalone = single-pool).
+
+?process_body: laneset
+             | flow
+
+// Laneset = uma ou mais lanes; flow inferido pela concatenação dos blocos
+// (a saída do último elemento de uma lane conecta à entrada do primeiro
+// elemento da próxima, se houver "->" no início).
+laneset: lane_block+
+
+lane_block: "@lane" name id_opt "{" flow "}"
+
+// Flow = sequência de steps conectados por "->"
+flow: step ("->" step)*
+
+?step: event
+     | task
+     | gateway
+     | subprocess
+     | call_activity
+     | ref
+     | empty_branch        // só legal dentro de gateway branch
+
+// ── Events ────────────────────────────────────────────────────────────────
+
+?event: start_event | end_event | catch_event | throw_event
+
+start_event: "start" name? event_spec? id_opt props?
+end_event:   "end"   name? event_spec? id_opt props?
+catch_event: "catch" name? event_spec  id_opt props?
+throw_event: "throw" name? event_spec  id_opt props?
+
+// event_spec encoda trigger (message/timer/error/signal/escalation) e
+// payload. Catch e throw exigem event_spec; start e end são opcionais.
+event_spec: ":" EVENT_KIND ("(" ESCAPED_STRING ")")?
+
+EVENT_KIND.2: "none" | "message" | "timer" | "error" | "signal" | "escalation"
+
+// Exemplos:
+//   start                                        plain
+//   start "Recebimento de pedido"                plain com nome
+//   start:message "Pedido recebido" #order_in    message com nome e ID
+//   end:error "Timeout" (severity="high")        error com nome e props
+//   catch:none "Aguardar conclusão"              catch genérico sem trigger
+//   catch:timer "PT2H"                           timer (payload=duração ISO)
+
+// ── Tasks ─────────────────────────────────────────────────────────────────
+
+task: TASK_TYPE name id_opt props?
+
+TASK_TYPE.2: "task" | "user" | "service" | "manual" | "script"
+           | "send" | "receive" | "rule"
+
+// Nome de task é OBRIGATÓRIO (BPMN exige; sem nome o elemento é inútil).
+// Exemplos:
+//   user "Aprovar pedido"
+//   service "Calcular ICMS" (sla="500ms", retries="3")
+//   send "Notificar cliente" #notify_cust
+
+// ── Gateways ──────────────────────────────────────────────────────────────
+
+?gateway: xor_gw | and_gw | or_gw | event_gw
+
+xor_gw:   "xor"   name? id_opt "{" xor_branches "}"
+and_gw:   "and"   name? id_opt "{" and_branches "}"
+or_gw:    "or"    name? id_opt "{" xor_branches "}"
+event_gw: "event" name? id_opt "{" event_branches "}"
+
+xor_branches: cond_branch+
+cond_branch:  "[" CONDITION_TEXT "]" "->" branch_target
+
+and_branches: flow (";" flow)*
+event_branches: event_branch+
+event_branch: "[" event_spec "]" "->" branch_target
+
+?branch_target: flow | empty_branch
+
+empty_branch: "(" ")"
+
+// "default" e "else" são valores válidos de CONDITION_TEXT (transpiler
+// marca isDefault=true). CONDITION_TEXT aceita qualquer char exceto [ e ].
+
+// AND usa ';' entre branches (são paralelas, não condicionais).
+// XOR/OR/event usam '\n' implícito (uma branch por linha).
+
+// Exemplos:
+//   xor "Aprovado?" {
+//     ["sim"]     -> service "Registrar"
+//     ["não"]     -> end "Rejeitado"
+//     [default]   -> end "Pendente"
+//   }
+//
+//   xor {
+//     ["pular"]   -> ()                        // empty branch explícita
+//     ["fazer"]   -> task "Processar"
+//   }
+//
+//   and "Notificar canais" {
+//     send "Email"   -> task "Log email";
+//     send "SMS"     -> task "Log SMS"
+//   }
+//
+//   event "Aguardar evento" {
+//     [:message "approval"]   -> task "Aprovar"
+//     [:timer "PT30M"]        -> end:error "Timeout"
+//   }
+
+// ── Subprocess / Call activity ────────────────────────────────────────────
+
+subprocess:    "subprocess" name id_opt "{" process_body "}"
+call_activity: "call" name id_opt props?      // referencia processo externo
+
+// ── Referência / loop ─────────────────────────────────────────────────────
+// Ref aponta para um elemento previamente declarado (por ID). Usada para:
+//   - back-edges (loops)
+//   - convergência explícita (vários branches apontando ao mesmo nó)
+
+ref: "#" CNAME
+
+// Exemplos:
+//   user "Submeter" #submit
+//   ...
+//   xor {
+//     ["retry"] -> #submit                    // back-edge para Submeter
+//     ["done"]  -> end "OK"
+//   }
+
+// ── Annotation ────────────────────────────────────────────────────────────
+// Não participa do fluxo; preserva texto livre para auditoria/observação.
+
+note: "note" ESCAPED_STRING id_opt
+
+// ── Message flow (apenas dentro de collaboration) ─────────────────────────
+// Modelo explícito de comunicação entre pools.
+
+message_flow: "message" name? "from" ref "to" ref props?
+
+// Exemplo (dentro de collaboration):
+//   message "Pedido" from #order_send to #order_recv
+
+// ── ID opcional ───────────────────────────────────────────────────────────
+
+id_opt: ( "#" CNAME )?
+
+// ── Propriedades ──────────────────────────────────────────────────────────
+
+props: "(" prop ("," prop)* ")"
+prop:  CNAME "=" ESCAPED_STRING
+
+// Chaves reservadas (semântica BPMN específica):
+//   - lane         : sobrescreve escopo @lane atual (uso raro; preferir
+//                    estrutura @lane { ... })
+//   - performer    : recurso/papel responsável (BPMN performer)
+//   - documentation: texto livre BPMN documentation
+//   - dueDate      : ISO-8601 timestamp / duration
+//   - assignee     : usuário atribuído (para userTask)
+
+// ── Terminais auxiliares ──────────────────────────────────────────────────
+
+name:            ESCAPED_STRING
+CONDITION_TEXT:  /[^\[\]]+/
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.WS
+%ignore WS
+%ignore /\/\/.*/
+
+
+================================================================================
+4. SEMÂNTICA — MAPEAMENTO PARA BPMN 2.0
+================================================================================
+
+DSL keyword         BPMN 2.0 element
+─────────────────── ───────────────────────────────────────────────────────────
+process             <process>
+pool                <participant> dentro de <collaboration>
+collaboration       <collaboration>
+@lane "X" { ... }   <lane> dentro de <laneSet>
+start               <startEvent> sem definição de trigger
+start:message       <startEvent><messageEventDefinition/></...>
+start:timer         <startEvent><timerEventDefinition/></...>
+end                 <endEvent>
+end:error           <endEvent><errorEventDefinition/></...>
+end:message         <endEvent><messageEventDefinition/></...>
+catch:none          <intermediateCatchEvent> sem eventDefinition
+catch:<kind>        <intermediateCatchEvent> + eventDefinition
+throw:<kind>        <intermediateThrowEvent> + eventDefinition
+task                <task>
+user                <userTask>
+service             <serviceTask>
+manual              <manualTask>
+script              <scriptTask>
+send                <sendTask>
+receive             <receiveTask>
+rule                <businessRuleTask>
+xor                 <exclusiveGateway> + sequenceFlow com conditionExpression
+and                 <parallelGateway> (split) + <parallelGateway> (join)
+or                  <inclusiveGateway>
+event               <eventBasedGateway>
+subprocess          <subProcess>
+call                <callActivity>
+ref                 sequenceFlow apontando para nó com ID alvo
+note                <textAnnotation> + <association>
+message ... from to <messageFlow>
+props (key=value)   atributos BPMN ou <documentation> dependendo da chave
+
+
+================================================================================
+5. REGRAS DE FLUXO E TRANSPILAÇÃO
+================================================================================
+
+R1. Concatenação implícita.
+    A operadora `->` cria sequenceFlow entre o lado esquerdo (origem) e o
+    lado direito (alvo). Em `A -> B -> C`, dois sequenceFlows são gerados:
+    A→B e B→C.
+
+R2. Gateway split implícito, merge implícito.
+    `xor "Q?" { [a] -> A   [b] -> B }` gera:
+        sequenceFlow entrada → exclusiveGateway(Q?)
+        sequenceFlow exclusiveGateway → A (cond=a)
+        sequenceFlow exclusiveGateway → B (cond=b)
+    O ponto de convergência é determinado por o que vem APÓS o bloco:
+        `xor { ... } -> next` insere um exclusiveGateway de merge antes
+        de `next`.
+    Se não houver `-> next` após o gateway, as branches terminam
+    independentemente (sem merge).
+
+R3. AND split + AND join automáticos.
+    `and { A; B }` gera <parallelGateway> de split, dois fluxos, e
+    <parallelGateway> de join se houver continuação `-> next`. Sem
+    continuação, branches terminam paralelamente.
+
+R4. Empty branch `()`.
+    Sintaticamente: legível somente como conteúdo de uma branch de gateway
+    XOR/OR. Semanticamente: gera sequenceFlow direto do gateway para o
+    próximo ponto de convergência (o merge gateway que vier após).
+    Equivale ao padrão BPMN de "skip path".
+
+R5. Resolução de refs.
+    `#id` resolve para o elemento previamente declarado com `#id` no
+    mesmo process/pool. Se não encontrado:
+      - dentro de collaboration: busca em todos os pools antes de falhar
+      - fora: erro de transpilação
+    Refs criam sequenceFlows de back-edge sem inserir novo nó.
+
+R6. Lane escopo + element override.
+    Dentro de `@lane "X" { ... }`, todo elemento herda lane=X.
+    Sobrescrita pontual: `task "Y" (lane="Z")` — útil quando uma única
+    atividade pertence a outra lane sem quebrar o bloco.
+
+R7. Múltiplos processes no mesmo arquivo.
+    Cada `process`/`pool` é independente — refs não cruzam fronteira de
+    process (use `collaboration` + `message ... from ... to ...` para
+    relações cross-pool).
+
+R8. Tasks como ponto de convergência.
+    Quando uma task é alcançada por múltiplos caminhos (in-degree ≥ 2),
+    a forma idiomática é dar ID à task e referenciá-la dos branches que
+    não a contêm naturalmente no fluxo principal. Exemplo:
+        user "Processar" #proc
+        ...
+        xor {
+          ["caminho A"] -> task "X" -> #proc
+          ["caminho B"] -> #proc                  // direto ao convergência
+        }
+
+R9. Validação obrigatória pelo transpiler.
+    Antes de emitir XML, o transpiler verifica:
+      - exatamente 1 startEvent por process (não applicável a sub-flows)
+      - ≥ 1 endEvent por process
+      - todos os refs resolvem
+      - IDs são únicos dentro do mesmo escopo
+      - lanes referenciadas existem
+      - XOR/OR branches têm condição (ou marcam default)
+      - AND branches NÃO têm condições
+
+
+================================================================================
+6. ECONOMIA DE TOKENS
+================================================================================
+
+Comparação para o processo "Aprovação de Férias" (exemplo do prompt
+BPMN_JSON_generator.md, ~9 nodes, ~9 flows, 3 lanes):
+
+  - XML BPMN canônico (com BPMNDiagram):  ~3.500 chars / ~1.200 tokens
+  - JSON intermediário:                    ~1.400 chars /   ~500 tokens
+  - DSL v1 (atual):                          ~520 chars /   ~190 tokens
+  - DSL v2 (proposto):                       ~480 chars /   ~175 tokens
+
+Estimativas — necessário medir empiricamente após implementação. v2 é
+ligeiramente mais conciso porque:
+  - elimina duplicação lane+flow (-15 a -30% em processos com lanes)
+  - empty branches `()` em vez de `task "empty"` (-3 chars por ocorrência)
+  - refs por CNAME `#proc` em vez de `#"Nome longo do nó"` (-10 a -20
+    chars por ref)
+
+E ligeiramente mais verboso em casos sem lanes (escopo `@lane` é overhead
+em processos single-lane — mas a maioria tem ≥ 2 lanes).
+
+Razão de compressão alvo vs XML: ≥ 85%. Razão atual v1: ~91%. Aceitação
+da pequena perda em troca de completude semântica e robustez de refs é
+explicitamente parte do trade-off de design.
+
+
+================================================================================
+7. EXEMPLOS COMPLETOS
+================================================================================
+
+EXEMPLO 1 — Aprovação simples (1 fork XOR, 3 lanes, 2 ends):
+─────────────────────────────────────────────────────────────────────────
+
+process "Aprovação de Férias" {
+  @lane "Funcionário" {
+    start "Início"
+    -> user "Solicitar férias no sistema" #req
+  }
+  @lane "Gestor" {
+    -> receive "Receber notificação"
+    -> user "Analisar solicitação"
+    -> xor "Aprovada?" #decide {
+      ["sim"] -> service "Registrar no sistema" -> send "Notificar aprovação" -> end "Fim aprovado"
+      ["não"] -> send "Notificar recusa" -> end "Fim recusado"
+    }
+  }
+  @lane "RH" {
+    note "Registro e notificação são executados pelo RH automaticamente"
+  }
+}
+
+(Note: a lane RH neste exemplo não tem elementos diretos — apenas uma
+annotation. Forma válida.)
+
+
+EXEMPLO 2 — Loop com back-edge (retry pattern):
+─────────────────────────────────────────────────────────────────────────
+
+process "Processamento com Retry" {
+  start
+  -> service "Buscar dados" #fetch
+  -> service "Validar"
+  -> xor "Válido?" {
+    ["sim"]     -> service "Processar" -> end
+    ["não"]     -> xor "Tentar novamente?" {
+                     ["sim"] -> #fetch                  // back-edge
+                     ["não"] -> end:error "Inválido"
+                   }
+  }
+}
+
+
+EXEMPLO 3 — Paralelismo (AND) com merge explícito:
+─────────────────────────────────────────────────────────────────────────
+
+process "Notificação Multi-canal" {
+  start
+  -> task "Preparar mensagem"
+  -> and "Disparar notificações" {
+       send "Enviar e-mail"   -> service "Registrar log e-mail";
+       send "Enviar SMS"      -> service "Registrar log SMS";
+       send "Enviar push"     -> service "Registrar log push"
+     }
+  -> user "Confirmar entregas"
+  -> end "Fim"
+}
+
+
+EXEMPLO 4 — Collaboration com message flow:
+─────────────────────────────────────────────────────────────────────────
+
+collaboration "Pedido entre Cliente e Vendedor" {
+  pool "Cliente" {
+    start
+    -> user "Selecionar produto"
+    -> send "Enviar pedido" #cli_send
+    -> receive "Aguardar confirmação" #cli_recv
+    -> end
+  }
+  pool "Vendedor" {
+    start:message "Receber pedido" #ven_recv
+    -> service "Validar estoque"
+    -> xor "Disponível?" {
+      ["sim"] -> send "Confirmar pedido" #ven_send -> end
+      ["não"] -> send "Rejeitar pedido" #ven_reject -> end:error "Sem estoque"
+    }
+  }
+  message "Pedido" from #cli_send to #ven_recv
+  message "Confirmação" from #ven_send to #cli_recv
+  message "Rejeição" from #ven_reject to #cli_recv
+}
+
+
+EXEMPLO 5 — Skip branch (uso de `()`):
+─────────────────────────────────────────────────────────────────────────
+
+process "Cadastro com Endereço Opcional" {
+  start
+  -> user "Preencher dados pessoais"
+  -> xor "Informou endereço?" {
+    ["sim"] -> user "Validar CEP" -> service "Geocodificar"
+    ["não"] -> ()                                        // skip explícito
+  }
+  -> service "Persistir cadastro"
+  -> end
+}
+
+
+================================================================================
+8. ESTRATÉGIA DE MIGRAÇÃO
+================================================================================
+
+Implementação em três entregas separadas, cada uma testável isoladamente:
+
+ENTREGA 1 — Gramática + parser
+  - Atualizar src/dsl/grammar.lark com a EBNF acima
+  - Atualizar src/dsl/parser.py se necessário (visitor pattern para nova
+    AST)
+  - Atualizar testes em tests/dsl/ com os 5 exemplos da seção 7
+  - Criar src/dsl/__pycache__-compatível com lark; rodar suite verde
+
+ENTREGA 2 — Transpiler json_to_dsl_v4
+  - Criar src/data/manipulation/deterministic/json_to_dsl_v4.py
+  - Mudanças vs v3:
+      * emitir lanes como blocos @lane (eliminar duplicação)
+      * preservar nomes de start/end events (start "Nome")
+      * usar empty_branch () em vez de `task "empty"`
+      * gerar IDs estáveis para nós referenciados por múltiplos caminhos;
+        emitir refs `#id` (não `#"nome"`)
+      * detectar collaboration (múltiplos pools) e emitir explicit
+        message flows
+  - Manter v3 funcional em paralelo durante validação
+
+ENTREGA 3 — Rodar v4 contra os 1047 JSONs
+  - Mesmo runner (run_json_to_dsl.py), bumpando DEFAULT_TRANSPILER_VERSION
+    para "json_to_dsl_v4"
+  - Comparar v3 vs v4 via dsl_transpiler_runs:
+      * regressões (succeeded v3 → failed v4) — investigar e corrigir
+      * artefatos eliminados (task "empty" deve ser 0; #"<nome>" deve ser 0)
+      * tamanho médio de DSL (esperar redução)
+  - Validar amostralmente 10-20 saídas comparando JSON → DSL → BPMN
+    (round-trip semântico)
+
+
+================================================================================
+9. FORA DE ESCOPO (deferido / não suportado)
+================================================================================
+
+NS1. Conditional sequence flows fora de gateways.
+     BPMN permite que sequenceFlows comuns tenham conditionExpression.
+     A DSL v2 só representa condições dentro de XOR/OR/event branches.
+     Justificativa: padrão raro; emular via XOR sem perda semântica.
+
+NS2. Compensation handlers, boundary events, transactions.
+     Conceitos BPMN avançados não cobertos pela primeira versão. Acomodação
+     futura via nova keyword `boundary` ou `compensate` quando necessário.
+
+NS3. Data objects, data inputs/outputs explícitos.
+     BPMN permite modelar dados como first-class. v2 considera dados
+     implícitos no nome da task (`service "Calcular total a partir do
+     pedido"`). Para representação explícita, usar props
+     `(input="...", output="...")`.
+
+NS4. Multi-instance markers.
+     Padrões tipo "execute para cada item da lista". Acomodação futura.
+
+NS5. Gateways complexos (complex gateway).
+     Raros e mal-padronizados. Mapear para XOR/OR pelo transpiler.
+
+NS6. BPMN diagram (BPMNDI — layout visual).
+     Gerado deterministicamente pelo transpiler dsl_to_xml via layout
+     hierárquico (Sugiyama simplificado, conforme CLAUDE.md). DSL não
+     representa coordenadas.
+
+
+================================================================================
+10. CHECKLIST DE COMPLETUDE SEMÂNTICA (validação contra JSON intermediário)
+================================================================================
+
+Para cada amostra processada, garantir:
+
+[ ] Todos os nodes do JSON aparecem no DSL (no fluxo OU em lane scope).
+[ ] Quantidade de events match: count(startEvent JSON) == count(start na DSL)
+    (idem para endEvent, intermediates).
+[ ] Quantidade de tasks match: count por tipo no JSON == count por keyword no DSL.
+[ ] Quantidade de gateways match.
+[ ] Lanes: nomes idênticos (set-equal). Cardinalidade de membros pode
+    diferir em caso de override pontual via props (lane="X").
+[ ] Toda flow do JSON tem correspondente no DSL (via -> direto ou via ref).
+[ ] Condições de XOR/OR branches preservadas literalmente.
+[ ] Nomes de events e tasks preservados literalmente.
+[ ] Refs no DSL resolvem para IDs declarados; nenhuma ref órfã.
+[ ] Pool/process names preservados.
+[ ] Properties (documentation, performer, etc.) preservadas.
+
+
+================================================================================
+11. NOTAS DE IMPLEMENTAÇÃO (para o transpiler json_to_dsl_v4)
+================================================================================
+
+I1. Geração de IDs.
+    Estratégia: usar os IDs do JSON-fonte diretamente como ID DSL quando
+    o ID for um CNAME válido (alfanumérico + underscore). Quando não for
+    (ex: contém hífen, espaço), gerar ID derivado por slugificação:
+        "T-01"  → t_01
+        "Order Process" → order_process
+    Apenas atribuir ID a elementos que serão referenciados (in-degree ≥ 2
+    OU origem de back-edge).
+
+I2. Ordem dos blocos @lane.
+    Ordenar lanes por primeira aparição no fluxo principal (BFS desde
+    startEvent). Determinístico e estável entre execuções.
+
+I3. Quebra de fluxo entre lanes.
+    Quando o fluxo "sai" de uma lane e entra em outra, o transpiler
+    fecha o bloco `@lane "X" { ... }` e abre `@lane "Y" { -> ... }`.
+    O `->` inicial sinaliza continuidade (sequenceFlow de saída do
+    último elemento da lane anterior para o primeiro da nova).
+
+I4. Detecção de message flow em collaboration.
+    Quando o JSON tem múltiplos pools (caso `processos: [...]` da seção
+    de unwrap atual), o transpiler:
+      - emite `collaboration "..." { pool ... pool ... }`
+      - detecta sendTask + receiveTask com nomes correspondentes e emite
+        `message "..." from #send_id to #recv_id`
+      - fallback: nenhum message inferido se nomes não casarem
+
+I5. Empty branches.
+    Gerar `()` quando uma branch de XOR/OR linearize para zero steps
+    com end_boundary definido. Substitui o atual `task "empty"`.
+
+I6. Cycles.
+    Detectar back-edges via DFS antes do linearize. Para cada nó alvo
+    de back-edge, garantir que ele tenha ID e emitir `#<id>` no(s)
+    branch(es) de origem. Elimina a heurística de cycle ref por nome
+    do v3.
+
+I7. Validação pré-emissão.
+    Antes de devolver a string DSL, executar checklist da seção 10 e
+    levantar exception com mensagem detalhada em caso de violação.
+    Impede que DSL semanticamente incompleta passe silenciosamente.
+
+
+================================================================================
+FIM
+================================================================================

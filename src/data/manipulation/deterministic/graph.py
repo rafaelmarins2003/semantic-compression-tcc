@@ -21,6 +21,7 @@ class Node:
     type: str  # normalized camelCase: "startEvent", "manualTask", "exclusiveGateway", ...
     name: str
     doc: str = ""
+    lane: str = ""
 
 
 @dataclass(frozen=True)
@@ -159,6 +160,10 @@ _TYPE_ALIASES = {
     "EndNoneEvent": "endEvent",
     "EndMessageEvent": "endMessageEvent",
     "EndErrorEvent": "endErrorEvent",
+    "intermediateCatchEvent": "catchEvent",
+    "IntermediateCatchEvent": "catchEvent",
+    "intermediateThrowEvent": "throwEvent",
+    "IntermediateThrowEvent": "throwEvent",
     "IntermediateMessageEventCatching": "catchMessageEvent",
     "IntermediateMessageEventThrowing": "throwMessageEvent",
     "IntermediateTimerEvent": "catchTimerEvent",
@@ -173,8 +178,8 @@ _TYPE_ALIASES = {
     "ParallelGateway": "parallelGateway",
     "inclusiveGateway": "inclusiveGateway",
     "InclusiveGateway": "inclusiveGateway",
-    "eventBasedGateway": "exclusiveGateway",
-    "EventBasedGateway": "exclusiveGateway",
+    "eventBasedGateway": "eventBasedGateway",
+    "EventBasedGateway": "eventBasedGateway",
     "complexGateway": "exclusiveGateway",
     "ComplexGateway": "exclusiveGateway",
     # Subprocess
@@ -196,8 +201,29 @@ def load_llm(data: dict) -> ProcessGraph:
 
     Expected format:
       {"pool": "Name", "lanes": [...], "nodes": [...], "flows": [...]}
+
+    Tolerates two known LLM deviations:
+      - root wrapped in {"processos": [{...}]} or {"processes": [{...}]}
+        when the LLM interpreted the input as multi-process. We unwrap and
+        use the first process. A warning is emitted so the runner records it.
     """
+    # Unwrap multi-process containers (~0.2% of LLM outputs do this)
+    for wrapper_key in ("processos", "processes"):
+        wrapped = data.get(wrapper_key)
+        if isinstance(wrapped, list) and wrapped and isinstance(wrapped[0], dict):
+            warnings.warn(
+                f"Unwrapped {wrapper_key!r} container with {len(wrapped)} process(es); "
+                "using only the first."
+            )
+            data = wrapped[0]
+            break
+
     process_name = data.get("pool", data.get("process", "Unnamed Process"))
+    lane_names_by_id = {
+        raw_lane.get("id"): raw_lane.get("name", "")
+        for raw_lane in data.get("lanes", [])
+        if raw_lane.get("id")
+    }
 
     # Nodes
     nodes = {}
@@ -206,7 +232,9 @@ def load_llm(data: dict) -> ProcessGraph:
         ntype = _normalize_type(raw_node["type"])
         name = raw_node.get("name", "")
         doc = raw_node.get("doc", "")
-        nodes[nid] = Node(id=nid, type=ntype, name=name, doc=doc)
+        raw_lane = raw_node.get("lane", "")
+        lane = lane_names_by_id.get(raw_lane, raw_lane)
+        nodes[nid] = Node(id=nid, type=ntype, name=name, doc=doc, lane=lane)
 
     # Edges
     edges = []
@@ -229,11 +257,6 @@ def load_llm(data: dict) -> ProcessGraph:
         # Filter out gateways and unknown refs
         filtered = [r for r in refs if r in nodes and "Gateway" not in nodes[r].type]
         lanes.append(Lane(name=lane_name, node_ids=filtered))
-
-    # Report orphans
-    orphans = find_orphans(nodes, start_id, succs)
-    for oid in orphans:
-        warnings.warn(f"Orphan node {oid!r} ({nodes[oid].name!r}) not reachable from start")
 
     return ProcessGraph(
         name=process_name,

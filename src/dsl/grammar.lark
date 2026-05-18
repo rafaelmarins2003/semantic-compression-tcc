@@ -1,153 +1,122 @@
-// BPMN-DSL Grammar — Compact notation for BPMN 2.0 processes
-// Compresses ~91% of token count compared to raw BPMN 2.0 XML.
+// BPMN-DSL v2 — see src/data/manipulation/deterministic/dsl_documentation.txt
 //
-// Terminals marked .2 have priority over CNAME (priority 1) to avoid
-// keyword/identifier conflicts. Prop keys (CNAME) must not be grammar keywords.
+// Design goals over v1:
+//   - named events (start "Init", end "OK")
+//   - empty branches as first-class () syntax (no more `task "empty"` hack)
+//   - stable CNAME ids for refs (#order_proc) instead of name-based (#"Name")
+//   - lane as scope (@lane "X" { ... }) instead of duplicated declaration+flow
+//   - eventBasedGateway as `event { ... }`
+//   - collaboration with explicit `message ... from #a to #b`
+//
+// Terminals tagged .2 take priority over CNAME (.1) to keep keywords
+// unambiguous when an element ID happens to match a keyword.
 
-start: top_level+
+start: top_level*
 
-// Inline pass-through: no extra wrapper node for top-level constructs.
-?top_level: process | pool | collaboration
+?top_level: process
+          | pool
+          | collaboration
+          | note
 
-// ── Collaboration (multi-pool) ─────────────────────────────────────────────
-// Represents a BPMN 2.0 Collaboration element with two or more participants.
-// Message flows are inferred by matching throw/catch message event names.
+// ── Process / Pool / Collaboration ────────────────────────────────────────
 
-collaboration: "collaboration" ESCAPED_STRING "{" pool+ "}"
+process:       "process"       NAME id_opt "{" process_body "}"
+pool:          "pool"          NAME id_opt "{" process_body "}"
+collaboration: "collaboration" NAME id_opt "{" pool+ message_flow* "}"
 
-// ── Pool ──────────────────────────────────────────────────────────────────
-// Represents a BPMN 2.0 Participant / Pool element.
-// A pool can have lane structure (laneset) or a plain sequence flow (seq).
+// Lane-scoped or plain flow (mutually exclusive).
+?process_body: laneset
+             | flow
 
-pool: "pool" ESCAPED_STRING "{" process_body "}"
+laneset:    lane_block+
+// Optional leading "->" inside a lane block signals continuity from the
+// previous lane block (no new node, just sequenceFlow into the first
+// element of this block).
+lane_block: "@lane" NAME id_opt "{" "->"? flow "}"
 
-// ── Process ───────────────────────────────────────────────────────────────
+// Flow = one or more steps connected by "->".
+flow: step ("->" step)*
 
-process: "process" ESCAPED_STRING "{" process_body "}"
-
-// A process body is either:
-//   - a plain seq (no lanes), or
-//   - a laneset (lane membership declarations) followed by a seq
-?process_body: seq | laneset
-
-// ── Sequence flow ──────────────────────────────────────────────────────────
-// Elements connected by "->"; transpiler generates sequence flow elements.
-
-seq: step ("->" step)*
-
-// Inline pass-through rules: removes extra Tree wrapper in parsed output.
-?step: task
-     | event
+?step: event
+     | task
      | gateway
      | subprocess
      | call_activity
      | ref
      | note
 
-// ── Tasks ─────────────────────────────────────────────────────────────────
-
-task: TASK_TYPE ESCAPED_STRING props?
-
-// Priority .2 beats CNAME (priority 1) in the lexer.
-TASK_TYPE.2: "task"
-           | "service"
-           | "user"
-           | "script"
-           | "manual"
-           | "send"
-           | "receive"
-           | "rule"
-
 // ── Events ────────────────────────────────────────────────────────────────
 
 ?event: start_event | end_event | catch_event | throw_event
 
-start_event: "start" event_spec?
-end_event:   "end"   event_spec?
-catch_event: "catch" event_spec
-throw_event: "throw" event_spec
+// Order: keyword, optional event_spec, optional name, optional id, optional props.
+// `end:error "Timeout"` parses as kind=error, name=Timeout (consistent with spec).
+start_event: "start" event_spec? NAME? id_opt props?
+end_event:   "end"   event_spec? NAME? id_opt props?
+catch_event: "catch" event_spec  NAME? id_opt props?
+throw_event: "throw" event_spec  NAME? id_opt props?
 
-// event_spec encodes type and trigger name, e.g. :timer("PT2H"), :error("timeout")
-event_spec: ":" EVENT_KIND "(" ESCAPED_STRING ")"
+event_spec: ":" EVENT_KIND ("(" NAME ")")?
 
-EVENT_KIND.2: "timer"
-            | "message"
-            | "error"
-            | "signal"
-            | "escalation"
+EVENT_KIND.2: "none" | "message" | "timer" | "error" | "signal" | "escalation"
+
+// ── Tasks ─────────────────────────────────────────────────────────────────
+
+task: TASK_TYPE NAME id_opt props?
+
+TASK_TYPE.2: "task" | "user" | "service" | "manual" | "script"
+           | "send" | "receive" | "rule"
 
 // ── Gateways ──────────────────────────────────────────────────────────────
 
-?gateway: xor_gw | and_gw | or_gw
+?gateway: xor_gw | and_gw | or_gw | event_gw
 
-// Exclusive (XOR): exactly one branch taken; transpiler inserts merge gateway.
-xor_gw: "xor" ESCAPED_STRING? "{" branch+ "}"
+xor_gw:   "xor"   NAME? id_opt "{" cond_branch+ "}"
+or_gw:    "or"    NAME? id_opt "{" cond_branch+ "}"
+event_gw: "event" NAME? id_opt "{" event_branch+ "}"
+and_gw:   "and"   NAME? id_opt "{" and_branches  "}"
 
-// Parallel (AND): all branches taken concurrently, separated by comma.
-// Transpiler inserts split + join AND gateways.
-and_gw: "and" ESCAPED_STRING? "{" and_branches "}"
+cond_branch:  "[" CONDITION_TEXT "]" "->" branch_target
+event_branch: "[" event_spec     "]" "->" branch_target
+and_branches: branch_target (";" branch_target)*
 
-// Inclusive (OR): one or more branches taken based on conditions.
-or_gw:  "or"  ESCAPED_STRING? "{" branch+ "}"
+?branch_target: flow | empty_branch
+empty_branch:  "(" ")"
 
-and_branches: seq ("," seq)*
-
-// A conditional branch: [condition] -> continuation_sequence
-// "default" is a valid condition value (transpiler sets isDefault=true).
-branch: "[" CONDITION_TEXT "]" "->" seq
-
-// Matches anything between [ ] except the brackets themselves.
 CONDITION_TEXT: /[^\[\]]+/
 
-// ── Subprocess ────────────────────────────────────────────────────────────
+// ── Subprocess / Call activity ────────────────────────────────────────────
 
-subprocess:    "subprocess" ESCAPED_STRING "{" seq "}"
-call_activity: "call" ESCAPED_STRING
+subprocess:    "subprocess" NAME id_opt "{" process_body "}"
+call_activity: "call"       NAME id_opt props?
 
-// ── Lanes ─────────────────────────────────────────────────────────────────
-// laneset: one or more lane membership blocks, followed by the sequence flow.
-// Lane blocks declare WHICH elements belong to each lane — not the flow order.
-// Gateways are not declared in lanes; the transpiler auto-assigns them to the
-// lane of their nearest source element.
-//
-// Example:
-//   lane "Finance" { task "Pay Invoice", task "Reconcile" }
-//   lane "Warehouse" { task "Pick Items", task "Ship Order", end }
-//   start -> task "Pay Invoice" -> task "Pick Items" -> task "Ship Order" -> end
+// ── Reference (back-edge or convergence) ──────────────────────────────────
 
-laneset: lane+ seq?
-
-lane: "lane" ESCAPED_STRING "{" lane_members? "}"
-
-lane_members: lane_el ("," lane_el)*
-
-// Subset of step: tasks, events, subprocesses — no gateways, no refs.
-// Gateways are structural (flow) elements, not swimlane membership elements.
-?lane_el: task
-        | start_event | end_event | catch_event | throw_event
-        | subprocess | call_activity | note
-
-// ── Named reference ───────────────────────────────────────────────────────
-// References a previously named element for loops or converging flows.
-// Example: -> #"Receive Order"  (loop back to that task)
-
-ref: "#" ESCAPED_STRING
+ref: "#" CNAME
 
 // ── Annotation ────────────────────────────────────────────────────────────
 
-note: "note" ESCAPED_STRING
+note: "note" NAME id_opt
+
+// ── Message flow (only inside collaboration) ──────────────────────────────
+
+message_flow: "message" NAME? "from" ref "to" ref props?
+
+// ── Optional ID suffix on any nameable element ────────────────────────────
+
+id_opt: ("#" CNAME)?
 
 // ── Properties ────────────────────────────────────────────────────────────
-// Key=value pairs attached to tasks/events. Keys must not be grammar keywords.
-// Example: task "Pay" (performer="finance", documentation="See SLA doc")
 
 props: "(" prop ("," prop)* ")"
-prop:  CNAME "=" ESCAPED_STRING
+prop:  CNAME "=" NAME
 
 // ── Terminals ─────────────────────────────────────────────────────────────
+
+NAME: ESCAPED_STRING
 
 %import common.ESCAPED_STRING
 %import common.CNAME
 %import common.WS
 %ignore WS
-%ignore /\/\/.*/
+%ignore /\/\/[^\n]*/

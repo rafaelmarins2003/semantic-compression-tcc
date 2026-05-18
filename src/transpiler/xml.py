@@ -24,29 +24,26 @@ def _q(tag: str) -> str:
 
 
 @dataclass
-class EmittedNode:
-    id: str
-    tag: str
-    name: str
-
-
-@dataclass
-class LaneDecl:
-    name: str
-    members: list[tuple[str, str]]
-
-
-@dataclass
 class ProcessEmitter:
     """Stateful BPMN process emitter."""
 
     process_el: etree._Element
     counters: Counter = field(default_factory=Counter)
-    emitted_nodes: list[EmittedNode] = field(default_factory=list)
+    explicit_ids: dict[str, str] = field(default_factory=dict)
+    lane_members: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
+    current_lane: str | None = None
 
     def new_id(self, prefix: str) -> str:
         self.counters[prefix] += 1
         return f"{prefix}_{self.counters[prefix]}"
+
+    def track_node(self, node_id: str) -> None:
+        if self.current_lane:
+            self.lane_members[self.current_lane].append(node_id)
+
+    def register_id(self, dsl_id: str, node_id: str) -> None:
+        if dsl_id:
+            self.explicit_ids[dsl_id] = node_id
 
     def add_node(self, tag: str, name: str = "") -> str:
         prefix = tag[0].upper() + tag[1:]
@@ -55,7 +52,7 @@ class ProcessEmitter:
         if name:
             attrs["name"] = name
         etree.SubElement(self.process_el, _q(tag), attrs)
-        self.emitted_nodes.append(EmittedNode(node_id, tag, name))
+        self.track_node(node_id)
         return node_id
 
     def add_node_element(self, tag: str, name: str = "") -> tuple[str, etree._Element]:
@@ -65,7 +62,7 @@ class ProcessEmitter:
         if name:
             attrs["name"] = name
         el = etree.SubElement(self.process_el, _q(tag), attrs)
-        self.emitted_nodes.append(EmittedNode(node_id, tag, name))
+        self.track_node(node_id)
         return node_id, el
 
     def add_flow(self, source_id: str, target_id: str, condition: str = "") -> str:
@@ -115,8 +112,9 @@ def transpile_tree(tree: Tree) -> str:
 def _emit_collaboration(root: etree._Element, tree: Tree) -> None:
     collab_id = "Collaboration_1"
     collaboration = etree.SubElement(root, _q("collaboration"), {"id": collab_id})
+    refs: dict[str, str] = {}
     for pool_tree in _children(tree, "pool"):
-        process_id = _emit_pool(root, pool_tree)
+        process_id = _emit_pool(root, pool_tree, global_refs=refs)
         pool_name = unquote(pool_tree.children[0])
         etree.SubElement(
             collaboration,
@@ -128,32 +126,66 @@ def _emit_collaboration(root: etree._Element, tree: Tree) -> None:
             },
         )
 
+    for idx, message_tree in enumerate(_children(tree, "message_flow"), start=1):
+        name = _optional_name(message_tree)
+        message_refs = _children(message_tree, "ref")
+        if len(message_refs) != 2:
+            continue
+        source_ref = _ref_name(message_refs[0])
+        target_ref = _ref_name(message_refs[1])
+        attrs = {
+            "id": f"MessageFlow_{idx}",
+            "sourceRef": refs.get(source_ref, source_ref),
+            "targetRef": refs.get(target_ref, target_ref),
+        }
+        if name:
+            attrs["name"] = name
+        etree.SubElement(collaboration, _q("messageFlow"), attrs)
 
-def _emit_pool(root: etree._Element, tree: Tree) -> str:
-    return _emit_process(root, tree, tag_name="process")
+
+def _emit_pool(
+    root: etree._Element,
+    tree: Tree,
+    *,
+    global_refs: dict[str, str] | None = None,
+) -> str:
+    return _emit_process(root, tree, tag_name="process", global_refs=global_refs)
 
 
-def _emit_process(root: etree._Element, tree: Tree, tag_name: str = "process") -> str:
+def _emit_process(
+    root: etree._Element,
+    tree: Tree,
+    tag_name: str = "process",
+    *,
+    global_refs: dict[str, str] | None = None,
+) -> str:
     name = unquote(tree.children[0])
     process_id = f"Process_{_safe_id(name)}"
     process_el = etree.SubElement(root, _q(tag_name), {"id": process_id, "name": name})
     emitter = ProcessEmitter(process_el)
 
-    body = _first_tree(tree, {"seq", "laneset"})
+    body = _first_tree(tree, {"flow", "laneset"})
     if body is None:
         return process_id
 
-    lane_decls: list[LaneDecl] = []
-    seq = body
     if body.data == "laneset":
-        lane_decls = _parse_lanes(body)
-        seq = _first_tree(body, {"seq"})
+        exits: list[str] = []
+        lane_names: list[str] = []
+        for lane_block in _children(body, "lane_block"):
+            lane_name = unquote(lane_block.children[0])
+            lane_names.append(lane_name)
+            flow = _first_tree(lane_block, {"flow"})
+            if flow is None:
+                continue
+            emitter.current_lane = lane_name
+            exits = _emit_seq(emitter, flow, exits)
+            emitter.current_lane = None
+        _emit_lane_set_from_members(process_el, lane_names, emitter.lane_members)
+    else:
+        _emit_seq(emitter, body, [])
 
-    if seq is not None:
-        _emit_seq(emitter, seq, [])
-
-    if lane_decls:
-        _emit_lane_set(process_el, lane_decls, emitter.emitted_nodes)
+    if global_refs is not None:
+        global_refs.update(emitter.explicit_ids)
 
     return process_id
 
@@ -186,37 +218,45 @@ class StepResult:
 
 def _emit_step(emitter: ProcessEmitter, step: Tree) -> StepResult:
     if step.data == "task":
-        tag, name, doc = _parse_task(step)
+        tag, name, doc, dsl_id = _parse_task(step)
         node_id, el = emitter.add_node_element(tag, name)
+        emitter.register_id(dsl_id, node_id)
         if doc:
             etree.SubElement(el, _q("documentation")).text = doc
         return StepResult([node_id], [node_id])
 
     if step.data in {"start_event", "end_event", "catch_event", "throw_event"}:
-        tag, name, definition = _parse_event(step)
+        tag, name, definition, dsl_id = _parse_event(step)
         node_id, el = emitter.add_node_element(tag, name)
+        emitter.register_id(dsl_id, node_id)
         if definition:
             etree.SubElement(el, _q(definition))
         return StepResult([node_id], [node_id])
 
-    if step.data in {"xor_gw", "and_gw", "or_gw"}:
+    if step.data in {"xor_gw", "and_gw", "or_gw", "event_gw"}:
         return _emit_gateway(emitter, step)
 
     if step.data == "subprocess":
         node_id = emitter.add_node("subProcess", unquote(step.children[0]))
+        emitter.register_id(_node_id_opt(step), node_id)
         return StepResult([node_id], [node_id])
 
     if step.data == "call_activity":
         node_id = emitter.add_node("callActivity", unquote(step.children[0]))
+        emitter.register_id(_node_id_opt(step), node_id)
         return StepResult([node_id], [node_id])
 
     if step.data == "note":
         node_id = emitter.add_node("textAnnotation", unquote(step.children[0]))
+        emitter.register_id(_node_id_opt(step), node_id)
         return StepResult([node_id], [node_id])
 
     if step.data == "ref":
-        node_id = emitter.add_node("task", f"ref: {unquote(step.children[0])}")
-        return StepResult([node_id], [node_id])
+        ref = _ref_name(step)
+        if ref not in emitter.explicit_ids:
+            raise ValueError(f"Unresolved DSL ref #{ref}")
+        target_id = emitter.explicit_ids[ref]
+        return StepResult([target_id], [target_id])
 
     node_id = emitter.add_node("task", step.data)
     return StepResult([node_id], [node_id])
@@ -227,35 +267,43 @@ def _emit_gateway(emitter: ProcessEmitter, tree: Tree) -> StepResult:
         "xor_gw": "exclusiveGateway",
         "and_gw": "parallelGateway",
         "or_gw": "inclusiveGateway",
+        "event_gw": "eventBasedGateway",
     }[tree.data]
     name = _optional_name(tree)
     split_id = emitter.add_node(tag, name)
+    emitter.register_id(_node_id_opt(tree), split_id)
     join_id = emitter.add_node(tag, f"{name} merge" if name else "")
 
-    branch_trees = _children(tree, "branch")
     if tree.data == "and_gw":
         branches_root = _first_tree(tree, {"and_branches"})
-        branch_trees = _children(branches_root, "seq") if branches_root else []
+        branch_trees = _children(branches_root, "flow") if branches_root else []
+    elif tree.data == "event_gw":
+        branch_trees = _children(tree, "event_branch")
+    else:
+        branch_trees = _children(tree, "cond_branch")
 
     for branch in branch_trees:
         if tree.data == "and_gw":
             condition = ""
-            branch_seq = branch
+            branch_target = branch
+        elif tree.data == "event_gw":
+            condition = ""
+            branch_target = _first_tree(branch, {"flow", "empty_branch"})
         else:
             condition = str(branch.children[0]).strip()
-            branch_seq = _first_tree(branch, {"seq"})
-        if branch_seq is None:
+            branch_target = _first_tree(branch, {"flow", "empty_branch"})
+        if branch_target is None or branch_target.data == "empty_branch":
             emitter.add_flow(split_id, join_id, condition)
             continue
 
-        exits = _emit_seq(emitter, branch_seq, [split_id], incoming_condition=condition)
+        exits = _emit_seq(emitter, branch_target, [split_id], incoming_condition=condition)
         for exit_id in exits:
             emitter.add_flow(exit_id, join_id)
 
     return StepResult([split_id], [join_id])
 
 
-def _parse_task(tree: Tree) -> tuple[str, str, str]:
+def _parse_task(tree: Tree) -> tuple[str, str, str, str]:
     keyword = str(tree.children[0])
     name = unquote(tree.children[1])
     tag = {
@@ -273,13 +321,16 @@ def _parse_task(tree: Tree) -> tuple[str, str, str]:
         for prop in _children(props, "prop"):
             if str(prop.children[0]) in {"doc", "documentation"}:
                 doc = unquote(prop.children[1])
-    return tag, name, doc
+    return tag, name, doc, _node_id_opt(tree)
 
 
-def _parse_event(tree: Tree) -> tuple[str, str, str]:
+def _parse_event(tree: Tree) -> tuple[str, str, str, str]:
     spec = _first_tree(tree, {"event_spec"})
     kind = str(spec.children[0]) if spec else ""
-    name = unquote(spec.children[1]) if spec else ""
+    name_tokens = [c for c in tree.children if not isinstance(c, Tree)]
+    name = unquote(name_tokens[0]) if name_tokens else ""
+    if not name and spec and len(spec.children) > 1:
+        name = unquote(spec.children[1])
 
     if tree.data == "start_event":
         tag = "startEvent"
@@ -291,66 +342,31 @@ def _parse_event(tree: Tree) -> tuple[str, str, str]:
         tag = "intermediateThrowEvent"
 
     definition = {
+        "none": "",
         "message": "messageEventDefinition",
         "timer": "timerEventDefinition",
         "error": "errorEventDefinition",
         "signal": "signalEventDefinition",
         "escalation": "escalationEventDefinition",
     }.get(kind, "")
-    return tag, name or ("start" if tree.data == "start_event" else "end"), definition
+    default_name = "start" if tree.data == "start_event" else "end"
+    return tag, name or default_name, definition, _node_id_opt(tree)
 
 
-def _parse_lanes(tree: Tree) -> list[LaneDecl]:
-    lanes = []
-    for lane in _children(tree, "lane"):
-        name = unquote(lane.children[0])
-        members = []
-        lane_members = _first_tree(lane, {"lane_members"})
-        if lane_members is not None:
-            for member in (c for c in lane_members.children if isinstance(c, Tree)):
-                members.append(_lane_signature(member))
-        lanes.append(LaneDecl(name, members))
-    return lanes
-
-
-def _lane_signature(tree: Tree) -> tuple[str, str]:
-    if tree.data == "task":
-        tag, name, _ = _parse_task(tree)
-        return tag, name
-    if tree.data in {"start_event", "end_event", "catch_event", "throw_event"}:
-        tag, name, _ = _parse_event(tree)
-        return tag, name
-    if tree.data == "subprocess":
-        return "subProcess", unquote(tree.children[0])
-    if tree.data == "call_activity":
-        return "callActivity", unquote(tree.children[0])
-    if tree.data == "note":
-        return "textAnnotation", unquote(tree.children[0])
-    return tree.data, ""
-
-
-def _emit_lane_set(
-    process_el: etree._Element, lane_decls: list[LaneDecl], emitted_nodes: list[EmittedNode]
+def _emit_lane_set_from_members(
+    process_el: etree._Element,
+    lane_names: list[str],
+    lane_members: dict[str, list[str]],
 ) -> None:
-    by_signature: dict[tuple[str, str], list[str]] = defaultdict(list)
-    for node in emitted_nodes:
-        by_signature[(node.tag, node.name)].append(node.id)
-
     lane_set = etree.Element(_q("laneSet"), {"id": "LaneSet_1"})
-    for idx, lane_decl in enumerate(lane_decls, start=1):
+    for idx, lane_name in enumerate(lane_names, start=1):
         lane_el = etree.SubElement(
             lane_set,
             _q("lane"),
-            {"id": f"Lane_{idx}", "name": lane_decl.name},
+            {"id": f"Lane_{idx}", "name": lane_name},
         )
-        seen = set()
-        for signature in lane_decl.members:
-            for node_id in by_signature.get(signature, []):
-                if node_id in seen:
-                    continue
-                etree.SubElement(lane_el, _q("flowNodeRef")).text = node_id
-                seen.add(node_id)
-
+        for node_id in lane_members.get(lane_name, []):
+            etree.SubElement(lane_el, _q("flowNodeRef")).text = node_id
     process_el.insert(0, lane_set)
 
 
@@ -358,6 +374,17 @@ def _optional_name(tree: Tree) -> str:
     if tree.children and not isinstance(tree.children[0], Tree):
         return unquote(tree.children[0])
     return ""
+
+
+def _node_id_opt(tree: Tree) -> str:
+    id_tree = _first_tree(tree, {"id_opt"})
+    if id_tree is None or not id_tree.children:
+        return ""
+    return str(id_tree.children[0])
+
+
+def _ref_name(tree: Tree) -> str:
+    return str(tree.children[0]) if tree.children else ""
 
 
 def _children(tree: Tree | None, data: str) -> list[Tree]:

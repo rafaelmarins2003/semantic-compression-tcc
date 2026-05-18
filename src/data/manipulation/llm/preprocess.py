@@ -200,6 +200,7 @@ def run_preprocessing(
                     models,
                     api_key=api_key,
                     limiter=limiter,
+                    think=False,
                     max_attempts=max_attempts,
                 ): (row, user_prompt)
                 for row, system_prompt, user_prompt in contexts

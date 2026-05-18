@@ -14,6 +14,7 @@ DEFAULT_MODELS = ["kimi-k2.6:cloud", "deepseek-v4-pro:cloud"]
 DEFAULT_RPM = 60
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_BACKOFF_BASE = 2.0
+DEFAULT_TIMEOUT = 300
 ROOT_DIR = Path(__file__).resolve().parents[4]
 PROMPTS_DIR = ROOT_DIR / "configs" / "prompts"
 
@@ -38,6 +39,8 @@ def try_models(
     *,
     api_key: str,
     limiter: RateLimiter,
+    think: bool = False,
+    timeout: int = DEFAULT_TIMEOUT,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     backoff_base: float = DEFAULT_BACKOFF_BASE,
 ) -> list[dict]:
@@ -58,6 +61,8 @@ def try_models(
                     api_key=api_key,
                     model=model,
                     system_prompt=system_prompt,
+                    think=think,
+                    timeout=timeout,
                 )
                 attempts.append(
                     {

@@ -8,9 +8,15 @@ import pytest
 
 from src.data.db import Database
 from src.data.manipulation.llm.generate_process_json import (
+    DEFAULT_ERROR_PREVIEW_CHARS,
+    DEFAULT_JSON_BPMN_TIMEOUT,
+    DEFAULT_THINK,
     _extract_json_object,
+    _format_output_error,
+    _json_extraction_note,
     _prune_duplicate_json_generations,
     build_prompt,
+    parse_args,
     pending_preprocess_outputs,
 )
 
@@ -96,9 +102,51 @@ RACIOCINIO:
     }
 
 
-def test_extract_json_object_rejects_trailing_text():
-    with pytest.raises(ValueError, match="after the JSON object"):
-        _extract_json_object('{"pool": "Teste"}\ntexto extra')
+def test_extract_json_object_ignores_text_after_json():
+    normalized = _extract_json_object('{"pool": "Teste"}\ntexto extra')
+
+    assert json.loads(normalized) == {"pool": "Teste"}
+
+
+def test_json_extraction_note_identifies_wrapped_json():
+    output = 'RACIOCINIO\n{"pool": "Teste"}\ntexto extra'
+
+    assert _json_extraction_note(output) == "stripped_before_after"
+
+
+def test_format_output_error_includes_output_preview():
+    error = _format_output_error(
+        "invalid json",
+        "abc" * 20,
+        max_chars=12,
+    )
+
+    assert "invalid json" in error
+    assert "output_chars=60" in error
+    assert "output_preview_chars=12" in error
+    assert "[truncated 48 chars]" in error
+    assert error.endswith("abcabc")
+
+
+def test_parse_args_enables_thinking_by_default(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["generate_process_json"])
+
+    args = parse_args()
+
+    assert DEFAULT_THINK is True
+    assert DEFAULT_ERROR_PREVIEW_CHARS == 4000
+    assert DEFAULT_JSON_BPMN_TIMEOUT == 900
+    assert args.think is True
+    assert args.timeout == DEFAULT_JSON_BPMN_TIMEOUT
+    assert args.error_preview_chars == DEFAULT_ERROR_PREVIEW_CHARS
+
+
+def test_parse_args_supports_no_think(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["generate_process_json", "--no-think"])
+
+    args = parse_args()
+
+    assert args.think is False
 
 
 def test_prune_duplicate_json_generations_keeps_latest_per_prompt_version(db):

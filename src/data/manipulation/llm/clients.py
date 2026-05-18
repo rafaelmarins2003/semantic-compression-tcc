@@ -8,9 +8,28 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import TypeVar
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv as _dotenv_load
+
+
+def load_dotenv(path: str | Path | None = None) -> Path | None:
+    """Load a .env file and return the path used, if one was found."""
+    if path is not None:
+        env_path = Path(path)
+        if not env_path.exists():
+            return None
+        _dotenv_load(env_path)
+        return env_path
+
+    for directory in (Path.cwd(), *Path.cwd().parents):
+        env_path = directory / ".env"
+        if env_path.exists():
+            _dotenv_load(env_path)
+            return env_path
+    return None
+
 
 load_dotenv()
 
