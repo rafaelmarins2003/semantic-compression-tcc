@@ -614,7 +614,7 @@ Para cada amostra processada, garantir:
 
 
 ================================================================================
-11. NOTAS DE IMPLEMENTAÇÃO (para o transpiler json_to_dsl_v4)
+11. NOTAS DE IMPLEMENTAÇÃO (para o transpiler json_to_dsl_v6)
 ================================================================================
 
 I1. Geração de IDs.
@@ -624,7 +624,10 @@ I1. Geração de IDs.
         "T-01"  → t_01
         "Order Process" → order_process
     Apenas atribuir ID a elementos que serão referenciados (in-degree ≥ 2
-    OU origem de back-edge).
+    OU alvo de back-edge). Quando o alvo é um gateway de join/roteamento que
+    não será emitido como elemento explícito na DSL, o ID é transferido para
+    o próximo nó emitido no fluxo. Isso evita refs órfãs como `#g05` para um
+    merge que foi compactado pela estrutura do bloco.
 
 I2. Ordem dos blocos @lane.
     Ordenar lanes por primeira aparição no fluxo principal (BFS desde
@@ -658,6 +661,138 @@ I7. Validação pré-emissão.
     Antes de devolver a string DSL, executar checklist da seção 10 e
     levantar exception com mensagem detalhada em caso de violação.
     Impede que DSL semanticamente incompleta passe silenciosamente.
+
+
+================================================================================
+12. TRANSPILAÇÃO DSL → BPMN XML (dsl_to_xml)
+================================================================================
+
+Objetivo.
+    A etapa `dsl_to_xml` materializa a DSL compacta em XML BPMN 2.0 explícito.
+    A DSL é intencionalmente econômica; o XML, por outro lado, exige IDs,
+    sequenceFlows, gateways, laneSets e referências concretas. Portanto, esta
+    etapa não deve reinterpretar o processo: ela deve expandir as convenções
+    da DSL sem inventar fluxo novo.
+
+Arquitetura.
+    O motor de conversão fica em `src/transpiler/xml.py`.
+    O script `src/data/manipulation/deterministic/dsl_to_xml.py` é apenas o
+    runner batch:
+
+      dsl_transpiler_runs.output_dsl
+          → src.transpiler.transpile()
+          → validação XML mínima
+          → xml_transpiler_runs
+
+    A tabela `xml_transpiler_runs` armazena cada tentativa com:
+      - sample_id e source_dsl_run_id;
+      - versão de origem (`source_dsl_version`) e versão XML
+        (`xml_transpiler_version`);
+      - input_dsl e output_xml;
+      - status, xml_ok, warnings e erro/traceback quando houver falha.
+
+Estados do runner.
+      succeeded          XML gerado, bem-formado, IDs únicos.
+      transpile_failed   parser/transpiler levantou exceção.
+      xml_failed         XML foi gerado, mas falhou validação mínima.
+      transpile_timeout  orçamento por amostra excedido.
+
+Validação atual.
+    Como o repositório ainda não contém os XSDs BPMN, a validação inicial é:
+      1. XML bem-formado via lxml;
+      2. unicidade global de atributos `id`.
+
+    A validação XSD deve ser adicionada depois que os schemas BPMN 2.0 forem
+    versionados no repositório. Até lá, `xml_ok=1` significa “XML estruturalmente
+    formado para auditoria”, não conformidade XSD completa.
+
+Regras de expansão.
+
+T1. Operador `->`.
+    Cada conexão A -> B vira `<sequenceFlow sourceRef=A targetRef=B>`.
+    Quando A ou B é um bloco de gateway, o source/target efetivo é o gateway
+    split/join criado pelo transpiler.
+
+T2. Gateway split/merge implícito.
+    `xor`, `or`, `and` e `event` criam um gateway de entrada (split) e um
+    gateway de saída (merge) quando o bloco continua com `-> próximo`.
+    Branches que terminam em `()` geram fluxo direto do split para o merge.
+
+T3. Refs.
+    `#id` deve resolver preferencialmente para um elemento que declarou `#id`.
+    O ref não cria nó novo; ele cria sequenceFlow para o nó existente.
+    Refs não resolvidos são erro do transpiler XML, pois indicam DSL
+    semanticamente incompleta.
+
+    Compatibilidade: para DSLs já persistidos antes da correção de IDs, o
+    transpiler XML também aceita fallback por slug do nome de um nó já emitido
+    no mesmo processo. Exemplo: `user "Acessar página"` pode ser referenciado
+    por `#acessar_p_gina`. Esse fallback não substitui a regra principal; o
+    json_to_dsl deve continuar emitindo IDs explícitos quando sabe que um nó
+    será alvo de ref.
+
+T4. Lanes.
+    `@lane "X" { ... }` é escopo de pertencimento. No XML, isso vira:
+      - `<laneSet>`;
+      - uma `<lane name="X">`;
+      - `<flowNodeRef>` para cada nó emitido naquele escopo.
+
+    Overrides `(lane="Y")` dentro de uma branch representam exceção pontual
+    de lane no DSL. O transpiler XML deve materializar esse pertencimento sem
+    duplicar o nó.
+
+T5. Eventos intermediários genéricos.
+    `catch:none "Aguardar"` vira `<intermediateCatchEvent name="Aguardar">`
+    sem `eventDefinition`. Isso preserva `intermediateCatchEvent` do JSON
+    quando a LLM não informou se o evento era timer/message/signal.
+
+T6. Múltiplos top-level processes.
+    A gramática aceita vários `process` no mesmo arquivo DSL. O XML também
+    pode conter vários `<process>`, mas todos os `id` precisam ser únicos no
+    documento inteiro. Por isso o `src/transpiler/xml.py` usa um contexto
+    global de alocação de IDs para `process`, `laneSet`, `lane`, gateways,
+    eventos, tarefas e sequenceFlows. O runner ainda valida duplicidade para
+    capturar regressões.
+
+T7. Collaboration.
+    `collaboration { pool ... message ... }` vira:
+      - `<collaboration>`;
+      - `<participant processRef=...>` por pool;
+      - `<messageFlow sourceRef=... targetRef=...>` para cada message.
+
+Pontos de atenção conhecidos.
+    - O transpiler XML atual ainda emite XML sem BPMNDI/layout visual.
+      Isso é suficiente para validação estrutural, mas não para abrir em
+      modeladores que exigem diagrama.
+    - Refs forward continuam frágeis porque a emissão XML é single-pass por
+      processo. O uso esperado de `#id` é para loops ou reconvergências em
+      nós já emitidos. Caso surjam muitos refs forward legítimos, o XML
+      transpiler deve ganhar uma etapa de pré-registro de IDs.
+    - Gateways de merge puro podem não aparecer como nó nomeado no DSL; isso
+      é esperado, pois o merge é representado pela continuação após o bloco.
+
+Correções observadas na rodada json_to_dsl_v5 / dsl_to_xml_v1.
+    A primeira execução em lote do XML teve 904 sucessos em 1047 amostras.
+    A análise dos 143 `ValueError` mostrou dois padrões dominantes:
+
+      1. IDs XML duplicados em documentos com múltiplos `process`, porque os
+         contadores eram reiniciados por processo.
+      2. Refs DSL apontando para gateways de roteamento (`#g05`, `#p02`, etc.)
+         que o próprio json_to_dsl simplificava e não emitia como nó explícito.
+
+    A correção foi dividida em duas partes e versionada como
+    `json_to_dsl_v6` + `dsl_to_xml_v2`:
+
+      - `dsl_to_xml`: introduzir `XmlContext` global para IDs de documento e
+        fallback por slug de nome para DSLs antigos já persistidos.
+      - `json_to_dsl`: redirecionar refs de gateways join/degenerados para o
+        próximo nó realmente emitido no fluxo, garantindo que esse nó receba
+        ID explícito.
+
+    Resultado de validação local:
+      - usando os DSLs v5 já persistidos: 1039/1047 passaram no novo XML;
+      - regenerando o DSL a partir do JSON com o código corrigido: 1047/1047
+        passaram na transpilação DSL -> XML.
 
 
 ================================================================================

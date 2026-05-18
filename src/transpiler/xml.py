@@ -6,6 +6,7 @@ It is the deterministic bridge after the LLM JSON -> DSL step.
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,10 +18,46 @@ from src.dsl.parser import parse, parse_file, unquote
 
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
+_CNAME_RE = re.compile(r"[^a-z0-9_]")
 
 
 def _q(tag: str) -> str:
     return f"{{{BPMN_NS}}}{tag}"
+
+
+def _slugify(value: str) -> str:
+    value = (value or "").lower().strip()
+    value = _CNAME_RE.sub("_", value)
+    value = re.sub(r"_+", "_", value).strip("_")
+    if value and value[0].isdigit():
+        value = "n_" + value
+    return value
+
+
+@dataclass
+class XmlContext:
+    """Document-wide XML id allocator."""
+
+    counters: Counter = field(default_factory=Counter)
+    used_ids: set[str] = field(default_factory=set)
+
+    def new_id(self, prefix: str) -> str:
+        while True:
+            self.counters[prefix] += 1
+            candidate = f"{prefix}_{self.counters[prefix]}"
+            if candidate not in self.used_ids:
+                self.used_ids.add(candidate)
+                return candidate
+
+    def named_id(self, prefix: str, name: str) -> str:
+        base = f"{prefix}_{_safe_id(name)}"
+        candidate = base
+        suffix = 2
+        while candidate in self.used_ids:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        self.used_ids.add(candidate)
+        return candidate
 
 
 @dataclass
@@ -28,14 +65,14 @@ class ProcessEmitter:
     """Stateful BPMN process emitter."""
 
     process_el: etree._Element
-    counters: Counter = field(default_factory=Counter)
+    context: XmlContext
     explicit_ids: dict[str, str] = field(default_factory=dict)
+    slug_ids: dict[str, str] = field(default_factory=dict)
     lane_members: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     current_lane: str | None = None
 
     def new_id(self, prefix: str) -> str:
-        self.counters[prefix] += 1
-        return f"{prefix}_{self.counters[prefix]}"
+        return self.context.new_id(prefix)
 
     def track_node(self, node_id: str) -> None:
         if self.current_lane:
@@ -45,12 +82,25 @@ class ProcessEmitter:
         if dsl_id:
             self.explicit_ids[dsl_id] = node_id
 
+    def register_name(self, name: str, node_id: str) -> None:
+        slug = _slugify(name)
+        if slug and slug not in self.slug_ids:
+            self.slug_ids[slug] = node_id
+
+    def resolve_ref(self, dsl_id: str) -> str:
+        if dsl_id in self.explicit_ids:
+            return self.explicit_ids[dsl_id]
+        if dsl_id in self.slug_ids:
+            return self.slug_ids[dsl_id]
+        raise ValueError(f"Unresolved DSL ref #{dsl_id}")
+
     def add_node(self, tag: str, name: str = "") -> str:
         prefix = tag[0].upper() + tag[1:]
         node_id = self.new_id(prefix)
         attrs = {"id": node_id}
         if name:
             attrs["name"] = name
+            self.register_name(name, node_id)
         etree.SubElement(self.process_el, _q(tag), attrs)
         self.track_node(node_id)
         return node_id
@@ -61,6 +111,7 @@ class ProcessEmitter:
         attrs = {"id": node_id}
         if name:
             attrs["name"] = name
+            self.register_name(name, node_id)
         el = etree.SubElement(self.process_el, _q(tag), attrs)
         self.track_node(node_id)
         return node_id, el
@@ -89,10 +140,11 @@ def transpile_file(path: str | Path) -> str:
 
 def transpile_tree(tree: Tree) -> str:
     """Convert an already parsed DSL tree to BPMN XML."""
+    context = XmlContext()
     root = etree.Element(
         _q("definitions"),
         nsmap={None: BPMN_NS, "xsi": XSI_NS},
-        id="Definitions_1",
+        id=context.new_id("Definitions"),
         targetNamespace=BPMN_NS,
     )
 
@@ -100,27 +152,27 @@ def transpile_tree(tree: Tree) -> str:
         if not isinstance(child, Tree):
             continue
         if child.data == "process":
-            _emit_process(root, child)
+            _emit_process(root, child, context=context)
         elif child.data == "pool":
-            _emit_pool(root, child)
+            _emit_pool(root, child, context=context)
         elif child.data == "collaboration":
-            _emit_collaboration(root, child)
+            _emit_collaboration(root, child, context=context)
 
     return etree.tostring(root, encoding="unicode", pretty_print=True)
 
 
-def _emit_collaboration(root: etree._Element, tree: Tree) -> None:
-    collab_id = "Collaboration_1"
+def _emit_collaboration(root: etree._Element, tree: Tree, context: XmlContext) -> None:
+    collab_id = context.new_id("Collaboration")
     collaboration = etree.SubElement(root, _q("collaboration"), {"id": collab_id})
     refs: dict[str, str] = {}
     for pool_tree in _children(tree, "pool"):
-        process_id = _emit_pool(root, pool_tree, global_refs=refs)
+        process_id = _emit_pool(root, pool_tree, context=context, global_refs=refs)
         pool_name = unquote(pool_tree.children[0])
         etree.SubElement(
             collaboration,
             _q("participant"),
             {
-                "id": f"Participant_{process_id}",
+                "id": context.new_id("Participant"),
                 "name": pool_name,
                 "processRef": process_id,
             },
@@ -134,7 +186,7 @@ def _emit_collaboration(root: etree._Element, tree: Tree) -> None:
         source_ref = _ref_name(message_refs[0])
         target_ref = _ref_name(message_refs[1])
         attrs = {
-            "id": f"MessageFlow_{idx}",
+            "id": context.new_id("MessageFlow"),
             "sourceRef": refs.get(source_ref, source_ref),
             "targetRef": refs.get(target_ref, target_ref),
         }
@@ -147,9 +199,16 @@ def _emit_pool(
     root: etree._Element,
     tree: Tree,
     *,
+    context: XmlContext,
     global_refs: dict[str, str] | None = None,
 ) -> str:
-    return _emit_process(root, tree, tag_name="process", global_refs=global_refs)
+    return _emit_process(
+        root,
+        tree,
+        tag_name="process",
+        context=context,
+        global_refs=global_refs,
+    )
 
 
 def _emit_process(
@@ -157,12 +216,13 @@ def _emit_process(
     tree: Tree,
     tag_name: str = "process",
     *,
+    context: XmlContext,
     global_refs: dict[str, str] | None = None,
 ) -> str:
     name = unquote(tree.children[0])
-    process_id = f"Process_{_safe_id(name)}"
+    process_id = context.named_id("Process", name)
     process_el = etree.SubElement(root, _q(tag_name), {"id": process_id, "name": name})
-    emitter = ProcessEmitter(process_el)
+    emitter = ProcessEmitter(process_el, context)
 
     body = _first_tree(tree, {"flow", "laneset"})
     if body is None:
@@ -180,7 +240,12 @@ def _emit_process(
             emitter.current_lane = lane_name
             exits = _emit_seq(emitter, flow, exits)
             emitter.current_lane = None
-        _emit_lane_set_from_members(process_el, lane_names, emitter.lane_members)
+        _emit_lane_set_from_members(
+            process_el,
+            lane_names,
+            emitter.lane_members,
+            context,
+        )
     else:
         _emit_seq(emitter, body, [])
 
@@ -253,9 +318,7 @@ def _emit_step(emitter: ProcessEmitter, step: Tree) -> StepResult:
 
     if step.data == "ref":
         ref = _ref_name(step)
-        if ref not in emitter.explicit_ids:
-            raise ValueError(f"Unresolved DSL ref #{ref}")
-        target_id = emitter.explicit_ids[ref]
+        target_id = emitter.resolve_ref(ref)
         return StepResult([target_id], [target_id])
 
     node_id = emitter.add_node("task", step.data)
@@ -357,13 +420,14 @@ def _emit_lane_set_from_members(
     process_el: etree._Element,
     lane_names: list[str],
     lane_members: dict[str, list[str]],
+    context: XmlContext,
 ) -> None:
-    lane_set = etree.Element(_q("laneSet"), {"id": "LaneSet_1"})
-    for idx, lane_name in enumerate(lane_names, start=1):
+    lane_set = etree.Element(_q("laneSet"), {"id": context.new_id("LaneSet")})
+    for lane_name in lane_names:
         lane_el = etree.SubElement(
             lane_set,
             _q("lane"),
-            {"id": f"Lane_{idx}", "name": lane_name},
+            {"id": context.new_id("Lane"), "name": lane_name},
         )
         for node_id in lane_members.get(lane_name, []):
             etree.SubElement(lane_el, _q("flowNodeRef")).text = node_id

@@ -29,7 +29,7 @@ from src.data.db import Database
 from src.data.manipulation.deterministic import json_to_dsl
 from src.dsl.parser import parse as dsl_parse
 
-DEFAULT_TRANSPILER_VERSION = "json_to_dsl_v4"
+DEFAULT_TRANSPILER_VERSION = "json_to_dsl_v6"
 DEFAULT_TIMEOUT_SECONDS = 30
 ERROR_MESSAGE_MAX = 2000
 

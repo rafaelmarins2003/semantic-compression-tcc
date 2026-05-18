@@ -151,20 +151,14 @@ def _assign_ids(graph: ProcessGraph) -> dict[str, str]:
       - in-degree >= 2 (convergence point), OR
       - target of a back-edge (loop), OR
       - target of an explicit ref (currently same as above two)
-    Gateways are skipped unless they are themselves back-edge targets — they
-    are structural and rarely referenced by user code.
+    Gateways also receive ids when needed. Some LLM graphs loop back to a
+    decision gateway; filtering those ids would emit refs with no declaration.
     """
     needs_id: set[str] = set()
     for nid, node in graph.nodes.items():
         if len(graph.preds.get(nid, [])) >= 2:
-            needs_id.add(nid)
-    needs_id |= _find_back_edge_targets(graph)
-    # Filter out gateways unless they're back-edge targets (loops onto a gateway)
-    back_edges = _find_back_edge_targets(graph)
-    for nid in list(needs_id):
-        if _is_gateway(graph.nodes[nid]) and nid not in back_edges:
-            needs_id.discard(nid)
-
+            needs_id.add(_ref_target(graph, nid))
+    needs_id |= {_ref_target(graph, nid) for nid in _find_back_edge_targets(graph)}
     id_map: dict[str, str] = {}
     used: set[str] = set()
     for nid in sorted(needs_id):  # deterministic
@@ -315,6 +309,7 @@ def _ref_for(
     If neither is usable, returns a comment-style placeholder so the DSL stays
     syntactically valid (the grammar still requires a CNAME).
     """
+    nid = _ref_target(graph, nid)
     cid = id_map.get(nid)
     if cid:
         return f"#{cid}"
@@ -322,6 +317,25 @@ def _ref_for(
     node = graph.nodes.get(nid)
     fallback = _slugify(node.name) if node and node.name else _slugify(nid)
     return f"#{fallback or 'unknown'}"
+
+
+def _ref_target(graph: ProcessGraph, nid: str) -> str:
+    """Return the emitted node a ref should target.
+
+    Join-only and one-in/one-out gateways are routing artifacts in DSL v2.
+    They are not emitted as standalone nodes, so refs to them must point to the
+    next emitted node in sequence.
+    """
+    seen: set[str] = set()
+    current = nid
+    while current not in seen:
+        seen.add(current)
+        node = graph.nodes.get(current)
+        succs = graph.succs.get(current, [])
+        if node is None or not _is_gateway(node) or len(succs) != 1:
+            return current
+        current = succs[0]
+    return nid
 
 
 # ── Graph partitioning ───────────────────────────────────────────────────────
