@@ -101,6 +101,48 @@ def test_transpile_generic_intermediate_catch_event():
     assert len(event) == 0
 
 
+def test_transpile_multiple_processes_use_document_wide_unique_ids():
+    root = _xml(
+        transpile(
+            """
+            process "A" {
+              @lane "One" { start -> end }
+            }
+            process "B" {
+              @lane "Two" { start -> end }
+            }
+            """
+        )
+    )
+
+    ids = [el.get("id") for el in root.xpath("//*[@id]")]
+    assert len(ids) == len(set(ids))
+    assert len(root.findall(".//bpmn:process", NS)) == 2
+
+
+def test_transpile_ref_can_resolve_previous_node_by_name_slug():
+    root = _xml(
+        transpile(
+            """
+            process "P" {
+              start ->
+              user "Acessar página License Seat Links" ->
+              task "Revisar retorno" ->
+              #acessar_p_gina_license_seat_links
+            }
+            """
+        )
+    )
+
+    target = root.find(".//bpmn:userTask[@name='Acessar página License Seat Links']", NS)
+    assert target is not None
+    loop_flow = root.find(
+        f".//bpmn:sequenceFlow[@targetRef='{target.get('id')}']",
+        NS,
+    )
+    assert loop_flow is not None
+
+
 def test_transpile_collaboration_message_flow():
     root = _xml(
         transpile(
