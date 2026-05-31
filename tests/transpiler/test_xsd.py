@@ -26,3 +26,20 @@ def test_unicode_name_yields_valid_xs_id():
     # O id do processo é derivado do nome via _safe_id; deve continuar XSD-válido.
     xml = transpile('process "Clientes Antes de 1º de Fevereiro" { start -> end }')
     assert validate_bpmn_xsd(xml) == []
+
+
+def test_forward_ref_resolves_and_is_xsd_valid():
+    # Regressão: ref a um nó de convergência declarado DEPOIS no texto (forward
+    # ref) deve resolver — refs são independentes de ordem textual.
+    xml = transpile(
+        'process "P" {'
+        "  start ->"
+        '  xor "D" {'
+        '    [a] -> task "X" -> #join'
+        '    [b] -> task "Y" -> #join'
+        "  } ->"
+        '  task "Merge" #join ->'
+        "  end"
+        "}"
+    )
+    assert validate_bpmn_xsd(xml) == []

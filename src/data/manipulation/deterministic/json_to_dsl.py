@@ -461,41 +461,12 @@ def _linearize(
             parts.append(_emit_gateway_block(
                 graph, current, visited, id_map, node_lane, ambient_lane,
             ))
+            # Continue at the fork's join and let the main loop emit-or-ref it
+            # exactly once. If the join was already emitted inside a branch
+            # (asymmetric forks) or there is none, this segment is done. When
+            # join == end_boundary the while condition stops us at the boundary.
             join_id = find_join(graph, current)
-            if join_id is not None:
-                # If the inner fork's join equals the OUTER branch boundary,
-                # do not advance past it — let the while loop's boundary
-                # check terminate this segment. Without this, the inner
-                # join-advance walks into the OUTER scope's territory and
-                # swallows the rest of the process (see handbook usage case).
-                if end_boundary is not None and join_id == end_boundary:
-                    current = end_boundary
-                    continue
-                join_was_visited = join_id in visited
-                visited.add(join_id)
-                join_node = graph.nodes.get(join_id)
-                join_succs = graph.succs.get(join_id, [])
-                if len(join_succs) == 1:
-                    if join_node and not _is_gateway(join_node):
-                        parts.append(_emit_with_lane(
-                            join_node, id_map, node_lane, ambient_lane,
-                        ))
-                    current = join_succs[0]
-                elif len(join_succs) > 1:
-                    if join_was_visited:
-                        parts.append(_ref_for(join_id, graph, id_map))
-                        current = None
-                    else:
-                        current = join_id
-                        visited.discard(join_id)
-                else:
-                    if join_node and not _is_gateway(join_node):
-                        parts.append(_emit_with_lane(
-                            join_node, id_map, node_lane, ambient_lane,
-                        ))
-                    current = None
-            else:
-                current = None
+            current = join_id if (join_id is not None and join_id not in visited) else None
             continue
 
         # Pure join gateway (out-degree <= 1): skip emission
@@ -546,20 +517,21 @@ def _emit_gateway_block(
     is_parallel = keyword == "and"
     is_event = keyword == "event"
 
+    # Shared `visited` across branches (no per-branch copy): the first branch
+    # to reach a node emits it; any later encounter — sibling branch, outer
+    # continuation, or back-edge — becomes a #ref. Guarantees each node is
+    # emitted exactly once.
     branch_strs: list[str] = []
-    branch_visited_sets: list[set[str]] = []
     for branch_start in branch_starts:
-        branch_visited = visited.copy()
         branch_parts = _linearize(
             graph,
             branch_start,
             end_boundary=join_id,
-            visited=branch_visited,
+            visited=visited,
             id_map=id_map,
             node_lane=node_lane,
             ambient_lane=ambient_lane,
         )
-        branch_visited_sets.append(branch_visited)
 
         body = " -> ".join(branch_parts) if branch_parts else "()"
 
@@ -573,9 +545,6 @@ def _emit_gateway_block(
             edge = graph.edge_map.get((fork_id, branch_start))
             cond = _extract_condition(edge)
             branch_strs.append(f"    [{cond}] -> {body}")
-
-    for bv in branch_visited_sets:
-        visited.update(bv)
 
     sep = ";\n" if is_parallel else "\n"
     inner = sep.join(branch_strs)
@@ -600,6 +569,7 @@ def _emit_lane_partitioned_body(
     graph: ProcessGraph,
     id_map: dict[str, str],
     node_lane: dict[str, str],
+    visited: set[str],
 ) -> str:
     """Emit body as @lane scopes when multiple lanes are present.
 
@@ -611,7 +581,8 @@ def _emit_lane_partitioned_body(
     if graph.start_id is None:
         return ""
 
-    visited: set[str] = set()
+    # `visited` is owned by the caller (_emit_process) so the safety net can
+    # detect nodes this walk missed.
     # For partitioning we need head-lane per emitted top-level step.
     # We re-walk top-level explicitly here so we can group by lane.
     segments: list[tuple[str | None, str]] = []  # (lane_name, emission_str)
@@ -632,38 +603,10 @@ def _emit_lane_partitioned_body(
                 graph, current, visited, id_map, node_lane, ambient,
             )
             segments.append((ambient, block))
+            # Continue at the join and let the loop emit-or-ref it exactly once
+            # (see _linearize for the rationale).
             join_id = find_join(graph, current)
-            if join_id is not None:
-                join_was_visited = join_id in visited
-                visited.add(join_id)
-                join_node = graph.nodes.get(join_id)
-                join_succs = graph.succs.get(join_id, [])
-                if len(join_succs) == 1:
-                    if join_node and not _is_gateway(join_node):
-                        segments.append((
-                            node_lane.get(join_id),
-                            _emit_with_lane(join_node, id_map, node_lane, node_lane.get(join_id)),
-                        ))
-                    current = join_succs[0]
-                elif len(join_succs) > 1:
-                    if join_was_visited:
-                        segments.append((
-                            node_lane.get(join_id),
-                            _ref_for(join_id, graph, id_map),
-                        ))
-                        current = None
-                    else:
-                        current = join_id
-                        visited.discard(join_id)
-                else:
-                    if join_node and not _is_gateway(join_node):
-                        segments.append((
-                            node_lane.get(join_id),
-                            _emit_with_lane(join_node, id_map, node_lane, node_lane.get(join_id)),
-                        ))
-                    current = None
-            else:
-                current = None
+            current = join_id if (join_id is not None and join_id not in visited) else None
             continue
 
         if _is_gateway(node) and classify_gateway(current, graph.succs, graph.preds) in (
@@ -728,32 +671,65 @@ def _emit_lane_partitioned_body(
     return "\n".join(lines)
 
 
+def _is_emittable(node: Node) -> bool:
+    return _is_task(node) or _is_event(node) or node.type == "subProcess"
+
+
+def _recover_missing(
+    graph: ProcessGraph,
+    visited: set[str],
+    id_map: dict[str, str],
+    node_lane: dict[str, str],
+    name: str,
+) -> str:
+    """Safety net: emit any emittable node the main walk missed.
+
+    Guarantees no silent node loss. Missing nodes are linearizable artifacts
+    (asymmetric/complex gateways, multi-entry components) — emitted as a flat
+    recovery `process` block and flagged via a warning so the sample can be
+    excluded from training. Edges inside the recovery block are not faithful.
+    """
+    missing = [
+        nid for nid in graph.nodes if nid not in visited and _is_emittable(graph.nodes[nid])
+    ]
+    if not missing:
+        return ""
+    warnings.warn(f"safety-net recovered {len(missing)} unemitted node(s): {missing[:8]}")
+    steps = []
+    for nid in missing:
+        visited.add(nid)
+        steps.append(_emit_element(graph.nodes[nid], id_map, node_lane.get(nid)))
+    flow = "  " + " ->\n  ".join(steps)
+    return f'process "{_esc(name)} — recuperado" {{\n{flow}\n}}'
+
+
 def _emit_process(graph: ProcessGraph, wrapper: str = "process") -> str:
     id_map = _assign_ids(graph)
     node_lane = _build_node_lane(graph)
     name = graph.name or "Unnamed Process"
 
     has_lanes = bool(graph.lanes) and any(node_lane.values())
+    visited: set[str] = set()
 
     if has_lanes:
-        body = _emit_lane_partitioned_body(graph, id_map, node_lane)
+        body = _emit_lane_partitioned_body(graph, id_map, node_lane, visited)
+    elif graph.start_id is None:
+        body = '  note "(empty process — no start event)"'
     else:
-        if graph.start_id is None:
-            body = '  note "(empty process — no start event)"'
-        else:
-            visited: set[str] = set()
-            parts = _linearize(
-                graph,
-                graph.start_id,
-                end_boundary=None,
-                visited=visited,
-                id_map=id_map,
-                node_lane=node_lane,
-                ambient_lane=None,
-            )
-            body = "  " + " ->\n  ".join(parts) if parts else '  note "(empty flow)"'
+        parts = _linearize(
+            graph,
+            graph.start_id,
+            end_boundary=None,
+            visited=visited,
+            id_map=id_map,
+            node_lane=node_lane,
+            ambient_lane=None,
+        )
+        body = "  " + " ->\n  ".join(parts) if parts else '  note "(empty flow)"'
 
-    return f'{wrapper} "{_esc(name)}" {{\n{body}\n}}'
+    block = f'{wrapper} "{_esc(name)}" {{\n{body}\n}}'
+    recovery = _recover_missing(graph, visited, id_map, node_lane, name)
+    return f"{block}\n\n{recovery}" if recovery else block
 
 
 def _emit_process_collection(graph: ProcessGraph) -> str:
