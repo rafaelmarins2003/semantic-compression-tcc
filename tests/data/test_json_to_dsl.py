@@ -53,6 +53,131 @@ def _assert_parseable(dsl_text: str) -> None:
     parse(dsl_text)
 
 
+def _emittable_count(dsl_text: str) -> int:
+    """Count emitted elements (tasks+events+subprocess), excluding gateways/refs.
+
+    Mirrors the node-count parity invariant: every emittable graph node should
+    appear exactly once. A subprocess wraps one inner task, so it is subtracted.
+    """
+    from collections import Counter
+
+    t = parse(dsl_text)
+    names = (
+        "task",
+        "start_event",
+        "end_event",
+        "catch_event",
+        "throw_event",
+        "subprocess",
+        "call_activity",
+        "note",
+    )
+    c = Counter({n: len(list(t.find_data(n))) for n in names})
+    return (
+        (c["task"] - c["subprocess"])
+        + c["start_event"]
+        + c["end_event"]
+        + c["catch_event"]
+        + c["throw_event"]
+        + c["subprocess"]
+        + c["call_activity"]
+        + c["note"]
+    )
+
+
+def test_convert_asymmetric_fork_does_not_duplicate_shared_tail():
+    # Regressão Fase 1: branches de XOR aninhado convergem para uma cauda
+    # compartilhada. Com visited.copy() por branch a cauda saía duplicada.
+    dsl = convert(
+        {
+            "pool": "Risks",
+            "nodes": [
+                {"id": "S", "type": "startEvent", "name": ""},
+                {"id": "G1", "type": "exclusiveGateway", "name": "D1"},
+                {"id": "T2", "type": "task", "name": "Direct"},
+                {"id": "G2", "type": "exclusiveGateway", "name": "D2"},
+                {"id": "T3", "type": "task", "name": "Mid"},
+                {"id": "G3", "type": "exclusiveGateway", "name": "D3"},
+                {"id": "T4", "type": "task", "name": "Deep"},
+                {"id": "E3", "type": "endEvent", "name": "Early end"},
+                {"id": "T5", "type": "task", "name": "Shared tail"},
+                {"id": "E2", "type": "endEvent", "name": "Final"},
+            ],
+            "flows": [
+                {"from": "S", "to": "G1"},
+                {"from": "G1", "to": "T2", "cond": "a"},
+                {"from": "G1", "to": "G2", "cond": "b"},
+                {"from": "G2", "to": "T3", "cond": "c"},
+                {"from": "G2", "to": "G3", "cond": "d"},
+                {"from": "G3", "to": "T4", "cond": "e"},
+                {"from": "G3", "to": "E3", "cond": "f"},
+                {"from": "T2", "to": "T5"},
+                {"from": "T3", "to": "T5"},
+                {"from": "T4", "to": "T5"},
+                {"from": "T5", "to": "E2"},
+            ],
+        }
+    )
+    _assert_parseable(dsl)
+    # emittable: S,T2,T3,T4,E3,T5,E2 = 7 (gateways excluded)
+    assert _emittable_count(dsl) == 7
+    assert dsl.count('"Shared tail"') == 1
+
+
+def test_convert_loop_does_not_explode():
+    # Regressão Fase 1: back-edge não deve re-emitir o corpo (visited global).
+    dsl = convert(
+        {
+            "pool": "Loop",
+            "nodes": [
+                {"id": "S", "type": "startEvent", "name": ""},
+                {"id": "T1", "type": "task", "name": "Step1"},
+                {"id": "G", "type": "exclusiveGateway", "name": "Branch"},
+                {"id": "T2", "type": "task", "name": "Step2"},
+                {"id": "E", "type": "endEvent", "name": ""},
+            ],
+            "flows": [
+                {"from": "S", "to": "T1"},
+                {"from": "T1", "to": "G"},
+                {"from": "G", "to": "T2", "cond": "go"},
+                {"from": "G", "to": "T1", "cond": "loop"},
+                {"from": "T2", "to": "E"},
+            ],
+        }
+    )
+    _assert_parseable(dsl)
+    assert _emittable_count(dsl) == 4  # S,T1,T2,E
+    assert dsl.count('"Step1"') == 1
+
+
+def test_convert_safety_net_recovers_unreachable_node_with_warning():
+    # Fase 2a: nó alcançável só por aresta fora do caminho linearizado
+    # (multi-entrada no mesmo componente fraco) é recuperado + warning.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        dsl = convert(
+            {
+                "pool": "MultiEntry",
+                "nodes": [
+                    {"id": "S", "type": "startEvent", "name": ""},
+                    {"id": "M", "type": "task", "name": "Merge"},
+                    {"id": "X", "type": "task", "name": "Other entry"},
+                    {"id": "E", "type": "endEvent", "name": ""},
+                ],
+                "flows": [
+                    {"from": "S", "to": "M"},
+                    {"from": "X", "to": "M"},
+                    {"from": "M", "to": "E"},
+                ],
+            }
+        )
+    _assert_parseable(dsl)
+    assert any("safety-net" in str(item.message) for item in caught)
+    assert "— recuperado" in dsl
+    assert 'task "Other entry"' in dsl
+    assert _emittable_count(dsl) == 4  # S,M,X,E all present
+
+
 def test_build_adjacency_skips_unknown_source_with_warning():
     nodes = {"B": Node("B", "task", "B")}
     edges = [Edge("f1", "MISSING", "B")]

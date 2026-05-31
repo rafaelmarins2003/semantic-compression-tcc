@@ -79,6 +79,7 @@ class ProcessEmitter:
     context: XmlContext
     explicit_ids: dict[str, str] = field(default_factory=dict)
     slug_ids: dict[str, str] = field(default_factory=dict)
+    declared_ids: set[str] = field(default_factory=set)
     lane_members: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     current_lane: str | None = None
 
@@ -89,9 +90,18 @@ class ProcessEmitter:
         if self.current_lane:
             self.lane_members[self.current_lane].append(node_id)
 
-    def register_id(self, dsl_id: str, node_id: str) -> None:
+    def _id_for(self, dsl_id: str, prefix: str) -> str:
+        """Allocate (or reuse) the XML id for a node, keyed by its DSL id.
+
+        A forward ref may have reserved this id already (see resolve_ref); in
+        that case we reuse it so the declaration and the ref agree.
+        """
+        if dsl_id and dsl_id in self.explicit_ids:
+            return self.explicit_ids[dsl_id]
+        node_id = self.new_id(prefix)
         if dsl_id:
             self.explicit_ids[dsl_id] = node_id
+        return node_id
 
     def register_name(self, name: str, node_id: str) -> None:
         slug = _slugify(name)
@@ -103,22 +113,24 @@ class ProcessEmitter:
             return self.explicit_ids[dsl_id]
         if dsl_id in self.slug_ids:
             return self.slug_ids[dsl_id]
+        if dsl_id in self.declared_ids:
+            # Forward ref: the target is declared later in the flow. Reserve a
+            # stable id now; the declaration reuses it via _id_for. Resolution
+            # is thus independent of textual order.
+            node_id = self.new_id("Node")
+            self.explicit_ids[dsl_id] = node_id
+            return node_id
         raise ValueError(f"Unresolved DSL ref #{dsl_id}")
 
-    def add_node(self, tag: str, name: str = "") -> str:
-        prefix = tag[0].upper() + tag[1:]
-        node_id = self.new_id(prefix)
-        attrs = {"id": node_id}
-        if name:
-            attrs["name"] = name
-            self.register_name(name, node_id)
-        etree.SubElement(self.process_el, _q(tag), attrs)
-        self.track_node(node_id)
+    def add_node(self, tag: str, name: str = "", dsl_id: str = "") -> str:
+        node_id, _ = self.add_node_element(tag, name, dsl_id)
         return node_id
 
-    def add_node_element(self, tag: str, name: str = "") -> tuple[str, etree._Element]:
+    def add_node_element(
+        self, tag: str, name: str = "", dsl_id: str = ""
+    ) -> tuple[str, etree._Element]:
         prefix = tag[0].upper() + tag[1:]
-        node_id = self.new_id(prefix)
+        node_id = self._id_for(dsl_id, prefix)
         attrs = {"id": node_id}
         if name:
             attrs["name"] = name
@@ -233,7 +245,7 @@ def _emit_process(
     name = unquote(tree.children[0])
     process_id = context.named_id("Process", name)
     process_el = etree.SubElement(root, _q(tag_name), {"id": process_id, "name": name})
-    emitter = ProcessEmitter(process_el, context)
+    emitter = ProcessEmitter(process_el, context, declared_ids=_collect_declared_ids(tree))
 
     body = _first_tree(tree, {"flow", "laneset"})
     if body is None:
@@ -295,16 +307,14 @@ class StepResult:
 def _emit_step(emitter: ProcessEmitter, step: Tree) -> StepResult:
     if step.data == "task":
         tag, name, doc, dsl_id = _parse_task(step)
-        node_id, el = emitter.add_node_element(tag, name)
-        emitter.register_id(dsl_id, node_id)
+        node_id, el = emitter.add_node_element(tag, name, dsl_id)
         if doc:
             etree.SubElement(el, _q("documentation")).text = doc
         return StepResult([node_id], [node_id])
 
     if step.data in {"start_event", "end_event", "catch_event", "throw_event"}:
         tag, name, definition, dsl_id = _parse_event(step)
-        node_id, el = emitter.add_node_element(tag, name)
-        emitter.register_id(dsl_id, node_id)
+        node_id, el = emitter.add_node_element(tag, name, dsl_id)
         if definition:
             etree.SubElement(el, _q(definition))
         return StepResult([node_id], [node_id])
@@ -313,18 +323,15 @@ def _emit_step(emitter: ProcessEmitter, step: Tree) -> StepResult:
         return _emit_gateway(emitter, step)
 
     if step.data == "subprocess":
-        node_id = emitter.add_node("subProcess", unquote(step.children[0]))
-        emitter.register_id(_node_id_opt(step), node_id)
+        node_id = emitter.add_node("subProcess", unquote(step.children[0]), _node_id_opt(step))
         return StepResult([node_id], [node_id])
 
     if step.data == "call_activity":
-        node_id = emitter.add_node("callActivity", unquote(step.children[0]))
-        emitter.register_id(_node_id_opt(step), node_id)
+        node_id = emitter.add_node("callActivity", unquote(step.children[0]), _node_id_opt(step))
         return StepResult([node_id], [node_id])
 
     if step.data == "note":
-        node_id = emitter.add_node("textAnnotation", unquote(step.children[0]))
-        emitter.register_id(_node_id_opt(step), node_id)
+        node_id = emitter.add_node("textAnnotation", unquote(step.children[0]), _node_id_opt(step))
         return StepResult([node_id], [node_id])
 
     if step.data == "ref":
@@ -344,8 +351,7 @@ def _emit_gateway(emitter: ProcessEmitter, tree: Tree) -> StepResult:
         "event_gw": "eventBasedGateway",
     }[tree.data]
     name = _optional_name(tree)
-    split_id = emitter.add_node(tag, name)
-    emitter.register_id(_node_id_opt(tree), split_id)
+    split_id = emitter.add_node(tag, name, _node_id_opt(tree))
     join_id = emitter.add_node(tag, f"{name} merge" if name else "")
 
     if tree.data == "and_gw":
@@ -456,6 +462,15 @@ def _node_id_opt(tree: Tree) -> str:
     if id_tree is None or not id_tree.children:
         return ""
     return str(id_tree.children[0])
+
+
+def _collect_declared_ids(tree: Tree) -> set[str]:
+    """All explicit `#id` declarations in a process subtree (enables forward refs)."""
+    ids: set[str] = set()
+    for sub in tree.iter_subtrees():
+        if sub.data == "id_opt" and sub.children:
+            ids.add(str(sub.children[0]))
+    return ids
 
 
 def _ref_name(tree: Tree) -> str:
