@@ -1,59 +1,46 @@
 // E-commerce order processing — collaboration between Customer and Online Shop
-// Demonstrates: collaboration, multiple pools, pool with lanes,
-//               message events for inter-pool communication.
-//
-// Message flow (inferred by transpiler from matching event names):
-//   Customer end:message("order-submitted")  → Shop start:message("order-submitted")
-//   Shop throw:message("order-confirmed")    → Customer catch:message("order-confirmed")
-//   Shop end:message("order-cancelled")      → Customer catch:message("order-cancelled")
+// Demonstrates: collaboration, multiple pools, @lane scoped flow,
+//               typed message events, and explicit message flows.
 
 collaboration "E-Commerce Order" {
-
   pool "Customer" {
     start ->
     task "Browse Products" ->
     task "Add to Cart" ->
-    task "Submit Order" ->
+    task "Submit Order" #submit_order ->
     xor "Order Outcome" {
-      [confirmed] -> catch:message("order-confirmed") -> task "Receive Package" -> end
-      [cancelled] -> catch:message("order-cancelled") -> task "Contact Support" -> end
+      [confirmed] ->
+        catch:message("order-confirmed") "Order confirmed" #customer_confirmed ->
+        task "Receive Package" ->
+        end
+      [cancelled] ->
+        catch:message("order-cancelled") "Order cancelled" #customer_cancelled ->
+        task "Contact Support" ->
+        end
     }
   }
 
   pool "Online Shop" {
-
-    lane "Sales" {
-      start:message("order-submitted"),
-      task "Validate Order",
-      task "Confirm Order",
-      task "Send Invoice"
+    @lane "Sales" {
+      start:message("order-submitted") "Order received" #receive_order ->
+      task "Validate Order" ->
+      xor "Stock Available?" {
+        [yes] ->
+          task "Confirm Order" ->
+          task "Pick Items" (lane="Warehouse") ->
+          task "Pack Order" (lane="Warehouse") ->
+          task "Dispatch Package" (lane="Warehouse") ->
+          throw:message("order-confirmed") "Order confirmed" #order_confirmed
+        [no] ->
+          task "Notify Out of Stock" (lane="Customer Support") ->
+          throw:message("order-cancelled") "Order cancelled" #order_cancelled
+      } ->
+      task "Send Invoice" ->
+      end
     }
-
-    lane "Warehouse" {
-      task "Pick Items",
-      task "Pack Order",
-      task "Dispatch Package"
-    }
-
-    lane "Customer Support" {
-      task "Notify Out of Stock"
-    }
-
-    // Sequence flow within the Online Shop pool
-    start:message("order-submitted") ->
-    task "Validate Order" ->
-    xor "Stock Available?" {
-      [yes] ->
-        task "Confirm Order" ->
-        task "Pick Items" ->
-        task "Pack Order" ->
-        task "Dispatch Package" ->
-        throw:message("order-confirmed")
-      [no] ->
-        task "Notify Out of Stock" ->
-        throw:message("order-cancelled")
-    } ->
-    task "Send Invoice" ->
-    end
   }
+
+  message "Order submitted" from #submit_order to #receive_order
+  message "Order confirmed" from #order_confirmed to #customer_confirmed
+  message "Order cancelled" from #order_cancelled to #customer_cancelled
 }

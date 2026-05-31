@@ -2,7 +2,8 @@
 
 Reads succeeded rows from `dsl_transpiler_runs`, runs `src.transpiler.transpile()`,
 checks that the generated XML is well-formed and has globally unique BPMN ids,
-and records the outcome in `xml_transpiler_runs`.
+validates it against the BPMN 2.0 XSD (`xsd_ok`/`xsd_error`), and records the
+outcome in `xml_transpiler_runs`.
 
 This runner is intentionally audit-oriented: failures are stored with the input
 DSL snapshot and traceback so the XML transpiler can be improved iteratively
@@ -25,41 +26,14 @@ from collections import Counter
 from lxml import etree
 
 from src.data.db import Database
+from src.data.migrations.create_xml_transpiler_runs import ensure_schema
 from src.transpiler import transpile
+from src.transpiler.xsd import validate_bpmn_xsd
 
 DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v6"
-DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v2"
+DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v3"
 DEFAULT_TIMEOUT_SECONDS = 30
 ERROR_MESSAGE_MAX = 2000
-
-CREATE_XML_RUNS_TABLE = """
-CREATE TABLE IF NOT EXISTS xml_transpiler_runs (
-    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-    sample_id                TEXT NOT NULL,
-    source_generation_id     INTEGER,
-    source_dsl_run_id        INTEGER NOT NULL,
-    source_dsl_version       TEXT NOT NULL,
-    xml_transpiler_version   TEXT NOT NULL,
-    status                   TEXT NOT NULL,
-    xml_ok                   INTEGER,
-    input_dsl                TEXT,
-    output_xml               TEXT,
-    warnings                 TEXT,
-    error_stage              TEXT,
-    error_type               TEXT,
-    error_message            TEXT,
-    error_traceback          TEXT,
-    created_at               TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY(source_dsl_run_id) REFERENCES dsl_transpiler_runs(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_xml_transpiler_sample
-ON xml_transpiler_runs(sample_id);
-CREATE INDEX IF NOT EXISTS idx_xml_transpiler_version_status
-ON xml_transpiler_runs(xml_transpiler_version, status);
-CREATE INDEX IF NOT EXISTS idx_xml_transpiler_source_dsl
-ON xml_transpiler_runs(source_dsl_run_id);
-"""
 
 
 class XmlTranspileTimeout(Exception):
@@ -71,8 +45,8 @@ def _alarm_handler(signum, frame):  # noqa: ARG001 (signal-required signature)
 
 
 def ensure_xml_transpiler_runs_table(db: Database) -> None:
-    """Create the XML transpiler audit table if it does not exist."""
-    db._conn.executescript(CREATE_XML_RUNS_TABLE)
+    """Create the XML transpiler audit table and ensure xsd columns exist."""
+    ensure_schema(db._conn)
     db._conn.commit()
 
 
@@ -151,6 +125,8 @@ def run_one(input_dsl: str, *, timeout_seconds: int) -> dict:
     result: dict = {
         "status": None,
         "xml_ok": None,
+        "xsd_ok": None,
+        "xsd_error": None,
         "output_xml": None,
         "warnings": None,
         "error_stage": None,
@@ -192,6 +168,10 @@ def run_one(input_dsl: str, *, timeout_seconds: int) -> dict:
             _validate_xml(xml_text)
             result["status"] = "succeeded"
             result["xml_ok"] = 1
+            xsd_errors = validate_bpmn_xsd(xml_text)
+            result["xsd_ok"] = 0 if xsd_errors else 1
+            if xsd_errors:
+                result["xsd_error"] = _truncate(" | ".join(xsd_errors))
         except XmlTranspileTimeout:
             result["status"] = "transpile_timeout"
             result["error_stage"] = "xml_validate"
@@ -229,10 +209,10 @@ def insert_run(
         """
         INSERT INTO xml_transpiler_runs
             (sample_id, source_generation_id, source_dsl_run_id,
-             source_dsl_version, xml_transpiler_version, status, xml_ok,
+             source_dsl_version, xml_transpiler_version, status, xml_ok, xsd_ok,
              input_dsl, output_xml, warnings,
-             error_stage, error_type, error_message, error_traceback)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             error_stage, error_type, error_message, error_traceback, xsd_error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             sample_id,
@@ -242,6 +222,7 @@ def insert_run(
             xml_transpiler_version,
             result["status"],
             result["xml_ok"],
+            result["xsd_ok"],
             input_dsl,
             result["output_xml"],
             result["warnings"],
@@ -249,6 +230,7 @@ def insert_run(
             result["error_type"],
             result["error_message"],
             result["error_traceback"],
+            result["xsd_error"],
         ),
     )
     db._conn.commit()
@@ -269,6 +251,8 @@ def run_batch(
         "transpile_failed": 0,
         "xml_failed": 0,
         "transpile_timeout": 0,
+        "xsd_ok": 0,
+        "xsd_failed": 0,
         "error_types": Counter(),
     }
 
@@ -310,6 +294,10 @@ def run_batch(
                 result=result,
             )
             summary[result["status"]] += 1
+            if result["xsd_ok"] == 1:
+                summary["xsd_ok"] += 1
+            elif result["xsd_ok"] == 0:
+                summary["xsd_failed"] += 1
             if result["error_type"]:
                 summary["error_types"][result["error_type"]] += 1
 
@@ -340,6 +328,8 @@ def print_summary(summary: dict, xml_transpiler_version: str) -> None:
     print(f"  transpile_failed   {summary['transpile_failed']:5}")
     print(f"  xml_failed         {summary['xml_failed']:5}")
     print(f"  transpile_timeout  {summary['transpile_timeout']:5}")
+    print(f"  xsd_ok             {summary['xsd_ok']:5}")
+    print(f"  xsd_failed         {summary['xsd_failed']:5}")
     if summary["error_types"]:
         print()
         print("  Error types (this run):")

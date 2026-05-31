@@ -19,6 +19,17 @@ from src.dsl.parser import parse, parse_file, unquote
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 _CNAME_RE = re.compile(r"[^a-z0-9_]")
+# XML 1.0 NameChar set (sem ':'): ids precisam ser NCName/xs:ID validos.
+# str.isalnum() do Python aceita chars (ex.: U+00BA) que NAO sao NameChar,
+# entao restringimos ids a este conjunto para garantir validade XSD.
+_XML_NAME_CHAR = re.compile(
+    "[A-Za-z0-9_.\\-"
+    "\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF"
+    "\u0300-\u036F\u0370-\u037D\u037F-\u1FFF"
+    "\u200C\u200D\u203F\u2040"
+    "\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF"
+    "\uF900-\uFDCF\uFDF0-\uFFFD]"
+)
 
 
 def _q(tag: str) -> str:
@@ -465,5 +476,7 @@ def _first_tree(tree: Tree, names: set[str]) -> Tree | None:
 
 
 def _safe_id(value: str) -> str:
-    cleaned = "".join(c if c.isalnum() else "_" for c in value).strip("_")
+    cleaned = "".join(
+        c if c.isalnum() and _XML_NAME_CHAR.match(c) else "_" for c in value
+    ).strip("_")
     return cleaned or "Unnamed"
