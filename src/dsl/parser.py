@@ -46,12 +46,32 @@ def parse_file(path: str | Path) -> Tree:
     return parse(Path(path).read_text(encoding="utf-8"))
 
 
+_UNESCAPE = {"n": "\n", "t": "\t", "r": "\r"}
+
+
 def unquote(token) -> str:
-    """Strip surrounding double-quotes from an ESCAPED_STRING token value."""
+    """Strip surrounding quotes from an ESCAPED_STRING and unescape its body.
+
+    Inverse of the `\\` / `\\"` escaping used when emitting the DSL, so a name
+    like `Clicar em "X"` round-trips instead of leaking backslashes into the
+    generated XML.
+    """
     s = str(token)
-    if s.startswith('"') and s.endswith('"'):
-        return s[1:-1]
-    return s
+    if not (len(s) >= 2 and s.startswith('"') and s.endswith('"')):
+        return s
+    body = s[1:-1]
+    out: list[str] = []
+    i = 0
+    while i < len(body):
+        c = body[i]
+        if c == "\\" and i + 1 < len(body):
+            nxt = body[i + 1]
+            out.append(_UNESCAPE.get(nxt, nxt))
+            i += 2
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
 
 
 if __name__ == "__main__":
