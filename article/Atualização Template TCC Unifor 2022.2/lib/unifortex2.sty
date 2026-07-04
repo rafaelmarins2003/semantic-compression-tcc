@@ -1287,13 +1287,14 @@
 	%
 	\renewcommand*{\glsgroupskip}{}%
 	% Depois da palavra, colocar o ":" e no fim o ponto final "."
-	\renewcommand*{\glossaryentryfield}[5]{%
-		\item[\glstarget{##1}{##2}:] ##3.%
+	% (\glossaryentryfield foi removido do pacote glossaries moderno; \glossentry é o equivalente)
+	\renewcommand*{\glossentry}[2]{%
+		\item[\glstarget{##1}{\glossentryname{##1}}:] \glossentrydesc{##1}.%
 	}%
 }
 
 \newcommand{\imprimirglossario}{ %
-	\glossarystyle{glossario-unifor} %
+	\setglossarystyle{glossario-unifor} % (\glossarystyle foi removido do pacote glossaries moderno)
 	\printglossary[title=GLOSSÁRIO,toctitle=GLOSSÁRIO] %
 	\addcontentsline{toc}{chapter}{GLOSSÁRIO}
 }

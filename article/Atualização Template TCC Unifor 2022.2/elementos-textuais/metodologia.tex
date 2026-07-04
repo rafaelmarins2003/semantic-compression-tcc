@@ -1,312 +1,176 @@
 \chapter{Metodologia}
 \label{chap:metodologia}
 
-\lipsum[2]
-\lipsum[12]
+Este capítulo descreve o protocolo de compressão semântica proposto e o desenho experimental usado para avaliá-lo. Trata-se de uma pesquisa aplicada, de natureza experimental e abordagem quantitativa: todos os critérios de qualidade adotados são computáveis por código, e todos os artefatos intermediários são persistidos e versionados para permitir a reprodução integral dos resultados.
 
-O autor \cite{lamport1986latex} e \cite{Maia2011} \lipsum[2] 
+\section{Visão Geral do Protocolo}
+\label{sec:visao-geral}
+
+O protocolo separa a geração de um modelo BPMN 2.0 em uma etapa probabilística curta e uma etapa determinística verificável. Na fase de construção do conjunto de dados, o fluxo completo é:
+
+\begin{alineascomnumero}
+	\item \textbf{Pré-processamento}: a descrição textual bruta do processo é reestruturada por um LLM de fronteira em um formato padronizado em linguagem natural (atores, fluxo principal, decisões e paralelismos);
+	\item \textbf{Extração estruturada}: um segundo LLM de fronteira converte o texto padronizado em um JSON canônico de BPMN, contendo elementos, fluxos de sequência e \textit{gateways}, sem informação de leiaute;
+	\item \textbf{Compressão}: um conversor determinístico (\textit{json\_to\_dsl}) lineariza o grafo do JSON na DSL proposta, com garantia formal de preservação topológica;
+	\item \textbf{Expansão}: um transpilador determinístico (\textit{dsl\_to\_xml}) expande a DSL para XML BPMN 2.0 completo;
+	\item \textbf{Validação}: o XML é validado contra o XSD oficial da especificação BPMN 2.0 e comparado topologicamente com o JSON de origem.
+\end{alineascomnumero}
+
+% TODO: figura do pipeline (diagrama dos 5 estágios com as tabelas do SQLite entre eles)
+
+Os pares (descrição textual, DSL) resultantes constituem o corpus de treino. Na fase de avaliação, um modelo de linguagem de pequeno porte especializado gera a DSL diretamente do texto, e as etapas 4--5 reconstituem e verificam o XML. O modelo probabilístico nunca é responsável pela sintaxe do documento final — apenas pelo conteúdo semântico da representação intermediária.
+
+\section{Construção do Conjunto de Dados}
+\label{sec:dados}
+
+\subsection{Fontes e Curadoria}
+\label{subsec:fontes}
+
+Não existe conjunto público em escala que associe descrições textuais de processos a modelos BPMN em formato de intercâmbio. A estratégia adotada foi coletar apenas o lado de entrada (descrições textuais) de fontes heterogêneas e sintetizar o lado de saída pelo pipeline da Seção~\ref{sec:visao-geral}. As fontes utilizadas são apresentadas na Tabela~\ref{tab:fontes-dados}.
 
 \begin{table}[h!]
-	\Caption{\label{tabela-ibge} Um Exemplo de tabela alinhada que pode ser longa ou curta, conforme padrão IBGE}%
+	\Caption{\label{tab:fontes-dados} Fontes do conjunto de dados e partições}%
 	\IBGEtab{}{%
-		\begin{tabular}{ccc}
+		\begin{tabular}{lrll}
 			\toprule
-			Nome & Nascimento & Documento \\
+			Fonte & N & Partição & Papel \\
 			\midrule \midrule
-			Maria da Silva & 11/11/1111 & 111.111.111-11 \\
-			Maria da Silva & 11/11/1111 & 111.111.111-11 \\
-			Maria da Silva & 11/11/1111 & 111.111.111-11 \\
+			GitLab Handbook (seções curadas) & 728 & \textit{sft} & treino supervisionado \\
+			GitLab Handbook (seções lineares) & 172 & \textit{grpo} & etapa opcional de reforço \\
+			PET \cite{bellan2022pet} & 44 & \textit{sft} & treino supervisionado \\
+			PMo \cite{brissard2025pmo} & 53 & \textit{holdout} & avaliação (nunca treino) \\
+			Zenodo \cite{mangler2023textual} & 24 & \textit{holdout} & avaliação (nunca treino) \\
 			\bottomrule
 		\end{tabular}%
 	}{%
-	\Fonte{Produzido pelos autores}%
-	\Nota{Esta é uma nota, que diz que os dados são baseados na
-		regressão linear.}%
-	\Nota[Anotações]{Uma anotação adicional, seguida de várias outras.}%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{De 1.047 amostras coletadas, 26 foram excluídas por degradação identificada durante a validação topológica, resultando em 1.021 amostras ativas.}%
 }
 \end{table}
 
-\cite{Huetal2000} \lipsum[2] 
+A principal fonte de volume é o \textit{handbook} público da empresa GitLab, um manual operacional aberto com milhares de seções procedurais. As seções foram coletadas por \textit{web scraping} e submetidas a uma curadoria automática que atribui um escore procedural (presença de passos, decisões e atores) e classifica cada seção em quatro categorias: \textit{ideal} (passos, decisões e atores), \textit{good} (passos e decisões ou atores), \textit{linear} (apenas passos) e \textit{marginal} (sem passos, descartada). Seções \textit{ideal} e \textit{good} compõem a partição de treino supervisionado; seções \textit{linear}, por não exigirem estrutura de decisão, são reservadas como \textit{prompts} para a etapa opcional de aprendizado por reforço.
 
-\section{Exemplo de Algoritmos e Figuras}
-\label{sec:exemplo-de-algoritmos-e-figuras}
+\subsection{Pré-processamento com LLM}
+\label{subsec:preprocessamento}
 
-\lipsum[2]
+Cada descrição bruta é reestruturada pelo modelo Kimi K2.6 (acessado via Ollama Cloud) em um formato padronizado que explicita nome do processo, atores, fluxo principal numerado, decisões com os dois caminhos (sim/não) e ações paralelas. O \textit{prompt} instrui o modelo a apenas reorganizar e limpar o texto, sem inventar informação, e a separar blocos independentes quando a descrição contém múltiplos processos. Essa etapa normaliza a variação estilística das fontes e aproxima o texto do vocabulário estrutural do BPMN sem ainda impor formato de máquina.
 
-\begin{algorithm}[h!]
-	\SetSpacedAlgorithm
-	\caption{\label{exemplo-de-algoritmo}Como escrever algoritmos no \LaTeX2e}
-	\Entrada{o proprio texto}
-	\Saida{como escrever algoritmos com \LaTeX2e }
-	\Inicio{
-		inicializa\c{c}\~ao\;
-		\Repita{fim do texto}{
-			leia o atual\;
-			\Se{entendeu}{
-				vá para o próximo\;
-				próximo se torna o atual\;}
-			\Senao{volte ao início da seção\;}
-		}
-	}	
-\end{algorithm}
+\subsection{Geração do JSON BPMN Canônico}
+\label{subsec:json-canonico}
 
-\lipsum[2]
-%\begin{algorithm}[H]
-%	\Entrada{o proprio texto}
-%	\Saida{como escrever algoritmos com \LaTeX2e }
-%	\Inicio{
-%		inicializa\c{c}\~ao\;
-%		\Repita{fim do texto}{
-%			leia o atual\;
-%			\Se{entendeu}{
-%				vá para o próximo\;
-%				próximo se torna o atual\;}
-%			\Senao{volte ao início da seção\;}
-%		}
-%	}
-%	\caption{Exemplo de Algoritmo Versao 02}
-%\end{algorithm}
+O texto padronizado é convertido pelo modelo DeepSeek V4 (Ollama Cloud) em um JSON canônico que descreve o processo como grafo: nós tipados (eventos de início e fim, tarefas por tipo, \textit{gateways} exclusivos, paralelos e inclusivos), arestas de fluxo de sequência com condições, e raias de responsabilidade. O JSON não contém leiaute nem identificadores de serialização — apenas a estrutura lógica do processo. Esse artefato cumpre dois papéis: é a fonte da qual a DSL é derivada deterministicamente e é a referência contra a qual a equivalência topológica do XML final é verificada (Seção~\ref{sec:avaliacao}).
 
-%\begin{algorithm}
-%	\begin{algorithmic}
-%	\Entrada{o proprio texto}
-%	\Saida{como escrever algoritmos com \LaTeX2e }	
-%	\end{algorithmic}
-%\end{algorithm}
+Cabe registrar uma limitação assumida: o "gabarito" estrutural de cada amostra é a interpretação do processo feita por um LLM de fronteira, não uma anotação humana. Essa escolha é o que torna viável a escala do corpus, e seu risco é mitigado pela avaliação final contra o conjunto PMo, cujos modelos de referência são curados por especialistas.
 
-Exemplo de alíneas com números:
+\subsection{Partições e Prevenção de Contaminação}
+\label{subsec:particoes}
 
-\begin{alineascomnumero}
-	\item Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
-	\item Praesent vitae nulla varius, pulvinar quam at, dapibus nisi. Aenean in commodo tellus. Mauris molestie est sed justo malesuada, quis feugiat tellus venenatis.
-	\item Praesent quis erat eleifend, lacinia turpis in, tristique tellus. Nunc dictum sed tortor nec viverra.
-	\item Mauris facilisis odio eu ornare tempor. Nunc dictum sed tortor nec viverra.
-	\item Curabitur convallis odio at eros consequat pretium.
-\end{alineascomnumero}
+As amostras são particionadas em \textit{sft} (772), \textit{grpo} (172) e \textit{holdout} (77). Duas regras protegem a integridade da avaliação:
 
-\lipsum[12]
+\begin{alineas}
+	\item o conjunto PMo é exclusivamente de avaliação: nenhum artefato derivado dele participa de qualquer etapa de treino;
+	\item as 24 descrições da fonte Zenodo \cite{mangler2023textual} provêm da mesma origem dos itens 25--48 do PMo (com pré-processamento distinto). Para evitar contaminação indireta do \textit{holdout} — treinar com versões alternativas dos mesmos processos usados na avaliação — essa fonte foi igualmente excluída do treino e alocada à partição \textit{holdout}, onde suas múltiplas modelagens de referência com pontuação de especialistas apoiam a análise de ambiguidade.
+\end{alineas}
 
-\begin{table}[h!]	
-	\centering
-	\Caption{\label{tab:internal}Internal exon scores}	
-	\IBGEtab{}{
-		\begin{tabular}{cll}
-			\toprule
-			Ranking & Exon Coverage & Splice Site Support\\
-			\midrule \midrule
-			E1 & Complete coverage by a single transcript & Both splice sites\\
-			E2 & Complete coverage by more than a single transcript & Both splice sites\\
-			E3 & Partial coverage & Both splice sites\\
-			E4 & Partial coverage & One splice site\\
-			E5 & Complete or partial coverage & No splice sites\\
-			E6 & No coverage & No splice sites\\
-			\bottomrule
-		\end{tabular}
-	}{
-	\Fonte{os autores}
-}
-\end{table}
+\section{A BPMN-DSL}
+\label{sec:dsl}
 
-\lipsum[2] Referenciando a \autoref{tab:internal} \lipsum[2]
+A representação intermediária é uma DSL projetada neste trabalho, uma vez que não há linguagem consolidada para descrição textual compacta de BPMN. Seu desenho segue princípios explícitos: cada conceito BPMN tem exatamente uma forma sintática; nomes são legibilidade e identificadores são referência (elementos referenciados recebem sufixo \texttt{\#id} estável); raias são escopos que envolvem o fluxo (bloco \texttt{@lane}), eliminando a dupla declaração de atividades; ramos vazios de decisão são explícitos (\texttt{()}); e propriedades adicionais usam sintaxe única de pares chave-valor. A gramática é formalizada em EBNF e implementada com o \textit{parser} Lark\footnote{\url{https://github.com/lark-parser/lark}}.
 
-\index{figuras}Figuras podem ser criadas diretamente em LaTeX,
-como o exemplo da \ref{fig-grafico-1}.
+A DSL cobre os elementos essenciais da BPMN 2.0 — eventos (com gatilhos de mensagem, temporizador, erro, sinal e escalonamento), oito tipos de tarefa, \textit{gateways} exclusivos, paralelos, inclusivos e baseados em eventos, subprocessos, raias, \textit{pools}, colaborações com fluxos de mensagem e anotações — e mapeia cada construção para o elemento XML correspondente. Conceitos avançados (eventos de borda, compensação, multi-instância) ficam explicitamente fora do escopo desta versão. O Código~\ref{lst:dsl-exemplo} ilustra um processo com decisão e repetição.
 
-\begin{figure}[h!]
-	\centering
-	\Caption{\label{fig-grafico-1}Produção anual das dissertações de mestrado e teses de doutorado entre os anos de 1990 e 2008}		
-	\IBGEtab{}{
-		\fbox{\includegraphics[scale=0.5]{figuras/figura-3}}
-	}{
-	\Fonte{os autores}
-}
-\end{figure}
-
-Ou então figuras podem ser incorporadas de arquivos externos, como é o caso da \autoref{fig-grafico-1}. Se a figura que ser incluída se tratar de um diagrama, um gráfico ou uma ilustração que você mesmo produza, priorize o uso de imagens vetoriais no formato PDF. Com isso, o tamanho do arquivo final do trabalho será menor, e as imagens terão uma apresentação melhor, principalmente quando impressas, uma vez que imagens vetorias são perfeitamente escaláveis para qualquer dimensão. Nesse caso, se for utilizar o Microsoft Excel para produzir gráficos, ou o Microsoft Word para produzir ilustrações, exporte-os como PDF e os incorpore ao documento conforme o exemplo abaixo. No entanto, para manter a coerência no uso de software livre (já que você está usando LaTeX e abnTeX),  teste a ferramenta InkScape\index{InkScape}. ao CorelDraw\index{CorelDraw} ou ao Adobe Illustrator\index{Adobe! Illustrator}.  De todo modo, caso não seja possível  utilizar arquivos de imagens como PDF, utilize qualquer outro formato, como JPEG, GIF, BMP, etc.  Nesse caso, você pode tentar aprimorar as imagens incorporadas com o software livre \index{Gimp}Gimp. Ele é uma alternativa livre ao Adobe Photoshop\index{Adobe! Photoshop}.
-
-\section{Usando Fórmulas Matemáticas}
-
-\lipsum[2]
-
-	\begin{equation}
-		\begin{aligned}
-			x = a_0 + \cfrac{1}{a_1
-				+ \cfrac{1}{a_2
-					+ \cfrac{1}{a_3 + \cfrac{1}{a_4} } } }
-		\end{aligned}
-	\end{equation}
-
-\lipsum[3]
-
-	\begin{equation}
-		\begin{aligned}
-			k_{n+1} = n^2 + k_n^2 - k_{n-1}
-		\end{aligned}
-	\end{equation}
-
-\lipsum[4]
-
-	\begin{equation}
-		\begin{aligned}
-			\cos (2\theta) = \cos^2 \theta - \sin^2 \theta
-		\end{aligned}
-	\end{equation}
-	
-\lipsum[5]
-
-	\begin{equation}
-		\begin{aligned}
-			A_{m,n} =
-			\begin{pmatrix}
-			a_{1,1} & a_{1,2} & \cdots & a_{1,n} \\
-			a_{2,1} & a_{2,2} & \cdots & a_{2,n} \\
-			\vdots  & \vdots  & \ddots & \vdots  \\
-			a_{m,1} & a_{m,2} & \cdots & a_{m,n}
-			\end{pmatrix}
-		\end{aligned}
-	\end{equation}
-
-\lipsum[6]
-
-	\begin{equation}
-		\begin{aligned}
-			f(n) = \left\{ 
-			\begin{array}{l l}
-			n/2 & \quad \text{if $n$ is even}\\
-			-(n+1)/2 & \quad \text{if $n$ is odd}
-			\end{array} \right.
-		\end{aligned}
-	\end{equation}
-	
-\lipsum[7]
-
-\section{Usando Algoritmos}
-
-\lipsum[8]
-
-\begin{algorithm}[h!]
-	\SetSpacedAlgorithm
-	\caption{\label{alg:algoritmo_de_colonica_de_formigas}Algoritmo de Otimização por Colônia de Formiga}
-	\Entrada{Entrada do Algoritmo}
-	\Saida{Saida do Algoritmo}
-	\Inicio{
-		Atribua os valores dos parâmetros\;
-		Inicialize as trilhas de feromônios\;
-		\Enqto{não atingir o critério de parada}{
-			\Para{cada formiga}{
-				Construa as Soluções\;
-			}
-			Aplique Busca Local (Opcional)\;
-			Atualize o Feromônio\;
-		}	
-	}		
-\end{algorithm}
-
-\lipsum[9]
-
-\section{Usando Código-fonte}
-
-\lipsum[10]
-
-\lstinputlisting[language=C++,caption={Hello World em C++}]{figuras/main.cpp}
-
-\lipsum[11]
-
-\begin{lstlisting}[language=Java,caption={Hello World em Java}]
-public class HelloWorld {
-	public static void main(String[] args) {
-		System.out.println("Hello World!");
-	}
+\begin{lstlisting}[caption={Exemplo de processo na BPMN-DSL: decisão exclusiva com laço de repetição via referência},label={lst:dsl-exemplo}]
+process "Processamento com Retry" {
+  start
+  -> service "Buscar dados" #fetch
+  -> service "Validar"
+  -> xor "Valido?" {
+    ["sim"] -> service "Processar" -> end
+    ["nao"] -> xor "Tentar novamente?" {
+                 ["sim"] -> #fetch
+                 ["nao"] -> end:error "Invalido"
+               }
+  }
 }
 \end{lstlisting}
 
-\lipsum[11]
+A meta de projeto é uma razão de compressão de pelo menos 85\% em relação ao XML BPMN canônico correspondente; a medição empírica dessa razão integra o protocolo de avaliação (Seção~\ref{subsec:metricas-modelo}).
 
-\section{Usando Teoremas, Proposições, etc}
+\section{Transpilação Determinística}
+\label{sec:transpilacao}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+\subsection{JSON para DSL}
+\label{subsec:json-to-dsl}
 
-\begin{teo}[Pitágoras]
-	Em todo triângulo retângulo o quadrado do comprimento da
-	hipotenusa é igual a soma dos quadrados dos comprimentos dos catetos.
-\end{teo}
+O conversor \textit{json\_to\_dsl} lineariza o grafo do JSON canônico em texto DSL. O componente central é o linearizador, que deve satisfazer um único invariante:
 
+\begin{citacao}
+Todo nó alcançável do grafo é emitido exatamente uma vez; qualquer reencontro posterior com um nó já emitido é serializado como referência (\texttt{\#id}), nunca como nova emissão.
+\end{citacao}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+Esse invariante é o que garante que estruturas não estritamente aninhadas — caudas compartilhadas entre ramos, laços com arestas de retorno e convergências múltiplas — sejam representáveis sem duplicação de nós nem perda de lógica. A implementação final sustenta o invariante com três mecanismos: (i) um conjunto único de nós emitidos, compartilhado por referência em toda a travessia recursiva, de modo que cada ramo enxerga o que os demais já emitiram; (ii) detecção determinística de pontos de convergência por pós-dominador imediato, em substituição a heurísticas de busca de junção; e (iii) uma rede de segurança que, ao final da travessia, compara o conjunto de nós alcançáveis a partir do início com o conjunto efetivamente emitido — qualquer diferença é emitida em um apêndice conectado por referências e sinalizada com um aviso rastreável, transformando qualquer perda silenciosa em falha visível.
 
-\begin{teo}[Fermat]
-	Não existem inteiros $n > 2$, e $x, y, z$ tais que $x^n + y^n = z$
-\end{teo}
+O conversor foi desenvolvido iterativamente em oito versões, cada uma executada contra o corpus completo e registrada em banco com estado, avisos e erros por amostra, o que permite auditar regressões entre versões. A versão final converte 100\% das 1.021 amostras ativas com preservação topológica verificada.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+\subsection{DSL para XML BPMN 2.0}
+\label{subsec:dsl-to-xml}
 
-\begin{prop}
-	Para demonstrar o Teorema de Pitágoras...
-\end{prop}
+O transpilador \textit{dsl\_to\_xml} expande a DSL para o XML BPMN 2.0 explícito, sem reinterpretar o processo: cada conexão gera um \texttt{sequenceFlow}; blocos de \textit{gateway} geram os nós de divisão e, quando há continuação, de convergência; escopos \texttt{@lane} materializam \texttt{laneSet}, \texttt{lane} e \texttt{flowNodeRef}; colaborações geram participantes e \texttt{messageFlow}. Um contexto global de alocação garante unicidade de identificadores em documentos com múltiplos processos. O XML resultante é validado com a biblioteca lxml contra o XSD oficial da OMG versionado no repositório; a validação por esquema é tratada como critério binário obrigatório de aceitação, e não como métrica.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+\section{Protocolo de Avaliação}
+\label{sec:avaliacao}
 
-\begin{exem}
-	Este é um exemplo do uso do ambiente exe definido acima.
-\end{exem}
+A avaliação é organizada em eixos independentes, para que se possa atribuir cada tipo de falha ao componente responsável.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+\subsection{Eixo 1: Validade Sintática}
+\label{subsec:eixo1}
 
-\begin{xdefinicao}
-	Definimos o produto de ...
-\end{xdefinicao}
+Todo XML produzido — na construção do corpus ou na inferência do modelo — deve ser bem formado e válido contra o XSD BPMN 2.0. Para a saída do modelo especializado, mede-se adicionalmente a taxa de DSL sintaticamente válida (aceita pela gramática Lark).
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+\subsection{Eixo 2: Equivalência Topológica}
+\label{subsec:eixo2}
 
-\section{Usando Questões}
+A validade por esquema não garante que o XML represente o mesmo processo do JSON de origem. O segundo eixo compara os dois grafos por: contagem de nós por tipo (eventos, tarefas, \textit{gateways}); conjunto de arestas de fluxo de sequência, do qual derivam precisão, revocação e medida F1; e um indicador binário de equivalência exata de arestas. Esses valores são computados e persistidos para cada amostra do corpus, e o subconjunto com equivalência exata é o utilizado como dados de treino supervisionado de alta confiança. Os resultados dessa verificação sobre o corpus completo são reportados no capítulo de resultados.
 
+\subsection{Métricas sobre a Saída do Modelo}
+\label{subsec:metricas-modelo}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
+A saída do modelo especializado é avaliada contra os modelos de referência do PMo sob quatro dimensões:
 
-\begin{questao}
-	\item Esta é a primeira questão com alguns itens:
-		\begin{enumerate}
-			\item Este é o primeiro item
-			\item Segundo item
-		\end{enumerate}
-	\item Esta é a segunda questão:
-		\begin{enumerate}
-			\item Este é o primeiro item
-			\item Segundo item
-		\end{enumerate}
-	\item Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra. consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
-		\begin{enumerate}
-			\item consectetur
-			\item adipiscing
-			\item Nunc
-			\item dictum
-		\end{enumerate}
-\end{questao}
+\begin{alineas}
+	\item \textbf{validade}: taxa de DSL aceita pela gramática e de XML válido contra o XSD;
+	\item \textbf{fidelidade semântica}: precisão, revocação e F1 sobre elementos de processo extraídos (atividades, atores, \textit{gateways} e arestas), comparados aos elementos da referência;
+	\item \textbf{estrutura}: distância de edição de grafos \cite{sanfeliu1983distance}, em formulação aproximada \cite{gao2010graph}, entre o grafo gerado e o de referência;
+	\item \textbf{compressão}: razão de compressão de tokens (TCR) entre a representação gerada e o XML equivalente, medida com o tokenizador do modelo avaliado. A TCR é reportada em três comparações — contra o XML completo, contra o XML sem a seção de diagrama (BPMNDI, que é gerada deterministicamente) e contra o JSON canônico — para que o ganho atribuído à DSL não seja inflado por conteúdo que nenhuma abordagem exigiria do modelo.
+\end{alineas}
 
-\section{Citações}
+Como uma mesma descrição textual admite múltiplas modelagens válidas \cite{vanderaa2018challenges}, a porção do \textit{holdout} derivada de \citeonline{mangler2023textual} — que oferece múltiplos modelos de referência com pontuação de especialistas por descrição — é usada para analisar a sensibilidade das métricas à ambiguidade de modelagem.
 
-\subsection{Documentos com três autores}
+\subsection{\textit{Baselines}}
+\label{subsec:baselines}
 
-Quando houver três autores na citação, apresentam se os três, separados por ponto e vírgula, caso estes estejam após o texto. Se os autores estiverem incluídos no texto, devem ser separados por vírgula e pela conjunção "e".
+O protocolo é comparado sob as mesmas métricas em três configurações: (A) LLM de fronteira gerando XML BPMN diretamente a partir do texto; (B) LLM de fronteira gerando a DSL proposta, com expansão pelo transpilador; e (C) o modelo pequeno especializado gerando a DSL. O contraste A$\times$B isola o efeito da representação intermediária; o contraste B$\times$C isola o efeito da especialização do modelo pequeno frente ao modelo de fronteira.
 
-\citeautoronline{tresautores}
+\section{Especialização do Modelo}
+\label{sec:treinamento}
 
-\cite{tresautores}
+\subsection{Ajuste Supervisionado}
+\label{subsec:sft-metodo}
 
-\subsection{Documentos com mais de três autores}
-Havendo mais de três autores, indica-se o primeiro seguido da expressão \textit{et al.} (do latim \textit{et alli}, que significa e outros), do ano e da página.
+O modelo base é o Qwen2.5-Coder-7B \cite{hui2024qwen25coder}, um modelo aberto de 7 bilhões de parâmetros orientado a código — perfil adequado a uma tarefa de emissão de linguagem formal. A especialização usa ajuste supervisionado com adaptação de baixo posto (LoRA) \cite{hu2022lora} sobre pesos quantizados em 4 \textit{bits} (QLoRA) \cite{dettmers2023qlora}, viabilizando o treino em GPU de 12~GB na fase exploratória, com o treinamento final executado em infraestrutura de nuvem. Os exemplos de treino são os pares (descrição textual bruta, DSL) da partição \textit{sft} com equivalência topológica exata verificada pelo Eixo 2 — o texto de entrada é a descrição original, e não o texto pré-processado, de modo que o modelo especializado absorva também a etapa de estruturação e o sistema final dependa de uma única inferência.
 
-\citeautoronline{quatroautores}
+\subsection{Etapa Opcional: Aprendizado por Reforço com Recompensa Verificável}
+\label{subsec:grpo-metodo}
 
-\cite{quatroautores}
+Como extensão opcional ao escopo deste trabalho, prevê-se uma etapa de \textit{Group Relative Policy Optimization} \cite{shao2024deepseekmath} sobre o modelo ajustado, usando como \textit{prompts} as seções da partição \textit{grpo} e as amostras sem equivalência exata (que não exigem DSL de referência). A recompensa composta é definida como
 
-\subsection{Documentos de vários autores}
+\begin{equation}
+	r \;=\; 0{,}35\, r_{\text{sint}} \;+\; 0{,}30\, r_{\text{sem}} \;+\; 0{,}25\, r_{\text{topo}} \;+\; 0{,}10\, r_{\text{comp}},
+\end{equation}
 
-Havendo    citações    indiretas de    diversos    documentos    de    vários    autores, mencionados  simultaneamente e  que  expressam  a  mesma  ideia,  separam-se  os  autores  por ponto e vírgula, em ordem alfabética.
+\noindent em que $r_{\text{sint}}$ (validade da DSL e do XML), $r_{\text{topo}}$ (coerência topológica) e $r_{\text{comp}}$ (economia de tokens) são integralmente verificáveis por código, enquanto $r_{\text{sem}}$ (adequação semântica ao texto) requer sinal aproximado e é o componente metodologicamente mais frágil. Por essa razão, e por restrição de cronograma, essa etapa é tratada como trabalho futuro caso não seja concluída no prazo do TCC.
 
-\cite{tresautores, quatroautores}
+\section{Infraestrutura e Reprodutibilidade}
+\label{sec:reprodutibilidade}
 
-\section{Notas de Rodap\'{e}}
-
-Deve-se utilizar o sistema autor-data para as  citações no texto e o numérico para notas explicativas\footnote{Veja - se como exemplo desse tipo de abordagem o estudo de Netzer (1976)}. As notas de rodapé podem e devem ser alinhadas, a partir da segunda linha da mesma nota, abaixo da primeira letra da primeira palavra, de forma a destacar o expoente \footnote{Encontramos  esse  tipo  de  perspectiva  na  2ª  parte  do  verbete  referido  na  nota  anterior,  em  grande  parte  do estudo de Rahner (1962).} e sem espaço entre elas e com fonte menor (tamanho 10).
-
+Todo o pipeline é implementado em Python 3.12, com dependências gerenciadas por \textit{uv}, testes automatizados com \textit{pytest} e análise estática com \textit{ruff}. Os artefatos de todas as etapas — texto bruto, texto pré-processado, JSON canônico, DSL, XML e métricas de avaliação — são persistidos em um banco SQLite único, com cada execução de conversor registrada com número de versão, estado e diagnósticos, o que permite auditar e reproduzir qualquer resultado intermediário. A fase exploratória utiliza uma estação com GPU NVIDIA RTX 2080~Ti (12~GB), e o treinamento final, aceleradores de nuvem. Ao término do trabalho, o conjunto de dados e o modelo especializado serão disponibilizados publicamente na plataforma Hugging Face, juntamente com o código-fonte do protocolo.
