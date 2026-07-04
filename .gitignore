@@ -83,6 +83,7 @@ logs/
 .codex
 CLAUDE.local.md
 AGENTS.local.md
+LOCAL_TODO.md
 
 # ─── OS ──────────────────────────────────────────────────────────────
 .DS_Store

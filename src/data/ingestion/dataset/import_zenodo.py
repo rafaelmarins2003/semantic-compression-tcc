@@ -6,9 +6,10 @@ Mangler et al. (2023) process descriptions. Each file may start with
 
 Note: these overlap with PMo pairs 25-48 (same source, different preprocessing).
 Zenodo versions are the raw originals; PMo versions are sentence-split and cleaned.
-Both are useful as distinct inputs for the SOTA LLM preprocessing pipeline.
+Because of that overlap, zenodo must stay out of training: with PMo as the
+evaluation holdout, zenodo in SFT would contaminate 24 of PMo's 55 items.
 
-Inserted as source='zenodo', stage='descriptions', split='sft'.
+Inserted as source='zenodo', stage='descriptions', split='holdout'.
 
 Usage:
     uv run python -m src.data.ingestion.dataset.import_zenodo
@@ -72,7 +73,7 @@ def run() -> None:
         records.append(
             {
                 "id": f"zenodo_{path.stem}",
-                "split": "sft",
+                "split": "holdout",
                 "title": title or path.stem,
                 "raw_text": text,
                 "metadata": {
