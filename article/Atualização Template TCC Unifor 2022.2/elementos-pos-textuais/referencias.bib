@@ -183,3 +183,329 @@
 	Subtitle = {Informa{\c c}\~ao e documenta{\c c}\~ao --- trabalhos acad\^emicos --- apresenta{\c c}\~ao},
 	Title = {{NBR} 14724},
 	Year = 2011}
+
+% ════════ Referências do trabalho (migradas do referencial teórico) ════════
+% =============================================================
+% Referências bibliográficas - Fundamentação Teórica
+% Projeto: Protocolo de Compressão Semântica para Geração
+%          de Markup XML por LLMs (BPMN 2.0)
+% Autor: Rafael Marins Florenzano
+% =============================================================
+% NOTA AO AUTOR: cada entrada abaixo corresponde a um trabalho
+% real e amplamente conhecido na literatura da área. Antes da
+% submissão final, recomenda-se verificar:
+%   - paginação exata
+%   - DOI quando aplicável
+%   - data de acesso para fontes web
+% =============================================================
+
+% ---------- BPMN e Modelagem de Processos ----------
+
+@manual{omg2011bpmn,
+    title        = {Business Process Model and Notation ({BPMN}), Version 2.0},
+    author       = {{Object Management Group}},
+    organization = {Object Management Group},
+    address      = {Needham, MA, USA},
+    year         = {2011},
+    note         = {Documento OMG formal/2011-01-03},
+    url          = {https://www.omg.org/spec/BPMN/2.0/}
+}
+
+@book{weske2019business,
+    title     = {Business Process Management: Concepts, Languages, Architectures},
+    author    = {Weske, Mathias},
+    year      = {2019},
+    edition   = {3},
+    publisher = {Springer},
+    address   = {Berlin, Heidelberg},
+    doi       = {10.1007/978-3-662-59432-2},
+    url       = {https://link.springer.com/book/10.1007/978-3-662-59432-2}
+}
+
+@book{dumas2018fundamentals,
+    title     = {Fundamentals of Business Process Management},
+    author    = {Dumas, Marlon and La Rosa, Marcello and Mendling, Jan and Reijers, Hajo A.},
+    year      = {2018},
+    edition   = {2},
+    publisher = {Springer},
+    address   = {Berlin, Heidelberg},
+    doi       = {10.1007/978-3-662-56509-4},
+    url       = {https://link.springer.com/book/10.1007/978-3-662-56509-4}
+}
+
+% ---------- Transformer e Modelos de Linguagem ----------
+
+@inproceedings{vaswani2017attention,
+    title     = {Attention is All You Need},
+    author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and
+                 Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N.
+                 and Kaiser, {\L}ukasz and Polosukhin, Illia},
+    booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+    volume    = {30},
+    year      = {2017},
+    url       = {https://papers.nips.cc/paper/7181-attention-is-all-you-need}
+}
+
+@inproceedings{brown2020language,
+    title     = {Language Models are Few-Shot Learners},
+    author    = {Brown, Tom B. and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and others},
+    booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+    volume    = {33},
+    pages     = {1877--1901},
+    year      = {2020},
+    url       = {https://proceedings.neurips.cc/paper/2020/hash/1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html}
+}
+
+@inproceedings{sennrich2016neural,
+    title     = {Neural Machine Translation of Rare Words with Subword Units},
+    author    = {Sennrich, Rico and Haddow, Barry and Birch, Alexandra},
+    booktitle = {Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+    pages     = {1715--1725},
+    year      = {2016},
+    address   = {Berlin, Germany},
+    publisher = {Association for Computational Linguistics},
+    doi       = {10.18653/v1/P16-1162},
+    url       = {https://aclanthology.org/P16-1162/}
+}
+
+% ---------- DSL e Compressão ----------
+
+@book{fowler2010domain,
+    title     = {Domain-Specific Languages},
+    author    = {Fowler, Martin},
+    year      = {2010},
+    edition   = {1},
+    publisher = {Addison-Wesley Professional},
+    address   = {Boston},
+    isbn      = {978-0-321-71294-3},
+    url       = {https://www.informit.com/store/domain-specific-languages-9780321712943}
+}
+
+@article{mernik2005domain,
+    title   = {When and How to Develop Domain-Specific Languages},
+    author  = {Mernik, Marjan and Heering, Jan and Sloane, Anthony M.},
+    journal = {{ACM} Computing Surveys},
+    volume  = {37},
+    number  = {4},
+    pages   = {316--344},
+    year    = {2005},
+    doi     = {10.1145/1118890.1118892},
+    url     = {https://dl.acm.org/doi/10.1145/1118890.1118892}
+}
+
+% ---------- Fine-Tuning e PEFT ----------
+
+@inproceedings{hu2022lora,
+    title     = {{LoRA}: Low-Rank Adaptation of Large Language Models},
+    author    = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and
+                 Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
+    booktitle = {International Conference on Learning Representations ({ICLR})},
+    year      = {2022},
+    url       = {https://openreview.net/forum?id=nZeVKeeFYf9}
+}
+
+@inproceedings{dettmers2023qlora,
+    title     = {{QLoRA}: Efficient Finetuning of Quantized {LLMs}},
+    author    = {Dettmers, Tim and Pagnoni, Artidoro and Holtzman, Ari and Zettlemoyer, Luke},
+    booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+    volume    = {36},
+    year      = {2023},
+    url       = {https://proceedings.neurips.cc/paper_files/paper/2023/hash/1feb87871436031bdc0f2beaa62a049b-Abstract.html}
+}
+
+@inproceedings{ouyang2022training,
+    title     = {Training Language Models to Follow Instructions with Human Feedback},
+    author    = {Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and Wainwright, Carroll and Mishkin, Pamela and others},
+    booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+    volume    = {35},
+    year      = {2022},
+    url       = {https://proceedings.neurips.cc/paper_files/paper/2022/hash/b1efde53be364a73914f58805a001731-Abstract.html}
+}
+
+@article{shao2024deepseekmath,
+    title   = {{DeepSeekMath}: Pushing the Limits of Mathematical Reasoning in Open Language Models},
+    author  = {Shao, Zhihong and Wang, Peiyi and Zhu, Qihao and Xu, Runxin and
+               Song, Junxiao and Bi, Xiao and Zhang, Haowei and Zhang, Mingchuan and
+               Li, Y. K. and Wu, Y. and Guo, Daya},
+    journal = {arXiv preprint arXiv:2402.03300},
+    year    = {2024},
+    doi     = {10.48550/arXiv.2402.03300},
+    url     = {https://arxiv.org/abs/2402.03300}
+}
+
+% ---------- Geração de Código e Outputs Estruturados ----------
+
+@article{chen2021evaluating,
+    title   = {Evaluating Large Language Models Trained on Code},
+    author  = {Chen, Mark and Tworek, Jerry and Jun, Heewoo and Yuan, Qiming and Ponde de Oliveira Pinto, Henrique and others},
+    journal = {arXiv preprint arXiv:2107.03374},
+    year    = {2021},
+    doi     = {10.48550/arXiv.2107.03374},
+    url     = {https://arxiv.org/abs/2107.03374}
+}
+
+@inproceedings{poesia2022synchromesh,
+    title     = {Synchromesh: Reliable Code Generation from Pre-trained Language Models},
+    author    = {Poesia, Gabriel and Polozov, Alex and Le, Vu and
+                 Tiwari, Ashish and Soares, Gustavo and Meek, Christopher and Gulwani, Sumit},
+    booktitle = {International Conference on Learning Representations ({ICLR})},
+    year      = {2022},
+    url       = {https://openreview.net/forum?id=KmtVD97J43e}
+}
+
+% ---------- Extração de Processos a partir de Texto ----------
+
+@inproceedings{bellan2022pet,
+    title     = {{PET}: An Annotated Dataset for Process Extraction from Natural Language Text Tasks},
+    author    = {Bellan, Patrizio and van der Aa, Han and Dragoni, Mauro and Ghidini, Chiara
+                 and Ponzetto, Simone Paolo},
+    booktitle = {Business Process Management Workshops: {BPM} 2022 International Workshops},
+    series    = {Lecture Notes in Business Information Processing},
+    volume    = {460},
+    pages     = {315--321},
+    year      = {2023},
+    address   = {Cham},
+    publisher = {Springer},
+    doi       = {10.1007/978-3-031-25383-6_23},
+    url       = {https://link.springer.com/chapter/10.1007/978-3-031-25383-6_23}
+}
+
+@misc{brissard2025pmo,
+    title        = {{PMo} Dataset},
+    author       = {Brissard, Alexis and Cuppens, Fr{\'e}d{\'e}ric and Zouaq, Amal},
+    year         = {2025},
+    publisher    = {Zenodo},
+    note         = {Version 1.0.0},
+    doi          = {10.5281/zenodo.15857589},
+    url          = {https://zenodo.org/records/15857589},
+    urlaccessdate = {17 maio 2026}
+}
+
+@misc{mangler2023textual,
+    title        = {Textual Process Descriptions and Corresponding {BPMN} Models},
+    author       = {Mangler, Juergen and Klievtsova, Nataliia},
+    year         = {2023},
+    publisher    = {Zenodo},
+    note         = {Version 1.0},
+    doi          = {10.5281/zenodo.7783492},
+    url          = {https://zenodo.org/records/7783492},
+    urlaccessdate = {17 maio 2026}
+}
+
+@inproceedings{friedrich2011process,
+    title     = {Process Model Generation from Natural Language Text},
+    author    = {Friedrich, Fabian and Mendling, Jan and Puhlmann, Frank},
+    booktitle = {Advanced Information Systems Engineering},
+    series    = {Lecture Notes in Computer Science},
+    volume    = {6741},
+    pages     = {482--496},
+    year      = {2011},
+    address   = {Berlin, Heidelberg},
+    publisher = {Springer},
+    doi       = {10.1007/978-3-642-21640-4_36},
+    url       = {https://link.springer.com/chapter/10.1007/978-3-642-21640-4_36}
+}
+
+@inproceedings{vanderaa2018challenges,
+    title     = {Challenges and Opportunities of Applying Natural Language Processing in Business Process Management},
+    author    = {van der Aa, Han and Carmona, Josep and Leopold, Henrik and
+                 Mendling, Jan and Padr{\'o}, Llu{\'\i}s},
+    booktitle = {Proceedings of the 27th International Conference on Computational Linguistics},
+    pages     = {2791--2801},
+    year      = {2018},
+    address   = {Santa Fe, New Mexico, USA},
+    publisher = {Association for Computational Linguistics},
+    url       = {https://aclanthology.org/C18-1236/}
+}
+
+@inproceedings{kourani2024promoai,
+    title     = {{ProMoAI}: Process Modeling with Generative {AI}},
+    author    = {Kourani, Humam and Berti, Alessandro and Schuster, Daniel and
+                 van der Aalst, Wil M. P.},
+    booktitle = {Proceedings of the Thirty-Third International Joint Conference on
+                 Artificial Intelligence (IJCAI-24), Demo Track},
+    pages     = {8708--8712},
+    year      = {2024},
+    publisher = {International Joint Conferences on Artificial Intelligence Organization},
+    doi       = {10.24963/ijcai.2024/1014},
+    url       = {https://doi.org/10.24963/ijcai.2024/1014}
+}
+
+% ---------- Métricas e Avaliação ----------
+
+@article{sanfeliu1983distance,
+    title   = {A Distance Measure between Attributed Relational Graphs for Pattern Recognition},
+    author  = {Sanfeliu, Alberto and Fu, King-Sun},
+    journal = {{IEEE} Transactions on Systems, Man, and Cybernetics},
+    volume  = {SMC-13},
+    number  = {3},
+    pages   = {353--362},
+    year    = {1983},
+    doi     = {10.1109/TSMC.1983.6313167}
+}
+
+@article{gao2010graph,
+    title   = {A Survey of Graph Edit Distance},
+    author  = {Gao, Xinbo and Xiao, Bing and Tao, Dacheng and Li, Xuelong},
+    journal = {Pattern Analysis and Applications},
+    volume  = {13},
+    number  = {1},
+    pages   = {113--129},
+    year    = {2010},
+    doi     = {10.1007/s10044-008-0141-y},
+    url     = {https://link.springer.com/article/10.1007/s10044-008-0141-y}
+}
+
+@inproceedings{papineni2002bleu,
+    title     = {{BLEU}: A Method for Automatic Evaluation of Machine Translation},
+    author    = {Papineni, Kishore and Roukos, Salim and Ward, Todd and Zhu, Wei-Jing},
+    booktitle = {Proceedings of the 40th Annual Meeting of the Association for Computational Linguistics ({ACL})},
+    pages     = {311--318},
+    year      = {2002},
+    address   = {Philadelphia, Pennsylvania, USA},
+    publisher = {Association for Computational Linguistics},
+    doi       = {10.3115/1073083.1073135},
+    url       = {https://aclanthology.org/P02-1040/}
+}
+
+% ---------- ABNT (referências normativas) ----------
+
+@manual{abntnbr14724,
+    title        = {{NBR} 14724: Informação e documentação - Trabalhos acadêmicos - Apresentação},
+    author       = {{Associação Brasileira de Normas Técnicas}},
+    organization = {ABNT},
+    address      = {Rio de Janeiro},
+    year         = {2011}
+}
+
+@manual{abntnbr10520,
+    title        = {{NBR} 10520: Informação e documentação - Citações em documentos - Apresentação},
+    author       = {{Associação Brasileira de Normas Técnicas}},
+    organization = {ABNT},
+    address      = {Rio de Janeiro},
+    year         = {2023}
+}
+
+% ════════ Referências adicionais (introdução) ════════
+
+@article{belcak2025small,
+    title   = {Small Language Models are the Future of Agentic {AI}},
+    author  = {Belcak, Peter and Heinrich, Greg and Diao, Shizhe and Fu, Yonggan and
+               Dong, Xin and Muralidharan, Saurav and Lin, Yingyan Celine and
+               Molchanov, Pavlo},
+    journal = {arXiv preprint arXiv:2506.02153},
+    year    = {2025},
+    doi     = {10.48550/arXiv.2506.02153},
+    url     = {https://arxiv.org/abs/2506.02153}
+}
+
+@article{hui2024qwen25coder,
+    title   = {{Qwen2.5-Coder} Technical Report},
+    author  = {Hui, Binyuan and Yang, Jian and Cui, Zeyu and Yang, Jiaxi and
+               Liu, Dayiheng and Zhang, Lei and Liu, Tianyu and Zhang, Jiajun and
+               Yu, Bowen and Lu, Keming and others},
+    journal = {arXiv preprint arXiv:2409.12186},
+    year    = {2024},
+    doi     = {10.48550/arXiv.2409.12186},
+    url     = {https://arxiv.org/abs/2409.12186}
+}
