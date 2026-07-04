@@ -3,7 +3,7 @@
 Each of the 55 .txt files in data/raw/pmo/descriptions/ is a process
 description (one sentence per line). Some files start with "Title: <name>".
 
-Inserted as source='pmo', stage='descriptions', split='test' — PMo is the
+Inserted as source='pmo', stage='descriptions', split='holdout' — PMo is the
 benchmark holdout and must not be used for training.
 
 Usage:
@@ -85,7 +85,7 @@ def run() -> None:
         records.append(
             {
                 "id": f"pmo_{n:02d}",
-                "split": "test",
+                "split": "holdout",
                 "title": title or f"Process {n:02d}",
                 "raw_text": text,
                 "metadata": {

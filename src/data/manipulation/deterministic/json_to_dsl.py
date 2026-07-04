@@ -400,11 +400,7 @@ def _subgraph(
 ) -> ProcessGraph:
     """Create a ProcessGraph limited to one weak component."""
     nodes = {nid: graph.nodes[nid] for nid in graph.nodes if nid in node_ids}
-    edges = [
-        edge
-        for edge in graph.edges
-        if edge.source in node_ids and edge.target in node_ids
-    ]
+    edges = [edge for edge in graph.edges if edge.source in node_ids and edge.target in node_ids]
     succs, preds, edge_map = build_adjacency(nodes, edges)
     lanes = [
         Lane(lane.name, [nid for nid in lane.node_ids if nid in node_ids])
@@ -435,11 +431,17 @@ def _linearize(
     id_map: dict[str, str],
     node_lane: dict[str, str],
     ambient_lane: str | None,
-) -> list[str]:
+) -> tuple[list[str], bool]:
     """Walk a graph segment, emitting one DSL step per visited node.
 
     `ambient_lane` is the surrounding scope's lane; when an emitted element
     belongs to a different lane, an inline `(lane="...")` prop is added.
+
+    Returns (parts, hit_boundary). `hit_boundary` é True quando a caminhada
+    parou porque alcançou `end_boundary` (o join do bloco): a aresta implícita
+    "cauda -> join" só existe se o caller emitir o join como continuação — em
+    convergência não-SESE isso não acontece e o caller precisa materializar
+    um #ref (ver _emit_gateway_block).
     """
     parts: list[str] = []
     current: str | None = start_id
@@ -458,9 +460,16 @@ def _linearize(
 
         # Fork gateway
         if _is_gateway(node) and len(succs) > 1:
-            parts.append(_emit_gateway_block(
-                graph, current, visited, id_map, node_lane, ambient_lane,
-            ))
+            parts.append(
+                _emit_gateway_block(
+                    graph,
+                    current,
+                    visited,
+                    id_map,
+                    node_lane,
+                    ambient_lane,
+                )
+            )
             # Continue at the fork's join and let the main loop emit-or-ref it
             # exactly once. If the join was already emitted inside a branch
             # (asymmetric forks) or there is none, this segment is done. When
@@ -485,7 +494,7 @@ def _linearize(
         parts.append(_emit_with_lane(node, id_map, node_lane, ambient_lane))
         current = succs[0] if len(succs) == 1 else None
 
-    return parts
+    return parts, (end_boundary is not None and current == end_boundary)
 
 
 def _emit_with_lane(
@@ -521,9 +530,9 @@ def _emit_gateway_block(
     # to reach a node emits it; any later encounter — sibling branch, outer
     # continuation, or back-edge — becomes a #ref. Guarantees each node is
     # emitted exactly once.
-    branch_strs: list[str] = []
+    branches: list[tuple[str, list[str], bool]] = []
     for branch_start in branch_starts:
-        branch_parts = _linearize(
+        branch_parts, hit_boundary = _linearize(
             graph,
             branch_start,
             end_boundary=join_id,
@@ -532,7 +541,21 @@ def _emit_gateway_block(
             node_lane=node_lane,
             ambient_lane=ambient_lane,
         )
+        branches.append((branch_start, branch_parts, hit_boundary))
 
+    # Convergência não-SESE: quando o join já foi emitido dentro de um branch
+    # (via bloco aninhado) ou em escopo anterior, o caller não emite `-> join`
+    # após este bloco — a aresta implícita "cauda do branch -> join" evaporaria.
+    # Materializa um #ref explícito em todo branch que parou na fronteira,
+    # inclusive skips (que virariam `()` sem alvo).
+    join_ref = (
+        _ref_for(join_id, graph, id_map) if join_id is not None and join_id in visited else None
+    )
+
+    branch_strs: list[str] = []
+    for branch_start, branch_parts, hit_boundary in branches:
+        if join_ref is not None and hit_boundary:
+            branch_parts = [*branch_parts, join_ref]
         body = " -> ".join(branch_parts) if branch_parts else "()"
 
         if is_parallel:
@@ -600,7 +623,12 @@ def _emit_lane_partitioned_body(
         if _is_gateway(node) and len(succs) > 1:
             ambient = node_lane.get(current)
             block = _emit_gateway_block(
-                graph, current, visited, id_map, node_lane, ambient,
+                graph,
+                current,
+                visited,
+                id_map,
+                node_lane,
+                ambient,
             )
             segments.append((ambient, block))
             # Continue at the join and let the loop emit-or-ref it exactly once
@@ -689,9 +717,7 @@ def _recover_missing(
     recovery `process` block and flagged via a warning so the sample can be
     excluded from training. Edges inside the recovery block are not faithful.
     """
-    missing = [
-        nid for nid in graph.nodes if nid not in visited and _is_emittable(graph.nodes[nid])
-    ]
+    missing = [nid for nid in graph.nodes if nid not in visited and _is_emittable(graph.nodes[nid])]
     if not missing:
         return ""
     warnings.warn(f"safety-net recovered {len(missing)} unemitted node(s): {missing[:8]}")
@@ -716,7 +742,7 @@ def _emit_process(graph: ProcessGraph, wrapper: str = "process") -> str:
     elif graph.start_id is None:
         body = '  note "(empty process — no start event)"'
     else:
-        parts = _linearize(
+        parts, _ = _linearize(
             graph,
             graph.start_id,
             end_boundary=None,

@@ -19,7 +19,7 @@ from src.data.db import Database
 from src.data.migrations.create_topology_eval import ensure_schema
 from src.evaluation.topology import compare
 
-DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v7"
+DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v8"
 DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v3"
 PREVIEW_MAX = 2000
 

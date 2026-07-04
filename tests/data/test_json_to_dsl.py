@@ -546,18 +546,12 @@ def test_convert_lanes_emit_scoped_lane_blocks():
     dsl_text = convert(
         {
             "pool": graph.name,
-            "lanes": [
-                {"name": lane.name, "refs": lane.node_ids}
-                for lane in graph.lanes
-            ],
+            "lanes": [{"name": lane.name, "refs": lane.node_ids} for lane in graph.lanes],
             "nodes": [
                 {"id": node.id, "type": node.type, "name": node.name}
                 for node in graph.nodes.values()
             ],
-            "flows": [
-                {"from": edge.source, "to": edge.target}
-                for edge in graph.edges
-            ],
+            "flows": [{"from": edge.source, "to": edge.target} for edge in graph.edges],
         }
     )
 
@@ -645,3 +639,40 @@ def test_unknown_node_type_falls_back_to_task_with_warning():
     _assert_parseable(dsl_text)
     assert 'task "Custom"' in dsl_text
     assert any("Unknown node type" in str(item.message) for item in caught)
+
+
+def test_convert_skip_branch_to_visited_join_emits_ref_not_empty():
+    # Regressão: skip para convergência não-SESE virava `()` sem alvo (o bloco
+    # não tem continuação porque o join já foi emitido dentro do branch irmão)
+    # e a aresta G1->C se perdia. Deve virar #ref para o join.
+    dsl = convert(
+        {
+            "pool": "NonSESE",
+            "nodes": [
+                {"id": "S", "type": "startEvent", "name": ""},
+                {"id": "P", "type": "task", "name": "Prepare"},
+                {"id": "G1", "type": "exclusiveGateway", "name": "Validate?"},
+                {"id": "V", "type": "task", "name": "Do validation"},
+                {"id": "G2", "type": "exclusiveGateway", "name": "Stop?"},
+                {"id": "E1", "type": "endEvent", "name": "Stopped"},
+                {"id": "C", "type": "task", "name": "Confirm budget"},
+                {"id": "D", "type": "task", "name": "Proceed"},
+                {"id": "E2", "type": "endEvent", "name": "Done"},
+            ],
+            "flows": [
+                {"from": "S", "to": "P"},
+                {"from": "P", "to": "G1"},
+                {"from": "G1", "to": "V", "cond": "yes"},
+                {"from": "G1", "to": "C", "cond": "skip"},
+                {"from": "V", "to": "G2"},
+                {"from": "G2", "to": "E1", "cond": "stop"},
+                {"from": "G2", "to": "C", "cond": "continue"},
+                {"from": "C", "to": "D"},
+                {"from": "D", "to": "E2"},
+            ],
+        }
+    )
+    _assert_parseable(dsl)
+    assert dsl.count('"Confirm budget"') == 1  # join emitido uma única vez
+    assert "[skip] -> #" in dsl  # skip vira ref explícito...
+    assert "()" not in dsl  # ...não um empty branch sem alvo
