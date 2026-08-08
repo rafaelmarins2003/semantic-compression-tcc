@@ -171,8 +171,10 @@ def _node_ranks(nodes: list[etree._Element], flows: list[etree._Element]) -> dic
         node.get("id")
         for node in nodes
         if _local_name(node) == "startEvent" or indegree.get(node.get("id"), 0) == 0
-    ]
-    queue = deque(starts or node_ids[:1])
+    ] or node_ids[:1]
+    _drop_back_edges(succs, starts)
+
+    queue = deque(starts)
     ranks = {node_id: 0 for node_id in queue}
 
     while queue:
@@ -181,8 +183,7 @@ def _node_ranks(nodes: list[etree._Element], flows: list[etree._Element]) -> dic
             next_rank = ranks[current] + 1
             if next_rank > ranks.get(target, -1):
                 ranks[target] = next_rank
-                if next_rank <= len(node_ids):
-                    queue.append(target)
+                queue.append(target)
 
     fallback_rank = max(ranks.values(), default=0) + 1
     for node_id in node_ids:
@@ -190,6 +191,42 @@ def _node_ranks(nodes: list[etree._Element], flows: list[etree._Element]) -> dic
             ranks[node_id] = fallback_rank
             fallback_rank += 1
     return ranks
+
+
+def _drop_back_edges(succs: dict[str, list[str]], starts: list[str]) -> None:
+    """Remoção de ciclos (passo 1 do Sugiyama): descarta arestas de retorno via DFS.
+
+    Sem isso, o ranking longest-path infla os ranks de nós em ciclo até ~n,
+    esticando o diagrama. Ciclos não alcançáveis a partir de `starts` ficam
+    intactos, mas o BFS de ranking também nunca os visita.
+    """
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    back_edges: list[tuple[str, str]] = []
+
+    for start in starts:
+        if start in visited:
+            continue
+        visiting.add(start)
+        stack = [(start, 0)]
+        while stack:
+            node, i = stack[-1]
+            children = succs.get(node, [])
+            if i < len(children):
+                stack[-1] = (node, i + 1)
+                child = children[i]
+                if child in visiting:
+                    back_edges.append((node, child))
+                elif child not in visited:
+                    visiting.add(child)
+                    stack.append((child, 0))
+            else:
+                visiting.discard(node)
+                visited.add(node)
+                stack.pop()
+
+    for source, target in back_edges:
+        succs[source].remove(target)
 
 
 def _lane_members(process: etree._Element) -> tuple[dict[str, str], list[str]]:
