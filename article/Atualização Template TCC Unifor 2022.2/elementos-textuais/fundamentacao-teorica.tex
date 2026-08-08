@@ -1,110 +1,164 @@
 \chapter{Fundamentação Teórica}
 \label{cap:fundamentacao-teorica}
 
-Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut. Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget. Integer eget mattis libero \cite{de2010sugestoes}
+O ponto de partida deste trabalho é uma dificuldade prática: gerar XML BPMN 2.0 completo por meio de Modelos de Linguagem de Grande Escala (LLMs, do inglês \textit{Large Language Models}) tende a ser custoso, verboso e sujeito a erros estruturais. Para discutir esse problema, este capítulo reúne os conceitos necessários à proposta de um protocolo de compressão semântica voltado à geração de \textit{markup} XML. A fundamentação começa pela modelagem de processos de negócio e pela notação BPMN 2.0, passa pelos princípios de funcionamento dos LLMs e pelos desafios da geração estruturada, e então discute Linguagens de Domínio Específico (DSLs, do inglês \textit{Domain-Specific Languages}) como mecanismo de mediação entre descrição semântica e representação XML. Em seguida, são apresentados os métodos de adaptação de modelos que sustentam a etapa experimental do projeto, especialmente SFT, LoRA, QLoRA e GRPO. Por fim, o capítulo aborda recursos disponíveis para extração de processos a partir de texto natural e métricas adequadas à avaliação de artefatos estruturados.
 
-\section{Fundamentação Teórica A}
-\label{sec:fundamentacao-teorica-a}
+\section{Modelagem de Processos de Negócio e a Notação BPMN 2.0}
+\label{sec:bpmn}
 
-\lipsum[10]
+\subsection{Gerenciamento de Processos de Negócio}
+\label{subsec:bpm}
 
-	\begin{figure}[h!]
-		\centering
-		\Caption{\label{fig:oficial} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse commodo lectus et augue elementum varius.}	
-		\UNIFORfig{}{
-			\fbox{\includegraphics[width=8cm]{figuras/figura-1}}
-		}{
-			\Fonte{Elaborado pelo autor}
-		}	
-	\end{figure}
-	
-\lipsum[11]
+O Gerenciamento de Processos de Negócio (BPM, do inglês \textit{Business Process Management}) trata processos organizacionais como objetos que podem ser descritos, analisados, executados e aperfeiçoados de forma sistemática \cite{dumas2018fundamentals}. Essa área aproxima contribuições da administração, da engenharia de software e da pesquisa operacional, sobretudo quando o processo precisa deixar de ser apenas uma prática informal e passar a funcionar como um artefato verificável \cite{weske2019business}.
 
+Essa formalização é importante porque iniciativas de automação, auditoria e conformidade dependem de uma representação compartilhada do processo. Ao mesmo tempo, a notação adotada precisa equilibrar dois requisitos que nem sempre caminham juntos: ser compreensível para analistas e gestores, sem exigir domínio técnico profundo, e preservar precisão suficiente para permitir análise computacional ou execução automatizada. A BPMN se consolidou justamente nesse espaço, oferecendo uma linguagem visual relativamente acessível, mas apoiada por uma especificação formal.
 
-\section{Fundamentação Teórica B}
-\label{sec:fundamentacao-teorica-b}
+\subsection{A Notação BPMN 2.0}
+\label{subsec:bpmn-notacao}
 
-Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut. Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget. Integer eget mattis libero. Praesent ex velit, pulvinar at massa vel, fermentum dictum mauris. Ut feugiat accumsan augue, et ultrices ipsum euismod vitae
+A \textit{Business Process Model and Notation}, em sua versão 2.0, é mantida pelo \textit{Object Management Group} e é uma das principais referências para a representação de processos de negócio \cite{omg2011bpmn}. Seu papel é duplo: por um lado, define símbolos gráficos usados por analistas de processo; por outro, estabelece uma serialização XML descrita por um \textit{XML Schema Definition} (XSD). Essa combinação permite que um mesmo modelo seja lido visualmente por pessoas e processado por ferramentas.
 
-	\begin{figure}[h!]
-		\centering
-		\Caption{\label{fig:exemplo-2} Maecenas luctus augue odio, sed tincidunt nunc posuere nec}	
-		\UNIFORfig{}{
-			\fbox{\includegraphics[width=8cm]{figuras/figura-2}}
-		}{
-			\Fonte{Elaborado pelo autor}			
-		}	
-	\end{figure}
-
-\citeonline{Huetal2000} Nunc ac pretium dui. Mauris aliquam dapibus nulla ac mattis. Aenean non tortor volutpat, varius lectus vitae, accumsan nibh. Cras pretium vestibulum enim, id ullamcorper tortor ultrices non. Integer sodales viverra faucibus. Curabitur at dui lacinia, rhoncus lacus at, blandit metus. Integer scelerisque non enim quis ornare.
-
-\lipsum[13]
-
-	\begin{table}[h!]	
-		\centering
-		\Caption{\label{tab:exemplo-1} Duis faucibus, enim quis tincidunt pellentesque, nisl leo varius nulla, vitae tempus dui mauris ac ante purus lorem}		
-		\UNIFORtab{}{
-			\begin{tabular}{cll}
-				\toprule
-				Ranking & Exon Coverage & Splice Site Support \\
-				\midrule \midrule
-				E1 & Complete coverage by a single transcript & Both splice sites\\
-				E2 & Complete coverage by more than a single transcript & Both splice sites\\
-				E3 & Partial coverage & Both splice sites\\
-				E4 & Partial coverage & One splice site\\
-				E5 & Complete or partial coverage & No splice sites\\
-				E6 & No coverage & No splice sites\\
-				\bottomrule
-			\end{tabular}
-		}{
-		\Fonte{Elaborado pelo autor}
-	}
-	\end{table}
-
-Duis faucibus, enim quis tincidunt pellentesque, nisl leo varius nulla, vitae tempus dui mauris ac ante. Quisque purus lorem, pharetra sit amet lobortis eu, vehicula vitae purus. Ut varius, erat nec vehicula elementum, risus est tempus justo, nec vulputate augue leo egestas metus.
-
-	\begin{figure}[h!]
-		\centering
-		\Caption{\label{fig:exemplo-3} Ut posuere, ex quis sagittis auctor, magna massa euismod felis}	
-		\UNIFORfig{}{
-			\fbox{\includegraphics[width=8cm]{figuras/figura-2}}
-		}{
-		\Fonte{Elaborado pelo autor}			
-	}	
-	\end{figure}
-
-\lipsum[14]
-
-	\begin{table}[h!]	
-		\centering
-		\Caption{\label{tab:exemplo-2} Etiam molestie, nulla a egestas aliquet, velit augue congue metus}		
-		\UNIFORtab{}{
-			\begin{tabular}{ccll}
-				\toprule
-				Quisque & pharetra & tempus & vulputate \\
-				\midrule \midrule
-				E1 & Complete coverage by a single transcript & Both splice sites\\
-				E2 & Complete coverage by more than a single transcript & Both splice sites\\
-				E3 & Partial coverage & Both splice sites & Both \\
-				E4 & Partial coverage & One splice site & Both \\
-				E5 & Complete or partial coverage & No splice sites & Both\\
-				E6 & No coverage & No splice sites\\
-				\bottomrule
-			\end{tabular}
-		}{
-		\Fonte{Elaborado pelo autor}
-	}
-	\end{table}
-	
-Duis faucibus, enim quis tincidunt pellentesque, nisl leo varius nulla, vitae tempus dui mauris ac ante. Quisque purus lorem, pharetra sit amet lobortis eu, vehicula vitae purus.
-\acrlong{DATASUS},\acrlong{DNV},\acrlong{DO},\acrlong{ESF},\acrlong{IBGE},\acrlong{MFC},\acrlong{MI},\acrlong{MS},\acrlong{NV},\acrlong{ODM},\acrlong{OI},\acrlong{OMS},\acrlong{ONU},\acrlong{PNI},\acrlong{PSF},\acrlong{RIPSA},\acrlong{RN},\acrlong{SIM},\acrlong{SINASC},\acrlong{SUS},\acrlong{TMI},\acrlong{TMMFC}
+Segundo a especificação da BPMN 2.0, os elementos da notação são agrupados em categorias principais \citeonline{omg2011bpmn}:
 
 \begin{alineascomponto}
-	\item Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut
-	\item Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget
-	\item Integer eget mattis libero. Praesent ex velit, pulvinar at massa vel, fermentum dictum mauris. Ut feugiat accumsan augue, et ultrices ipsum euismod vitae
-	\begin{subalineascomponto}
-		\item Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut
-		\item Proin mattis placerat risus sit amet laoreet.
-	\end{subalineascomponto}
+    \item \textbf{Objetos de fluxo} (\textit{flow objects}): eventos (\textit{events}), atividades (\textit{activities}) e \textit{gateways}, que representam os principais nós do processo;
+    \item \textbf{Objetos de conexão} (\textit{connecting objects}): fluxos de sequência, fluxos de mensagem e associações, responsáveis por explicitar relações entre elementos;
+    \item \textbf{Raias} (\textit{swimlanes}): \textit{pools} e \textit{lanes}, usadas para indicar participantes, setores ou responsabilidades;
+    \item \textbf{Artefatos} (\textit{artifacts}): grupos, anotações textuais e objetos de dados, empregados para acrescentar informação complementar ao modelo.
 \end{alineascomponto}
+
+Com esses elementos, a BPMN permite representar padrões comuns de processos, como decisões exclusivas, execuções paralelas, eventos intermediários e interações entre participantes. A expressividade da notação, no entanto, cobra seu preço: quanto mais completa é a representação, maior tende a ser a complexidade para quem modela, valida ou gera o artefato. \citeonline{dumas2018fundamentals} observam que essa riqueza da BPMN exige aprendizado, tanto do analista humano quanto de qualquer sistema que tente manipulá-la automaticamente.
+
+\subsection{Representação XML e Verbosidade}
+\label{subsec:bpmn-xml}
+
+Na prática, um modelo BPMN 2.0 interoperável costuma ser armazenado em XML conforme o esquema oficial. Essa escolha favorece o intercâmbio entre ferramentas e reduz ambiguidades de implementação, mas produz documentos consideravelmente maiores do que a descrição conceitual do processo. Em um exemplo simples, o XML precisa declarar \textit{namespaces}, identificadores, elementos de diagrama, coordenadas, fluxos, referências cruzadas e atributos previstos pela especificação.
+
+Essa verbosidade não é um problema grave quando o XML é gerado por uma ferramenta de modelagem. A situação muda quando o alvo de geração passa a ser um LLM. Nesse caso, o modelo precisa emitir uma sequência longa, com muitos trechos repetitivos e com baixa tolerância a pequenos desvios. Uma \textit{tag} ausente, um identificador trocado ou uma referência inconsistente pode invalidar o documento inteiro, mesmo que a estrutura geral do processo tenha sido compreendida corretamente. Esse descompasso entre conteúdo semântico e representação textual motiva a busca por uma camada intermediária mais curta e mais controlável.
+
+\section{Modelos de Linguagem de Grande Escala}
+\label{sec:llms}
+
+\subsection{Arquitetura Transformer}
+\label{subsec:transformer}
+
+A arquitetura Transformer, proposta por \citeonline{vaswani2017attention}, marcou uma mudança importante na modelagem de sequências. Em vez de processar a entrada de forma recorrente, o Transformer usa mecanismos de \textit{self-attention} para relacionar diretamente diferentes posições da sequência. Esse desenho favoreceu paralelização em larga escala e abriu caminho para os modelos de linguagem atuais.
+
+Os LLMs mais utilizados seguem, em geral, uma formulação autorregressiva: a cada passo, o modelo estima o próximo \textit{token} a partir dos anteriores. Quando treinados sobre grandes coleções de texto, esses modelos passam a apresentar capacidade de generalização para tarefas variadas, inclusive tarefas que não aparecem explicitamente como objetivos de treinamento \cite{brown2020language}. Essa flexibilidade explica seu interesse para geração de código, consultas, marcações e outros formatos estruturados.
+
+\subsection{Tokenização e o Custo de Sequências Longas}
+\label{subsec:tokenizacao}
+
+LLMs não operam diretamente sobre palavras completas. A entrada e a saída são decompostas em \textit{tokens}, frequentemente obtidos por técnicas como \textit{Byte-Pair Encoding} \cite{sennrich2016neural}. Essa estratégia funciona bem para texto natural, mas pode ser pouco econômica para formatos como XML. Identificadores longos, nomes de atributos, símbolos de marcação e padrões repetidos tendem a ser fragmentados em vários \textit{tokens}.
+
+O aumento no número de \textit{tokens} tem consequências diretas. O mecanismo de atenção cresce em custo com o comprimento da sequência, o que afeta memória, tempo de treinamento e latência de inferência. Em um ambiente acadêmico com recursos limitados, gerar XML BPMN completo significa gastar parte relevante do orçamento computacional em trechos que são necessários para a conformidade do arquivo, mas não necessariamente para a descrição semântica do processo.
+
+\subsection{Geração de Saídas Estruturadas}
+\label{subsec:saidas-estruturadas}
+
+A geração de artefatos estruturados por LLMs, como código-fonte, consultas e linguagens de marcação, tornou-se uma linha de pesquisa relevante a partir de trabalhos como o de \citeonline{chen2021evaluating}. O desafio central é que a geração probabilística não garante, por si só, validade sintática nem conformidade a um esquema externo. Em linguagem natural, um pequeno desvio pode ser tolerável; em XML, uma inconsistência local pode tornar todo o documento inválido.
+
+\citeonline{poesia2022synchromesh} discutem esse problema no contexto de geração de código e defendem a combinação entre modelos probabilísticos e mecanismos determinísticos de restrição. A ideia é simples, mas importante para este trabalho: quando a saída precisa obedecer a regras formais, a geração livre do modelo deve ser complementada por alguma forma de controle. Esse controle pode aparecer durante a decodificação, em uma etapa posterior de validação ou por meio de uma representação intermediária projetada para ser mais simples de gerar e de verificar.
+
+\section{Linguagens de Domínio Específico e Compressão Semântica}
+\label{sec:dsl-compressao}
+
+\subsection{Linguagens de Domínio Específico}
+\label{subsec:dsl}
+
+Para \citeonline{fowler2010domain}, uma Linguagem de Domínio Específico é uma linguagem computacional criada para um domínio particular, com escopo e expressividade intencionalmente limitados. Essa limitação não é uma deficiência. Pelo contrário, ela permite que a linguagem se aproxime dos conceitos do problema e reduza detalhes que seriam necessários em uma linguagem de propósito geral. \citeonline{mernik2005domain} apontam benefícios recorrentes das DSLs, entre eles a elevação do nível de abstração, a redução de código repetitivo e a maior facilidade para realizar análises estáticas.
+
+No caso da BPMN, a serialização XML já é uma linguagem formal, mas não foi pensada para ser escrita diretamente por pessoas ou por modelos de linguagem. Ela foi concebida principalmente para intercâmbio entre ferramentas. Por isso, quando se pede a um LLM que produza XML BPMN completo, transfere-se ao modelo uma responsabilidade pouco adequada ao seu funcionamento: repetir com precisão uma grande quantidade de marcação técnica, ainda que parte dessa marcação possa ser gerada de maneira determinística.
+
+\subsection{Compressão Semântica como Estratégia de Geração}
+\label{subsec:compressao-semantica}
+
+Neste trabalho, compressão semântica designa a redução da representação textual de um artefato sem perda do conteúdo essencial, desde que a forma completa possa ser reconstruída por uma etapa determinística. A compressão, portanto, não é tratada como objetivo isolado. Seu papel é separar duas responsabilidades: o LLM deve produzir uma descrição concisa do processo, enquanto o transpilador deve expandir essa descrição para XML BPMN 2.0 válido.
+
+A proposta segue três etapas. Primeiro, o LLM gera uma representação intermediária em uma DSL voltada à descrição de processos BPMN. Em seguida, um transpilador baseado em gramática EBNF e regras de enriquecimento converte essa representação em XML BPMN 2.0. Por fim, o XML gerado é validado contra o XSD oficial. Quando ocorre erro, a falha tende a ficar mais localizada: pode estar na geração da DSL, no transpilador ou na validação do XML. Esse desenho facilita a depuração quando comparado à geração direta de um documento XML longo.
+
+A motivação para essa estratégia combina três aspectos. O primeiro é computacional, pois uma saída mais curta reduz o número de \textit{tokens} e pode baratear treinamento e inferência. O segundo é de aprendizado, já que uma representação menos redundante pode concentrar melhor o sinal supervisionado no que realmente descreve o processo. O terceiro é metodológico: a separação entre modelo e transpilador permite avaliar de forma mais clara o que foi aprendido pelo LLM e o que foi garantido por regras determinísticas.
+
+\section{Adaptação de Modelos de Linguagem a Tarefas Específicas}
+\label{sec:adaptacao}
+
+\subsection{Supervised Fine-Tuning}
+\label{subsec:sft}
+
+O ajuste supervisionado, ou \textit{Supervised Fine-Tuning} (SFT), é uma das formas mais diretas de adaptar um LLM a uma tarefa específica. O procedimento continua o treinamento do modelo sobre pares de entrada e saída esperada, deslocando a distribuição gerada na direção do comportamento desejado \cite{ouyang2022training}. Neste projeto, cada exemplo associa uma descrição textual de processo a uma representação na DSL proposta.
+
+A qualidade do SFT depende fortemente do corpus. Em tarefas muito específicas, como gerar uma DSL nova para processos BPMN, não há um conjunto público pronto que resolva o problema de forma direta. Isso torna necessária a construção de dados por meio de conversões, curadoria e aumento de dados. Modelos mais capazes podem atuar como apoio nessa etapa, gerando pseudoexemplos que depois precisam ser filtrados e validados.
+
+\subsection{Ajuste com Eficiência de Parâmetros: LoRA e QLoRA}
+\label{subsec:lora}
+
+O ajuste completo de modelos com bilhões de parâmetros costuma ser inviável em computadores de uso acadêmico. \citeonline{hu2022lora} propuseram o método \textit{Low-Rank Adaptation} (LoRA) como uma alternativa mais econômica: em vez de atualizar todos os pesos do modelo, treinam-se matrizes de baixa dimensão acopladas a camadas específicas. Os pesos originais permanecem congelados, e apenas os parâmetros adicionais são ajustados.
+
+O método reduz a quantidade de parâmetros treináveis e, consequentemente, o consumo de memória. O QLoRA, apresentado por \citeonline{dettmers2023qlora}, amplia essa economia ao quantizar os pesos congelados do modelo base para 4 \textit{bits}, mantendo as adaptações em maior precisão. Essa combinação é especialmente relevante para o presente estudo, pois o projeto considera treinamento em uma estação local com 12 GB de memória dedicada de GPU.
+
+\subsection{Aprendizado por Reforço com GRPO}
+\label{subsec:grpo}
+
+Embora o SFT ensine o modelo a imitar exemplos, ele não otimiza diretamente métricas externas de qualidade. Para uma tarefa como esta, algumas propriedades importantes são verificáveis por código: validade sintática, conformidade ao XSD, fidelidade semântica, coerência topológica do grafo e economia de \textit{tokens}. Essas propriedades podem ser usadas como sinais de recompensa em uma etapa posterior de treinamento.
+
+\citeonline{shao2024deepseekmath} introduziram o \textit{Group Relative Policy Optimization} (GRPO) no contexto de modelos voltados a raciocínio matemático. O método deriva do PPO, mas evita manter um modelo crítico separado. Para cada \textit{prompt}, gera-se um grupo de respostas, e a vantagem de cada resposta é estimada em relação à média do próprio grupo. Essa simplificação reduz custo de memória, característica importante em cenários com restrição de hardware.
+
+Neste trabalho, o GRPO é previsto como uma segunda etapa após o SFT. A função de recompensa combina dimensões diferentes da qualidade esperada: sintaxe, semântica, topologia e eficiência da DSL gerada. A composição ponderada dessas dimensões permite transformar critérios de avaliação em um sinal de treinamento, sem reduzir a qualidade do processo a uma única métrica isolada.
+
+\section{Extração de Processos a partir de Texto Natural}
+\label{sec:nl-bpmn}
+
+\subsection{Caracterização do Problema}
+\label{subsec:nl-problema}
+
+A extração automática de modelos de processo a partir de texto natural é anterior ao uso recente de LLMs. \citeonline{friedrich2011process}, por exemplo, já investigavam a geração de modelos BPMN com apoio de técnicas tradicionais de Processamento de Linguagem Natural (PLN), como análise sintática, resolução de correferências e regras de mapeamento. Os resultados indicavam potencial, mas também deixavam claro que textos de processo podem conter ambiguidades e informações implícitas.
+
+\citeonline{vanderaa2018challenges} organizam esses desafios em dimensões como ambiguidade lexical e estrutural, variação de granularidade, lacunas de informação e possibilidade de múltiplos modelos válidos para uma mesma descrição. Essa última questão é particularmente importante: em muitos casos, não existe apenas uma modelagem correta. O que existe são representações mais ou menos adequadas a uma interpretação do texto, ao nível de detalhe escolhido e ao objetivo da modelagem.
+
+\subsection{Recursos e Datasets Disponíveis}
+\label{subsec:nl-datasets}
+
+O domínio ainda possui poucos \textit{benchmarks} consolidados. \citeonline{bellan2022pet} apresentaram o \textit{Process Extraction from Text} (PET), composto por 45 descrições textuais anotadas com atividades, \textit{gateways}, atores e relações de fluxo. O PET é relevante por oferecer anotações em granularidade fina, úteis tanto para treinamento quanto para avaliação de tarefas de extração.
+
+Outro recurso importante é o \textit{PMo Dataset}, disponibilizado por \citeonline{brissard2025pmo}. O conjunto reúne 55 modelos de processo com descrições textuais correspondentes e diferentes representações de modelo, incluindo BPMN, Mermaid, Graphviz, POWL code e XML simplificado. A presença de uma representação BPMN padronizada como referência torna o conjunto especialmente útil para avaliação. Já o dataset de \citeonline{mangler2023textual} oferece 24 descrições textuais acompanhadas de múltiplos modelos BPMN possíveis, com pontuações atribuídas por especialistas, o que ajuda a observar a ambiguidade natural da modelagem de processos.
+
+Além desses conjuntos especializados, o projeto pode recorrer a textos procedurais não anotados, como trechos públicos de documentação organizacional, para etapas de aumento de dados. A distinção entre essas fontes é metodologicamente relevante: datasets anotados servem como referência e avaliação, enquanto textos abertos podem alimentar a construção de pares sintéticos, desde que passem por validação.
+
+\section{Avaliação de Geração de Artefatos Estruturados}
+\label{sec:metricas}
+
+\subsection{Validação por Esquema}
+\label{subsec:xsd}
+
+A validação por esquema é o primeiro critério para avaliar XML BPMN. No caso da BPMN 2.0, o XSD oficial define se o documento respeita a estrutura esperada pela especificação. O resultado é binário: o XML é válido ou inválido. Esse critério é necessário, mas não suficiente. Um arquivo pode ser válido em termos de esquema e ainda assim representar um processo diferente daquele descrito no texto de entrada.
+
+\subsection{Métricas Sintáticas e Semânticas}
+\label{subsec:precisao-recall}
+
+Para avaliar a fidelidade ao processo de referência, métricas como precisão, revocação e F1 podem ser calculadas sobre elementos extraídos do modelo gerado. Atividades, atores, \textit{gateways} e arestas podem ser comparados com os elementos presentes no modelo esperado. A medida F1 é útil nesse contexto porque resume precisão e revocação, evitando uma leitura baseada apenas em acertos brutos.
+
+\subsection{Distância de Edição em Grafos}
+\label{subsec:ged}
+
+Como modelos BPMN podem ser interpretados como grafos, a comparação estrutural também é necessária. A \textit{Graph Edit Distance} (GED), associada ao trabalho de \citeonline{sanfeliu1983distance}, mede a distância entre grafos a partir do custo mínimo de operações de edição, como inserção, remoção e substituição de vértices e arestas. Em formulações gerais, o cálculo exato é computacionalmente difícil, razão pela qual aproximações são frequentemente usadas em aplicações práticas \cite{gao2010graph}.
+
+Para este estudo, a GED é interessante porque considera a organização topológica do processo, não apenas a presença ou ausência de elementos individuais. Ainda assim, sua utilidade depende do modelo de custo adotado. Esse modelo precisa refletir o que, no contexto da BPMN, deve ser tratado como diferença relevante entre dois processos.
+
+\subsection{Eficiência: Razão de Compressão de Tokens}
+\label{subsec:tcr}
+
+A Razão de Compressão de Tokens (TCR, do inglês \textit{Token Compression Ratio}) é usada para medir a eficiência da representação intermediária. A métrica compara a quantidade de \textit{tokens} necessária para representar o processo em XML BPMN com a quantidade necessária para representá-lo na DSL proposta, usando o mesmo tokenizador. Valores superiores a um indicam que a DSL é mais compacta que o XML correspondente.
+
+Essa métrica, sozinha, não mede qualidade. Uma representação pode ser muito curta e ainda assim perder informação relevante. Por isso, a TCR precisa ser analisada junto às métricas de validade, fidelidade semântica e estrutura topológica. O interesse do trabalho está exatamente nesse equilíbrio: reduzir a saída gerada pelo LLM sem comprometer a reconstrução determinística do BPMN.
+
+\subsection{Função de Recompensa Composta}
+\label{subsec:recompensa-composta}
+
+No treinamento por GRPO, as métricas anteriores podem ser combinadas em uma função de recompensa composta. Essa função precisa equilibrar critérios diferentes: validade sintática, adequação semântica ao texto, plausibilidade topológica e eficiência em \textit{tokens}. Uma formulação ponderada facilita a interpretação dos resultados, pois permite identificar que dimensão da qualidade está contribuindo mais ou menos para o comportamento do modelo.
+
+\section{Síntese do Capítulo}
+\label{sec:sintese-fundamentacao}
+
+A discussão apresentada neste capítulo delimita o problema e justifica a estratégia proposta. A BPMN 2.0 oferece uma representação rica para processos de negócio, mas sua serialização XML é longa e sensível a erros. LLMs são capazes de gerar texto estruturado, porém não garantem conformidade formal por si mesmos. DSLs oferecem uma alternativa intermediária: descrevem o conteúdo essencial em uma forma mais curta, enquanto um transpilador assume a expansão para XML válido. As técnicas de SFT, LoRA, QLoRA e GRPO fornecem o caminho para adaptar o modelo à tarefa, e as métricas discutidas permitem avaliar a solução sob diferentes aspectos.
+
+Com essa base, o Capítulo de Metodologia pode especificar de maneira operacional a gramática da DSL, o funcionamento do transpilador, a construção dos dados, os parâmetros de treinamento e o protocolo de avaliação.
