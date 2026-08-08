@@ -33,6 +33,11 @@ uv run python -m src.data.ingestion.dataset.import_pet
 uv run python -m src.data.ingestion.dataset.import_zenodo
 uv run python -m src.data.ingestion.web.clean_handbook
 uv run python -m src.data.manipulation.llm.preprocess --provider gemini --limit 5
+uv run python -m src.data.manipulation.deterministic.json_to_xml input.json -o output.bpmn
+uv run python -m src.data.manipulation.deterministic.json_to_xml input.json --no-layout
 ```
+
+O conversor direto `json_to_xml` gera BPMN XML com BPMNDI/layout determinístico
+por padrão. Use `--no-layout` apenas quando precisar inspecionar o XML lógico.
 
 Nota metodológica: PMo deve ser tratado como holdout de avaliação, não como treino.
