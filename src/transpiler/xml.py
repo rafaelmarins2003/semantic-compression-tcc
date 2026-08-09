@@ -24,11 +24,11 @@ _CNAME_RE = re.compile(r"[^a-z0-9_]")
 # entao restringimos ids a este conjunto para garantir validade XSD.
 _XML_NAME_CHAR = re.compile(
     "[A-Za-z0-9_.\\-"
-    "\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF"
-    "\u0300-\u036F\u0370-\u037D\u037F-\u1FFF"
-    "\u200C\u200D\u203F\u2040"
-    "\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF"
-    "\uF900-\uFDCF\uFDF0-\uFFFD]"
+    "\u00b7\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff"
+    "\u0300-\u036f\u0370-\u037d\u037f-\u1fff"
+    "\u200c\u200d\u203f\u2040"
+    "\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff"
+    "\uf900-\ufdcf\ufdf0-\ufffd]"
 )
 
 
@@ -356,7 +356,18 @@ def _emit_gateway(emitter: ProcessEmitter, tree: Tree) -> StepResult:
 
     if tree.data == "and_gw":
         branches_root = _first_tree(tree, {"and_branches"})
-        branch_trees = _children(branches_root, "flow") if branches_root else []
+        # `empty_branch` precisa entrar junto com `flow`: filtrar só por "flow"
+        # descartava o branch vazio de um `and`, e o fork ficava com uma única
+        # saída — o paralelismo virava sequência silenciosamente.
+        branch_trees = (
+            [
+                child
+                for child in branches_root.children
+                if isinstance(child, Tree) and child.data in {"flow", "empty_branch"}
+            ]
+            if branches_root
+            else []
+        )
     elif tree.data == "event_gw":
         branch_trees = _children(tree, "event_branch")
     else:
@@ -491,7 +502,7 @@ def _first_tree(tree: Tree, names: set[str]) -> Tree | None:
 
 
 def _safe_id(value: str) -> str:
-    cleaned = "".join(
-        c if c.isalnum() and _XML_NAME_CHAR.match(c) else "_" for c in value
-    ).strip("_")
+    cleaned = "".join(c if c.isalnum() and _XML_NAME_CHAR.match(c) else "_" for c in value).strip(
+        "_"
+    )
     return cleaned or "Unnamed"

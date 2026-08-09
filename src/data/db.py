@@ -170,8 +170,7 @@ class Database:
             "updated_at",
         ]
         columns = [
-            row["name"]
-            for row in self._conn.execute("PRAGMA table_info(json_bpmn_generations)")
+            row["name"] for row in self._conn.execute("PRAGMA table_info(json_bpmn_generations)")
         ]
         if columns == expected:
             return
@@ -408,8 +407,7 @@ class Database:
         vals = list(serialized.values())
         vals.append(generation_id)
         self._conn.execute(
-            f"UPDATE preprocessing_generations SET {sets}, updated_at=datetime('now') "
-            "WHERE id=?",
+            f"UPDATE preprocessing_generations SET {sets}, updated_at=datetime('now') WHERE id=?",
             vals,
         )
         self._conn.commit()

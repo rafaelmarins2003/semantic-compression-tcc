@@ -72,11 +72,18 @@ def run_batch(*, source_dsl_version: str, xml_version: str, limit: int) -> dict:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    r["sample_id"], r["source_dsl_run_id"], r["xml_run_id"],
-                    source_dsl_version, xml_version,
-                    int(res["nodes_match"]), int(res["df_exact"]),
-                    res["df_precision"], res["df_recall"], res["df_f1"],
-                    res["df_json_size"], res["df_xml_size"],
+                    r["sample_id"],
+                    r["source_dsl_run_id"],
+                    r["xml_run_id"],
+                    source_dsl_version,
+                    xml_version,
+                    int(res["nodes_match"]),
+                    int(res["df_exact"]),
+                    res["df_precision"],
+                    res["df_recall"],
+                    res["df_f1"],
+                    res["df_json_size"],
+                    res["df_xml_size"],
                     _edges_json(res["df_missing"]),
                     _edges_json(res["df_extra"]),
                     json.dumps(res["node_delta"], ensure_ascii=False),
@@ -108,9 +115,9 @@ def main() -> None:
     print(f"Eixo 2 topology eval ({args.source_dsl_version} -> {args.xml_transpiler_version})")
     print("=" * 60)
     print(f"  samples            {s['n']}")
-    print(f"  nodes_match        {s['nodes_match']}/{s['n']} ({s['nodes_match']/n:.1%})")
-    print(f"  direct-follows ==  {s['df_exact']}/{s['n']} ({s['df_exact']/n:.1%})")
-    print(f"  mean DF F1         {s['f1_sum']/n:.4f}")
+    print(f"  nodes_match        {s['nodes_match']}/{s['n']} ({s['nodes_match'] / n:.1%})")
+    print(f"  direct-follows ==  {s['df_exact']}/{s['n']} ({s['df_exact'] / n:.1%})")
+    print(f"  mean DF F1         {s['f1_sum'] / n:.4f}")
     print(f"  min DF F1          {s['min_f1']:.3f}")
 
 

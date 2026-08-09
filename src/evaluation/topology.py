@@ -21,8 +21,8 @@ from collections import Counter, deque
 
 from lxml import etree
 
-from src.data.manipulation.deterministic.graph import ProcessGraph, load_llm
-from src.data.manipulation.deterministic.json_to_dsl import _wrapped_processes
+from src.data.deterministic.graph import ProcessGraph, load_llm
+from src.data.deterministic.json_to_dsl import _wrapped_processes
 
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 

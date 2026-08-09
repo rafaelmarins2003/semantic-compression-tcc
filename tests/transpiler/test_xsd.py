@@ -10,9 +10,7 @@ def test_valid_process_passes_xsd():
 
 
 def test_xor_gateway_passes_xsd():
-    xml = transpile(
-        'process "P" { start -> xor "D" { [yes] -> task "A" [no] -> () } -> end }'
-    )
+    xml = transpile('process "P" { start -> xor "D" { [yes] -> task "A" [no] -> () } -> end }')
     assert validate_bpmn_xsd(xml) == []
 
 

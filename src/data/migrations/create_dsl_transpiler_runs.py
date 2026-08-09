@@ -40,8 +40,7 @@ CREATE TABLE IF NOT EXISTS dsl_transpiler_runs (
 """
 
 CREATE_INDEXES = [
-    "CREATE INDEX IF NOT EXISTS idx_transpiler_sample "
-    "ON dsl_transpiler_runs(sample_id)",
+    "CREATE INDEX IF NOT EXISTS idx_transpiler_sample ON dsl_transpiler_runs(sample_id)",
     "CREATE INDEX IF NOT EXISTS idx_transpiler_version_status "
     "ON dsl_transpiler_runs(transpiler_version, status)",
     "CREATE INDEX IF NOT EXISTS idx_transpiler_source_gen "

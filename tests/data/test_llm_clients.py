@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from src.data.manipulation.llm.clients import load_dotenv
+from src.data.llm.clients import load_dotenv
 
 
 def test_load_dotenv_explicit_path(monkeypatch, tmp_path):

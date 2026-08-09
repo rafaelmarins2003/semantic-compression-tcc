@@ -28,13 +28,13 @@ Os scripts ficam em `src/data/`:
 Comandos principais:
 
 ```bash
-uv run python -m src.data.ingestion.dataset.import_pmo
-uv run python -m src.data.ingestion.dataset.import_pet
-uv run python -m src.data.ingestion.dataset.import_zenodo
-uv run python -m src.data.ingestion.web.clean_handbook
-uv run python -m src.data.manipulation.llm.preprocess --provider gemini --limit 5
-uv run python -m src.data.manipulation.deterministic.json_to_xml input.json -o output.bpmn
-uv run python -m src.data.manipulation.deterministic.json_to_xml input.json --no-layout
+uv run python -m src.data.ingestion.import_pmo
+uv run python -m src.data.ingestion.import_pet
+uv run python -m src.data.ingestion.import_zenodo
+uv run python -m src.data.ingestion.import_handbook
+uv run python -m src.data.llm.run_preprocess --provider gemini --limit 5
+uv run python -m src.data.deterministic.json_to_xml input.json -o output.bpmn
+uv run python -m src.data.deterministic.json_to_xml input.json --no-layout
 ```
 
 O conversor direto `json_to_xml` gera BPMN XML com BPMNDI/layout determinístico

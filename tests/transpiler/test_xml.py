@@ -91,9 +91,7 @@ def test_transpile_event_gateway():
 
 
 def test_transpile_generic_intermediate_catch_event():
-    root = _xml(
-        transpile('process "P" { start -> catch:none "Wait for completion" -> end }')
-    )
+    root = _xml(transpile('process "P" { start -> catch:none "Wait for completion" -> end }'))
 
     event = root.find(".//bpmn:intermediateCatchEvent", NS)
     assert event is not None

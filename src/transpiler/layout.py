@@ -34,6 +34,10 @@ NODE_SIZE = {
     "textAnnotation": (120, 50),
 }
 
+SLOT_HEIGHT = 95  # passo vertical entre nós empilhados no mesmo rank
+LANE_MIN_HEIGHT = 120
+LANE_PADDING = 25  # folga entre o topo da raia e o primeiro nó
+
 TASK_TAGS = {
     "task",
     "manualTask",
@@ -107,10 +111,16 @@ def _layout_process(
 
     ranks = _node_ranks(nodes, flows)
     lane_by_node, lane_order = _lane_members(process)
-    positions = _node_positions(nodes, ranks, lane_by_node, lane_order, y_origin)
+    row_height, row_tops = _row_geometry(nodes, ranks, lane_by_node, lane_order, y_origin)
+    positions = _node_positions(nodes, ranks, lane_by_node, lane_order, row_tops)
 
     participant = _participant_for(root, process.get("id", ""))
-    height = max(120, max(y + h for _, (x, y, _, h) in positions.items()) - y_origin + 80)
+    # O pool tem de envolver as RAIAS, não só os nós: com altura de raia variável,
+    # medir pelo rodapé dos nós deixava a última raia pendurada fora do pool e o
+    # `y_cursor` fazia o processo seguinte começar dentro dela.
+    content_bottom = max(y + h for _, (_, y, _, h) in positions.items())
+    lane_bottom = max(row_tops.values()) + row_height
+    height = max(120, max(content_bottom, lane_bottom) - (y_origin - 45) + 20)
     width = max(360, max(x + w for _, (x, _, w, _) in positions.items()) + 120)
 
     if participant is not None:
@@ -124,9 +134,9 @@ def _layout_process(
             root,
             lane.get("id"),
             110,
-            y_origin + lane_index * 120 - 20,
+            row_tops[lane_index],
             width - 60,
-            120,
+            row_height,
             {"isHorizontal": "true"},
         )
 
@@ -241,12 +251,54 @@ def _lane_members(process: etree._Element) -> tuple[dict[str, str], list[str]]:
     return lane_by_node, lane_order
 
 
-def _node_positions(
+def _slots_per_row(
+    nodes: list[etree._Element],
+    ranks: dict[str, int],
+    lane_by_node: dict[str, str],
+    lane_order: list[str],
+) -> dict[int, int]:
+    """Maior empilhamento simultâneo de cada raia (máx. de nós num mesmo rank)."""
+    lane_index = {name: idx for idx, name in enumerate(lane_order)}
+    used: dict[tuple[int, int], int] = defaultdict(int)
+    for node in nodes:
+        node_id = node.get("id")
+        row = lane_index.get(lane_by_node.get(node_id), 0)
+        used[(ranks[node_id], row)] += 1
+
+    peak: dict[int, int] = defaultdict(lambda: 1)
+    for (_, row), count in used.items():
+        peak[row] = max(peak[row], count)
+    for row in range(max(len(lane_order), 1)):
+        peak[row] = max(peak[row], 1)
+    return dict(peak)
+
+
+def _row_geometry(
     nodes: list[etree._Element],
     ranks: dict[str, int],
     lane_by_node: dict[str, str],
     lane_order: list[str],
     y_origin: int,
+) -> tuple[int, dict[int, int]]:
+    """Altura comum das raias e topo de cada uma.
+
+    A altura sai do empilhamento real: com altura fixa, branches paralelos dentro
+    de uma raia transbordavam para a raia vizinha (e para fora do pool).
+    Altura uniforme entre raias segue a convenção usual de desenho de pool.
+    """
+    peak = _slots_per_row(nodes, ranks, lane_by_node, lane_order)
+    needed = max(peak.values(), default=1) * SLOT_HEIGHT + LANE_PADDING
+    row_height = max(LANE_MIN_HEIGHT, needed)
+    tops = {row: y_origin - 20 + row * row_height for row in range(max(len(lane_order), 1))}
+    return row_height, tops
+
+
+def _node_positions(
+    nodes: list[etree._Element],
+    ranks: dict[str, int],
+    lane_by_node: dict[str, str],
+    lane_order: list[str],
+    row_tops: dict[int, int],
 ) -> dict[str, tuple[int, int, int, int]]:
     lane_index = {name: idx for idx, name in enumerate(lane_order)}
     used_slots: dict[tuple[int, int], int] = defaultdict(int)
@@ -255,15 +307,19 @@ def _node_positions(
     for node in nodes:
         node_id = node.get("id")
         rank = ranks[node_id]
-        lane = lane_by_node.get(node_id)
-        row = lane_index.get(lane, 0)
+        row = lane_index.get(lane_by_node.get(node_id), 0)
         slot = used_slots[(rank, row)]
         used_slots[(rank, row)] += 1
 
         width, height = NODE_SIZE.get(_local_name(node), (120, 80))
         x = 160 + rank * 190
-        y = y_origin + row * 120 + 20 + slot * 95
-        positions[node_id] = (x, y, width, height)
+        # Centraliza o nó na faixa do slot: eventos (36px) e tasks (80px) alinhados
+        # pelo topo deixavam os centros em alturas diferentes e as arestas tortas,
+        # já que `_add_edge` ancora nos centros. `max(0, ...)` protege caso algum
+        # NODE_SIZE passe a ser mais alto que SLOT_HEIGHT.
+        centering = max(0, (SLOT_HEIGHT - height) // 2)
+        slot_top = row_tops.get(row, row_tops[0]) + LANE_PADDING + slot * SLOT_HEIGHT
+        positions[node_id] = (x, slot_top + centering, width, height)
 
     return positions
 

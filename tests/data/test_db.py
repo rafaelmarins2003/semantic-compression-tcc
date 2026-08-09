@@ -160,9 +160,7 @@ class TestGenerations:
 
         tables = {
             row["name"]
-            for row in migrated.query(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            for row in migrated.query("SELECT name FROM sqlite_master WHERE type='table'")
         }
         rows = migrated.generations("s1", "preprocess")
 
@@ -173,10 +171,7 @@ class TestGenerations:
         assert rows[0]["output_text"] == "output"
 
     def test_preprocessing_generations_schema(self, db):
-        columns = {
-            row["name"]
-            for row in db.query("PRAGMA table_info(preprocessing_generations)")
-        }
+        columns = {row["name"] for row in db.query("PRAGMA table_info(preprocessing_generations)")}
 
         assert "output_json" not in columns
         assert "output_dsl" not in columns
@@ -299,8 +294,7 @@ class TestGenerations:
         migrated = Database(path)
 
         columns = [
-            row["name"]
-            for row in migrated.query("PRAGMA table_info(json_bpmn_generations)")
+            row["name"] for row in migrated.query("PRAGMA table_info(json_bpmn_generations)")
         ]
         rows = migrated.json_bpmn_generations("s1", "json_bpmn")
 

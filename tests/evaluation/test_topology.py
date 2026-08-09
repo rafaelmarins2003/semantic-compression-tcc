@@ -1,6 +1,6 @@
 """Tests for Eixo 2 — topological equivalence JSON ↔ XML."""
 
-from src.data.manipulation.deterministic.json_to_dsl import convert
+from src.data.deterministic.json_to_dsl import convert
 from src.evaluation.topology import compare
 from src.transpiler import transpile
 

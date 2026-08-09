@@ -1,51 +1,42 @@
 \chapter{Introdução}
 \label{cap:introducao}
 
-Os algoritmos de aprendizado de máquina que fazem classificação em imagens, necessitam que estas sejam de baixa dimensionalidade \cite{yang2019re} . \gls{KNN} askjdhkjasdhj ashdkajsdhajkhj \gls{KNN}
+Organizações dependem de processos documentados para operar de forma previsível, treinar pessoas e cumprir exigências regulatórias. A notação BPMN 2.0, padronizada pela \citeonline{omg2011bpmn}, tornou-se a linguagem de referência para essa documentação, com uso consolidado tanto na indústria quanto na literatura de gestão de processos \cite{weske2019business, dumas2018fundamentals}. Na prática, porém, a maior parte do conhecimento sobre processos permanece registrada em linguagem natural: manuais internos, descrições de procedimentos e documentos de política. A conversão desse material em modelos formais continua sendo uma tarefa manual, lenta e dependente de especialistas \cite{friedrich2011process, vanderaa2018challenges}.
 
-Tal modelo pode ser visualizado através da Figura \ref{fig:fluxogramaDeAlgumaCoisa}. 
+O avanço dos modelos de linguagem de grande porte \cite{vaswani2017attention, brown2020language} tornou plausível automatizar essa conversão. A dificuldade está na forma de saída. A serialização XML da BPMN foi concebida para intercâmbio entre ferramentas, não para ser escrita diretamente por pessoas ou por modelos. Ao solicitar que um modelo produza XML BPMN completo, transfere-se a ele uma responsabilidade pouco adequada ao seu funcionamento: reproduzir com precisão um grande volume de marcação técnica, ainda que boa parte dessa marcação possa ser derivada de maneira determinística. O custo aparece em duas frentes. A primeira é econômica, pois cada \textit{token} de marcação repetitiva consome contexto, tempo e dinheiro. A segunda é de confiabilidade, já que qualquer inconsistência estrutural invalida o documento inteiro.
 
-\ref{fig:oficial}
+A redução do número de \textit{tokens} em sistemas baseados em modelos de linguagem tem sido atacada principalmente do lado da entrada. Na pesquisa, o LLMLingua \cite{jiang2023llmlingua} comprime o contexto antes que ele alcance o modelo, com ganhos expressivos e pouca perda de desempenho. Na indústria, ferramentas como o Headroom \cite{headroom2026} aplicam a mesma ideia a saídas de ferramentas, registros e trechos recuperados, relatando reduções entre 60\% e 95\% em conteúdo estruturado. Essas abordagens confirmam que a economia de \textit{tokens} é uma preocupação concreta e que boa parte dela vem da remoção de repetição estrutural. Nenhuma delas, entretanto, atua sobre o lado da geração: fazer com que o próprio modelo emita nativamente uma representação compacta, cuja expansão determinística produza um artefato válido segundo um esquema formal.
 
-\begin{figure}[h!]
-    \centering
-    \Caption{\label{fig:fluxogramaDeAlgumaCoisa} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse commodo lectus et augue elementum varius.}	
-    \UNIFORfig{}{
-        \fbox{\includegraphics[width=8cm]{figuras/figura-1}}
-    }{
-        \Fonte{Elaborado pelo autor}
-    }	
-\end{figure}
+Duas linhas de trabalho se aproximam desse objetivo por caminhos distintos. A decodificação restrita, discutida por \citeonline{poesia2022synchromesh}, garante conformidade sintática durante a geração, mas não reduz o volume que o modelo precisa emitir. Já o ProMoAI, de \citeonline{kourani2024promoai}, gera modelos de processo por meio de uma representação intermediária expandida deterministicamente em BPMN, demonstrando que a estratégia é viável. O trabalho de \citeonline{kourani2024promoai} apoia-se, contudo, em um modelo de fronteira operado por \textit{prompt} e não trata a representação intermediária como um problema de compressão com taxa medida. É exatamente nesse espaço que esta monografia se posiciona.
 
-\lipsum[5]
-\lipsum[6]
-\lipsum[7]
+A escolha do modelo também é parte do problema. \citeonline{belcak2025small} argumentam que modelos pequenos e especializados, e não modelos de fronteira genéricos, tendem a ser a base adequada para tarefas agênticas repetitivas, por razões de custo, latência e previsibilidade. Uma representação intermediária suficientemente compacta e regular torna essa especialização viável: reduz o que o modelo precisa aprender a emitir e permite que um modelo de sete bilhões de parâmetros, como o Qwen2.5-Coder \cite{hui2024qwen25coder}, seja ajustado para a tarefa.
+
+Este trabalho propõe, portanto, um protocolo de compressão semântica para geração de BPMN. Um modelo de linguagem produz uma descrição concisa do processo em uma linguagem de domínio específico projetada para esse fim, e um transpilador baseado em gramática EBNF expande essa descrição em XML BPMN 2.0 validado contra o esquema oficial. A separação de responsabilidades traz um efeito colateral útil para a depuração: quando ocorre uma falha, ela fica localizada na geração da DSL, no transpilador ou na validação, em vez de diluída em um documento XML extenso. Medições preliminares sobre 1021 processos, usando o tokenizador do Qwen2.5-Coder, indicam que a representação proposta é cerca de cinco vezes mais compacta que o XML lógico correspondente, o que equivale a uma redução de aproximadamente 80\% no número de \textit{tokens} que o modelo precisa emitir.
 
 \section{Motivação}
 \label{sec:motivacao}
 
-\lipsum[3]
-\lipsum[4]
+A modelagem de processos permanece cara justamente onde é mais necessária. Organizações que já documentam seus procedimentos em texto raramente dispõem de tempo especializado para convertê-los em modelos formais, e o resultado é uma base documental que não pode ser analisada, simulada ou automatizada. Reduzir o custo dessa conversão amplia o acesso à modelagem formal para além das organizações que podem manter analistas dedicados.
+
+Há ainda uma motivação técnica. Se a hipótese central se confirmar, o ganho não se limita à BPMN. O padrão de separar a geração de uma representação compacta da expansão determinística em um artefato validável é aplicável a qualquer domínio em que a saída precise obedecer a um esquema formal e a serialização oficial seja verbosa. A BPMN oferece um caso de teste favorável para essa investigação porque possui esquema oficial, conjuntos de dados públicos com modelos de referência e métricas estruturais bem definidas, o que permite verificação objetiva em vez de avaliação subjetiva.
+
+Por fim, a economia de \textit{tokens} deixou de ser detalhe de implementação. Em fluxos que geram modelos em escala, o custo de emitir marcação redundante é recorrente, e a alternativa de depender continuamente de modelos de fronteira concentra esse custo em um fornecedor externo. Um modelo pequeno ajustado para emitir uma representação comprimida é, nesse cenário, uma resposta de engenharia e não apenas um exercício acadêmico.
 
 \section{Objetivos}
 \label{sec:objetivos}
 
-Interdum et malesuada fames ac ante ipsum primis in faucibus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ex tellus, sodales in euismod at, ultricies quis leo.
-
 \subsection{Objetivo Geral}
 \label{sec:objetivo-geral}
 
-Integer imperdiet ac magna eu pulvinar. Aliquam erat volutpat. Etiam molestie, nulla a egestas aliquet, velit augue congue metus, et ultricies metus massa vel nibh. Vivamus viverra commodo finibus. Nam elementum convallis accumsan. Quisque tincidunt purus nisl, tincidunt ultricies odio ultrices eu.
+Investigar se a geração de uma representação intermediária comprimida, seguida de expansão determinística, produz modelos BPMN 2.0 válidos de forma mais confiável e mais econômica em \textit{tokens} do que a geração direta de XML por modelos de linguagem.
 
 \subsection{Objetivos Específicos}
 \label{sec:objetivos-especificos}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis scelerisque, velit at facilisis hendrerit, dui eros lacinia metus, non maximus mi tortor ut lectus. Donec hendrerit leo ut consectetur tincidunt. 
-
 	\begin{alineas}
-		\item Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc dictum sed tortor nec viverra.
-		\item Praesent vitae nulla varius, pulvinar quam at, dapibus nisi. Aenean in commodo tellus. Mauris molestie est sed justo malesuada, quis feugiat tellus venenatis.
-		\item Praesent quis erat eleifend, lacinia turpis in, tristique tellus. Nunc dictum sed tortor nec viverra.
-		\item Mauris facilisis odio eu ornare tempor. Nunc dictum sed tortor nec viverra.
-		\item Curabitur convallis odio at eros consequat pretium.
+		\item projetar uma linguagem de domínio específico para descrição de processos BPMN, com gramática EBNF formalmente especificada;
+		\item implementar um transpilador determinístico que expanda essa linguagem em XML BPMN 2.0 validado contra o esquema oficial;
+		\item construir um conjunto de dados de pares formados por descrição textual e representação na linguagem proposta, a partir de fontes públicas de descrições de processos;
+		\item realizar o ajuste fino supervisionado de um modelo de linguagem de pequeno porte para emitir a representação comprimida;
+		\item quantificar a compressão obtida e a fidelidade estrutural dos modelos gerados, comparando a abordagem proposta com a geração direta de XML sob protocolo de avaliação definido previamente à execução dos experimentos.
 	\end{alineas}
