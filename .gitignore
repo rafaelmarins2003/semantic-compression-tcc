@@ -104,6 +104,15 @@ article/**/*.toc
 article/**/*.run.xml
 article/**/_minted-*/
 article/**/auto/
+article/**/*.acn
+article/**/*.glo
+article/**/*.idx
+article/**/*.ilg
+article/**/*.ind
+article/**/*.ist
+article/**/*.loa
+article/**/*.lol
+article/**/*.loq
 
 
 # ─── Prompts ──────────────────────────────────────────────────────────
