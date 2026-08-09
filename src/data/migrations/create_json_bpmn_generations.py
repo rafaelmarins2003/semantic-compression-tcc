@@ -1,7 +1,7 @@
 """Migration: create json_bpmn_generations table.
 
 Retroactive migration documenting the schema of the table used by
-src/data/manipulation/llm/generate_process_json.py. Safe to re-run.
+src/data/llm/run_generate_json.py. Safe to re-run.
 """
 
 from __future__ import annotations
@@ -29,8 +29,7 @@ CREATE TABLE IF NOT EXISTS json_bpmn_generations (
 
 CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_json_gen_sample ON json_bpmn_generations(sample_id)",
-    "CREATE INDEX IF NOT EXISTS idx_json_gen_stage_status "
-    "ON json_bpmn_generations(stage, status)",
+    "CREATE INDEX IF NOT EXISTS idx_json_gen_stage_status ON json_bpmn_generations(stage, status)",
 ]
 
 

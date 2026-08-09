@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.data.ingestion.dataset.import_pmo import load_description
+from src.data.ingestion.import_pmo import load_description
 
 
 class TestLoadDescription:

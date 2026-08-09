@@ -184,22 +184,74 @@
 	Title = {{NBR} 14724},
 	Year = 2011}
 
-% ════════ Referências do trabalho (migradas do referencial teórico) ════════
-% =============================================================
-% Referências bibliográficas - Fundamentação Teórica
-% Projeto: Protocolo de Compressão Semântica para Geração
-%          de Markup XML por LLMs (BPMN 2.0)
-% Autor: Rafael Marins Florenzano
-% =============================================================
-% NOTA AO AUTOR: cada entrada abaixo corresponde a um trabalho
-% real e amplamente conhecido na literatura da área. Antes da
-% submissão final, recomenda-se verificar:
-%   - paginação exata
-%   - DOI quando aplicável
-%   - data de acesso para fontes web
-% =============================================================
+% ---------- Modelos Pequenos e Modelo Base ----------
 
-% ---------- BPMN e Modelagem de Processos ----------
+@article{belcak2025small,
+    title   = {Small Language Models are the Future of Agentic {AI}},
+    author  = {Belcak, Peter and Heinrich, Greg and Diao, Shizhe and Fu, Yonggan
+               and Dong, Xin and Muralidharan, Saurav and Lin, Yingyan Celine
+               and Molchanov, Pavlo},
+    journal = {arXiv preprint arXiv:2506.02153},
+    year    = {2025},
+    doi     = {10.48550/arXiv.2506.02153},
+    url     = {https://arxiv.org/abs/2506.02153}
+}
+
+@article{hui2024qwen25coder,
+    title   = {{Qwen2.5-Coder} Technical Report},
+    author  = {Hui, Binyuan and Yang, Jian and Cui, Zeyu and Yang, Jiaxi and
+               Liu, Dayiheng and Zhang, Lei and Liu, Tianyu and Zhang, Jiajun and
+               Yu, Bowen and Lu, Keming and others},
+    journal = {arXiv preprint arXiv:2409.12186},
+    year    = {2024},
+    doi     = {10.48550/arXiv.2409.12186},
+    url     = {https://arxiv.org/abs/2409.12186}
+}
+
+% ---------- Geração de Modelos de Processo com LLMs ----------
+
+@inproceedings{kourani2024promoai,
+    title     = {{ProMoAI}: Process Modeling with Generative {AI}},
+    author    = {Kourani, Humam and Berti, Alessandro and Schuster, Daniel and
+                 van der Aalst, Wil M. P.},
+    booktitle = {Proceedings of the Thirty-Third International Joint Conference
+                 on Artificial Intelligence ({IJCAI-24}), Demo Track},
+    publisher = {International Joint Conferences on Artificial Intelligence Organization},
+    pages     = {8708--8712},
+    year      = {2024},
+    doi       = {10.24963/ijcai.2024/1014},
+    url       = {https://www.ijcai.org/proceedings/2024/1014}
+}
+
+% ---------- Compressão de Tokens (lado da entrada) ----------
+
+@inproceedings{jiang2023llmlingua,
+    title     = {{LLMLingua}: Compressing Prompts for Accelerated Inference of
+                 Large Language Models},
+    author    = {Jiang, Huiqiang and Wu, Qianhui and Lin, Chin-Yew and
+                 Yang, Yuqing and Qiu, Lili},
+    booktitle = {Proceedings of the 2023 Conference on Empirical Methods in
+                 Natural Language Processing ({EMNLP})},
+    address   = {Singapore},
+    pages     = {13358--13376},
+    year      = {2023},
+    doi       = {10.18653/v1/2023.emnlp-main.825},
+    url       = {https://aclanthology.org/2023.emnlp-main.825/}
+}
+
+@misc{headroom2026,
+    title        = {Headroom: Compress Tool Outputs, Logs, Files, and {RAG}
+                    Chunks Before They Reach the {LLM}},
+    author       = {{Headroom Labs}},
+    year         = {2026},
+    note         = {Vers{\~a}o 0.27.0. Software de c{\'o}digo aberto, licen{\c c}a Apache-2.0},
+    howpublished = {\url{https://github.com/headroomlabs-ai/headroom}},
+    url          = {https://github.com/headroomlabs-ai/headroom},
+    urlaccessdate = {8 ago. 2026}
+}
+
+
+% ---------- Importadas do referencial teórico ----------
 
 @manual{omg2011bpmn,
     title        = {Business Process Model and Notation ({BPMN}), Version 2.0},
@@ -232,8 +284,6 @@
     doi       = {10.1007/978-3-662-56509-4},
     url       = {https://link.springer.com/book/10.1007/978-3-662-56509-4}
 }
-
-% ---------- Transformer e Modelos de Linguagem ----------
 
 @inproceedings{vaswani2017attention,
     title     = {Attention is All You Need},
@@ -268,8 +318,6 @@
     url       = {https://aclanthology.org/P16-1162/}
 }
 
-% ---------- DSL e Compressão ----------
-
 @book{fowler2010domain,
     title     = {Domain-Specific Languages},
     author    = {Fowler, Martin},
@@ -292,8 +340,6 @@
     doi     = {10.1145/1118890.1118892},
     url     = {https://dl.acm.org/doi/10.1145/1118890.1118892}
 }
-
-% ---------- Fine-Tuning e PEFT ----------
 
 @inproceedings{hu2022lora,
     title     = {{LoRA}: Low-Rank Adaptation of Large Language Models},
@@ -333,8 +379,6 @@
     url     = {https://arxiv.org/abs/2402.03300}
 }
 
-% ---------- Geração de Código e Outputs Estruturados ----------
-
 @article{chen2021evaluating,
     title   = {Evaluating Large Language Models Trained on Code},
     author  = {Chen, Mark and Tworek, Jerry and Jun, Heewoo and Yuan, Qiming and Ponde de Oliveira Pinto, Henrique and others},
@@ -352,8 +396,6 @@
     year      = {2022},
     url       = {https://openreview.net/forum?id=KmtVD97J43e}
 }
-
-% ---------- Extração de Processos a partir de Texto ----------
 
 @inproceedings{bellan2022pet,
     title     = {{PET}: An Annotated Dataset for Process Extraction from Natural Language Text Tasks},
@@ -418,21 +460,6 @@
     url       = {https://aclanthology.org/C18-1236/}
 }
 
-@inproceedings{kourani2024promoai,
-    title     = {{ProMoAI}: Process Modeling with Generative {AI}},
-    author    = {Kourani, Humam and Berti, Alessandro and Schuster, Daniel and
-                 van der Aalst, Wil M. P.},
-    booktitle = {Proceedings of the Thirty-Third International Joint Conference on
-                 Artificial Intelligence (IJCAI-24), Demo Track},
-    pages     = {8708--8712},
-    year      = {2024},
-    publisher = {International Joint Conferences on Artificial Intelligence Organization},
-    doi       = {10.24963/ijcai.2024/1014},
-    url       = {https://doi.org/10.24963/ijcai.2024/1014}
-}
-
-% ---------- Métricas e Avaliação ----------
-
 @article{sanfeliu1983distance,
     title   = {A Distance Measure between Attributed Relational Graphs for Pattern Recognition},
     author  = {Sanfeliu, Alberto and Fu, King-Sun},
@@ -468,8 +495,6 @@
     url       = {https://aclanthology.org/P02-1040/}
 }
 
-% ---------- ABNT (referências normativas) ----------
-
 @manual{abntnbr14724,
     title        = {{NBR} 14724: Informação e documentação - Trabalhos acadêmicos - Apresentação},
     author       = {{Associação Brasileira de Normas Técnicas}},
@@ -484,28 +509,4 @@
     organization = {ABNT},
     address      = {Rio de Janeiro},
     year         = {2023}
-}
-
-% ════════ Referências adicionais (introdução) ════════
-
-@article{belcak2025small,
-    title   = {Small Language Models are the Future of Agentic {AI}},
-    author  = {Belcak, Peter and Heinrich, Greg and Diao, Shizhe and Fu, Yonggan and
-               Dong, Xin and Muralidharan, Saurav and Lin, Yingyan Celine and
-               Molchanov, Pavlo},
-    journal = {arXiv preprint arXiv:2506.02153},
-    year    = {2025},
-    doi     = {10.48550/arXiv.2506.02153},
-    url     = {https://arxiv.org/abs/2506.02153}
-}
-
-@article{hui2024qwen25coder,
-    title   = {{Qwen2.5-Coder} Technical Report},
-    author  = {Hui, Binyuan and Yang, Jian and Cui, Zeyu and Yang, Jiaxi and
-               Liu, Dayiheng and Zhang, Lei and Liu, Tianyu and Zhang, Jiajun and
-               Yu, Bowen and Lu, Keming and others},
-    journal = {arXiv preprint arXiv:2409.12186},
-    year    = {2024},
-    doi     = {10.48550/arXiv.2409.12186},
-    url     = {https://arxiv.org/abs/2409.12186}
 }

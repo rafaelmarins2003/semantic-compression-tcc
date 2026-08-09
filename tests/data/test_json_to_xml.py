@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 
 from lxml import etree
 
-from src.data.manipulation.deterministic.json_to_xml import (
+from src.data.deterministic.json_to_xml import (
     convert,
     create_bpmn_from_pipeline,
     json_to_process_xml,
@@ -128,3 +129,31 @@ def test_json_to_process_xml_returns_fragment_without_definitions():
 
     assert "<bpmn:definitions" not in fragment
     assert "<bpmn:process" in fragment
+
+
+def test_duplicate_flow_ids_still_produce_unique_xml_ids():
+    """Achado da revisão: dois flows com o mesmo id colapsavam e quebravam o xs:ID."""
+    from src.data.deterministic.json_to_xml import convert
+    from src.transpiler.xsd import validate_bpmn_xsd
+
+    data = {
+        "pool": "P",
+        "lanes": [],
+        "nodes": [
+            {"id": "S", "type": "startEvent", "name": "S"},
+            {"id": "A", "type": "userTask", "name": "A"},
+            {"id": "E", "type": "endEvent", "name": "E"},
+        ],
+        "flows": [
+            {"id": "f1", "from": "S", "to": "A"},
+            {"id": "f1", "from": "A", "to": "E"},
+        ],
+    }
+
+    xml = convert(data, include_layout=False)
+    ids = re.findall(r'<bpmn:sequenceFlow id="([^"]+)"', xml) or re.findall(
+        r'<sequenceFlow id="([^"]+)"', xml
+    )
+
+    assert validate_bpmn_xsd(xml) == []
+    assert len(ids) == len(set(ids)) == 2

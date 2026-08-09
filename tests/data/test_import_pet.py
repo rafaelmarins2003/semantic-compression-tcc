@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.data.ingestion.dataset.import_pet import join_tokens
+from src.data.ingestion.import_pet import join_tokens
 
 
 class TestJoinTokens:

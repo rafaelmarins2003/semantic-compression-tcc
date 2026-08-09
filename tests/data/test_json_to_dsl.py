@@ -2,7 +2,7 @@
 
 import warnings
 
-from src.data.manipulation.deterministic.graph import (
+from src.data.deterministic.graph import (
     Edge,
     Lane,
     Node,
@@ -13,7 +13,7 @@ from src.data.manipulation.deterministic.graph import (
     find_start,
     load_llm,
 )
-from src.data.manipulation.deterministic.json_to_dsl import convert, find_join
+from src.data.deterministic.json_to_dsl import convert, find_join
 from src.dsl.parser import parse
 
 

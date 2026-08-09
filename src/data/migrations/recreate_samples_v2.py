@@ -91,9 +91,7 @@ def run(path: Path = DB_PATH) -> None:
         con.execute("PRAGMA foreign_keys=ON")
 
     new_sample_count = con.execute("SELECT count(*) FROM samples").fetchone()[0]
-    new_generation_count = con.execute(
-        f"SELECT count(*) FROM {generation_table}"
-    ).fetchone()[0]
+    new_generation_count = con.execute(f"SELECT count(*) FROM {generation_table}").fetchone()[0]
     fk_errors = con.execute("PRAGMA foreign_key_check").fetchall()
 
     if new_sample_count != sample_count:

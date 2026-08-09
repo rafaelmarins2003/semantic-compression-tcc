@@ -7,7 +7,7 @@
 | Commit de congelamento | _(preencher: `git rev-parse HEAD`)_ |
 | Data de congelamento | _(preencher)_ |
 | Prioridade | 3 (CLAUDE.md) |
-| Depende de | json_to_dsl v8, dsl_to_xml v3, `src.evaluation.topology` |
+| Depende de | `json_to_dsl_v10_en`, `dsl_to_xml_v5_en`, `src.evaluation.topology` |
 
 > **Regra de pré-registro.** Depois de congelado, este documento só muda por
 > emenda registrada na seção 9. Alterar definição de métrica, braço ou critério
@@ -25,18 +25,37 @@ contra o gold do PMo Benchmark.
 Esta é a evidência central da tese. O harness precisa ser reprodutível por
 terceiros a partir do repositório e do `data/dataset.db`.
 
-## 2. Precondições (já satisfeitas)
+## 2. Precondições
+
+> ⛔ **Bloqueada pela [spec 004](../004-camada-de-dados/spec.md).** Falta carregar
+> o gold do PMo e implementar a comparação XML↔XML. A regeneração em inglês
+> ([ADR 0001](../adr/0001-idioma-dos-artefatos.md)) já foi concluída.
+
+### Precondições já satisfeitas
+
+Base atual: `json_to_dsl_v10_en` + `dsl_to_xml_v5_en`, 1021 amostras, rótulos em
+inglês (conferência registrada na spec 004 §6).
 
 | Precondição | Estado | Evidência |
 |---|---|---|
 | Transpilação DSL→XML válida | ✅ | XSD 1021/1021 |
-| Equivalência topológica JSON↔XML | ✅ | eixo 2: 1015/1021 exatos, df-F1 0,9999, `df_missing` zerado |
-| Baseline determinístico JSON→XML direto | ✅ | `src.data.manipulation.deterministic.json_to_xml` |
+| Equivalência topológica JSON↔XML | ✅ | eixo 2: 1017/1021 exatos, df-F1 0,9999 |
+| Baseline determinístico JSON→XML direto | ✅ | `src.data.deterministic.json_to_xml` |
 | Holdout isolado do treino | ✅ | `split='holdout'` (pmo 53 + zenodo 24 = 77) |
 
-O resíduo conhecido do eixo 2 são **6 casos com arestas extras** (`df_extra`
-não-vazio, `df_missing` vazio). Documentar como limitação; não corrigir durante
-o experimento.
+Resíduo do eixo 2: **4 casos não-exatos**, todos só com arestas extras.
+`df_missing` está zerado — nenhuma lógica é perdida. Documentar como limitação;
+não corrigir durante o experimento.
+
+A troca de gerador ([ADR 0002](../adr/0002-modelo-gerador.md)) expôs três bugs
+reais, todos corrigidos e cobertos por teste:
+1. splits implícitos descartavam arestas (`graph._normalize_implicit_splits`);
+2. `json_to_dsl` não era determinístico entre processos (iteração de `set` sem
+   ordenação em `_find_merge_point`);
+3. branch vazio de `and` era descartado na emissão do XML, colapsando
+   paralelismo em sequência (`transpiler.xml`).
+
+Resultado: `df_missing` foi de 20 casos para zero, superando a base anterior.
 
 ## 3. Definições operacionais das métricas
 
@@ -49,9 +68,15 @@ o experimento.
 Binária, por amostra. `src.transpiler.xsd.validate_bpmn_xsd(xml) == []` contra
 `schemas/bpmn20.xsd`. Reportada como taxa sobre o conjunto de avaliação.
 Amostra que não valida entra nas demais métricas como **falha total**
-(PME-F1 = 0), nunca como dado ausente.
+(DF-F1 = 0), nunca como dado ausente.
 
-### 3.2 PME-F1 — fidelidade topológica (**métrica primária**)
+### 3.2 DF-F1 — fidelidade topológica (**métrica primária**)
+
+> Renomeada de "PME-F1" pela [spec 004 §3](../004-camada-de-dados/spec.md): o
+> PMo Benchmark tem formato próprio `pme/` (tasks/events/gateways/flows) e
+> provavelmente uma métrica homônima. Reservar a sigla evita colisão com
+> resultados publicados. Todas as ocorrências de "PME-F1" abaixo referem-se a
+> esta métrica de projeção direct-follows.
 
 F1 sobre o multiconjunto *direct-follows* projetado em nós emitíveis, pulando
 gateways de roteamento — exatamente `src.evaluation.topology.compare()`, já
@@ -85,6 +110,28 @@ TCR = tokens(XML_lógico) / tokens(DSL)
 > projeto que use a forma de redução `1 − DSL/XML` deve ser corrigido para
 > a forma-razão ou marcado explicitamente como "redução".
 
+#### Medição de referência (2026-08-09, base regenerada em inglês)
+
+Medido sobre os 1021 pares `json_to_dsl_v10_en` / `dsl_to_xml_v5_en`,
+tokenizador `Qwen/Qwen2.5-Coder-7B`, IC95% bootstrap pareado (10.000, seed 42):
+
+| Denominador | TCR médio | IC95% | Mediana | Redução |
+|---|---|---|---|---|
+| **XML lógico** (definição normativa) | **6,01** | [5,96; 6,06] | 5,99 | **83,4%** |
+| XML com BPMNDI (*não usar*) | 17,24 | [17,10; 17,38] | 17,26 | 94,2% |
+
+O layout quase triplica o TCR sem acrescentar semântica. **83,4% é o número
+honesto**; qualquer valor próximo de 94% no texto veio da variante com layout.
+
+A base anterior em português dava 5,08 (80,3%). O inglês é mais compacto por
+rótulo, o que explica a diferença; o número válido é o da base atual.
+
+Reproduzir:
+```
+uv run --with transformers python -m src.evaluation.run_tcr \
+  --source-dsl-version json_to_dsl_v10_en --xml-transpiler-version dsl_to_xml_v5_en
+```
+
 ### 3.4 SA — adequação semântica (secundária, não determinística)
 
 Único componente não verificável por código. Protocolo:
@@ -100,7 +147,7 @@ TCR = tokens(XML_lógico) / tokens(DSL)
 ### 3.5 Métricas fora da v1
 
 **GED** — cálculo exato é NP-difícil e toda aproximação depende de um modelo de
-custo que não está definido no projeto. PME-F1 já mede estrutura. Fica fora da
+custo que não está definido no projeto. DF-F1 já mede estrutura. Fica fora da
 v1; se voltar, exige emenda com o modelo de custo explícito.
 
 **C/D** — a sigla aparece no CLAUDE.md sem expansão registrada. Ver seção 10:
@@ -166,8 +213,8 @@ esconder.
 
 | Parâmetro | Valor |
 |---|---|
-| Temperatura | 0,0 (execução principal) |
-| Amostras por item (k) | 1 |
+| Temperatura | 0,0 (reduz variância; **não** garante determinismo — [ADR 0003](../adr/0003-nao-determinismo-temperatura-zero.md)) |
+| Amostras por item (k) | ⚠️ **em aberto** — `k=1` foi falsificado pelo ADR 0003; fixar antes do congelamento |
 | Seed | 42 onde aplicável |
 | Retries de parse | 0 no número principal |
 | `max_tokens` | _(preencher antes do congelamento)_ |
@@ -220,6 +267,9 @@ _(vazio até o congelamento)_
       vira truncamento que se confunde com erro de modelo).
 - [ ] Confirmar a regra de multi-referência do Zenodo: melhor score entre
       referências, ou média?
+- [ ] **Fixar `k`** e o teste estatístico correspondente, dado o não determinismo
+      medido no [ADR 0003](../adr/0003-nao-determinismo-temperatura-zero.md).
+      Com k>1 a unidade de análise passa a ser a média por item.
 
 ## 11. Rastreabilidade
 
