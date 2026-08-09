@@ -17,6 +17,7 @@ XSD 1021/1021, DF-F1 0,9999, TCR 6,01 (83,4% de redução).
 - [ADR 0001](specs/adr/0001-idioma-dos-artefatos.md) — artefatos em inglês; monografia em português
 - [ADR 0002](specs/adr/0002-modelo-gerador.md) — `glm-5.2:cloud` como gerador
 - [ADR 0003](specs/adr/0003-nao-determinismo-temperatura-zero.md) — temperatura 0 não é determinística
+- [ADR 0004](specs/adr/0004-estrategia-de-dados.md) — medir antes de coletar; treino é 95,3% GitLab
 
 ---
 
@@ -59,16 +60,25 @@ Números da base atual:
 
 ## Fase 4 — Camada de dados ([spec 004](specs/004-camada-de-dados/spec.md))
 
-- [ ] Carregar gold do PMo (`data/raw/pmo/bpmn_process/*.bpmn`) — 53 ativos
-- [ ] `compare_xml(gold, cand)` em `src/evaluation/topology.py`
-- [ ] Testes AC-1 a AC-7
+- [x] Gold do PMo carregado em `gold_models` — 53/53, idempotente
+- [x] Multi-referência do Zenodo — 172 alternativas (nota ≥ 4) sobre 24 itens
+- [x] `compare_xml(gold, cand)` em `src/evaluation/topology.py`
+- [x] MF-F1 separado para `messageFlow` (spec 003 §3.2b)
+- [x] AC-1 a AC-3 (`tests/evaluation/test_gold.py`)
+- [x] AC-4 a AC-7 (`tests/data/test_persistence.py`) — `export_training` agora
+      **recusa** `split='holdout'` em vez de entregar o conjunto de avaliação
+
+**Fase 4 concluída.** `gold_models` com 53 referências; `compare_xml` disponível;
+todos os 7 ACs da spec 004 cobertos por teste.
 
 ## Fase 5 — Harness de avaliação ([spec 003](specs/003-eval-harness/spec.md))
 
-- [ ] Fechar bloqueadores §10: definir C/D, id do modelo SOTA, prompt do juiz, `max_tokens`, regra multi-referência do Zenodo
+- [x] Bloqueadores §10 fechados (2026-08-09): C/D removida · dois braços prompted
+      (`deepseek-v4-pro` independente + `glm-5.2` gerador) · SA cortada da v1 ·
+      `max_tokens` 8192/2048 medido · Zenodo = máx entre refs nota ≥ 4 · k=3
 - [ ] Migration `benchmark_eval` + `run_benchmark.py`
 - [ ] `tests/evaluation/test_harness_spec.py` (AC-1 a AC-8)
-- [ ] **Congelar a spec** (commit datado) e só então rodar A1–A3
+- [ ] **Congelar a spec** (commit datado) e só então rodar A1, A1g, A2, A2g, A3 — 795 gerações
 
 ## Fase 6 — Monografia
 

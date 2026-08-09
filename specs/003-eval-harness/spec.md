@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | **RASCUNHO** — não congelado |
+| Status | **PRONTA PARA CONGELAR** — bloqueadores fechados em 2026-08-09 |
 | Congelar em | commit imediatamente anterior à primeira execução do experimento |
 | Commit de congelamento | _(preencher: `git rev-parse HEAD`)_ |
 | Data de congelamento | _(preencher)_ |
@@ -27,9 +27,9 @@ terceiros a partir do repositório e do `data/dataset.db`.
 
 ## 2. Precondições
 
-> ⛔ **Bloqueada pela [spec 004](../004-camada-de-dados/spec.md).** Falta carregar
-> o gold do PMo e implementar a comparação XML↔XML. A regeneração em inglês
-> ([ADR 0001](../adr/0001-idioma-dos-artefatos.md)) já foi concluída.
+> ✅ **[Spec 004](../004-camada-de-dados/spec.md) concluída** em 2026-08-09: base
+> regenerada em inglês, gold do PMo carregado em `gold_models` (53 referências) e
+> `topology.compare_xml` disponível. As precondições deste harness estão satisfeitas.
 
 ### Precondições já satisfeitas
 
@@ -75,20 +75,48 @@ Amostra que não valida entra nas demais métricas como **falha total**
 > Renomeada de "PME-F1" pela [spec 004 §3](../004-camada-de-dados/spec.md): o
 > PMo Benchmark tem formato próprio `pme/` (tasks/events/gateways/flows) e
 > provavelmente uma métrica homônima. Reservar a sigla evita colisão com
-> resultados publicados. Todas as ocorrências de "PME-F1" abaixo referem-se a
-> esta métrica de projeção direct-follows.
+> resultados publicados. O documento usa **DF-F1** em toda parte; "PME-F1" fica
+> reservado à métrica do benchmark, caso venha a ser implementada.
 
 F1 sobre o multiconjunto *direct-follows* projetado em nós emitíveis, pulando
-gateways de roteamento — exatamente `src.evaluation.topology.compare()`, já
-implementado e validado no eixo 2.
+gateways de roteamento.
 
-- Referência: grafo do JSON gold do PMo.
-- Candidato: XML gerado pelo braço sob teste.
-- Identidade de nó: rótulo normalizado; eventos anônimos colapsam para
+- **Função**: `src.evaluation.topology.compare_xml(gold_xml, candidate_xml)`.
+- **Referência**: BPMN lógico do PMo em `gold_models` (53 linhas, carregadas da
+  spec 004 §4.3). O gold é XML, não JSON — por isso `compare_xml` e não
+  `compare()`, que é a variante JSON↔XML usada no eixo 2 interno.
+- **Candidato**: XML gerado pelo braço sob teste.
+- **Identidade de nó**: rótulo normalizado; eventos anônimos colapsam para
   `<start>` / `<end>` / `<catch>` / `<throw>`.
 
-Reusar `compare()` sem alterações. Se o gold exigir adaptação, a mudança entra
-como emenda (seção 9), porque afeta retroativamente os números do eixo 2.
+Ambas as funções compartilham `xml_direct_follows` e `_prf`, então a projeção é
+a mesma nos dois usos. `compare_xml(gold, gold)` é identidade nos 53 (AC-3).
+
+### 3.2b MF-F1 — mensagens entre participantes (**secundária, reportada ao lado**)
+
+F1 sobre o multiconjunto de `messageFlow` `(rótulo_origem, rótulo_destino)`,
+via `topology.message_flows`. Extremidades podem ser nós ou participantes.
+
+**Nunca somada ao DF-F1.** `sequenceFlow` é ordem de execução, `messageFlow` é
+comunicação — fundir as duas produziria casamento falso, com uma mensagem do
+candidato valendo por uma sequência do gold.
+
+**Por que existe.** Sem ela, dois defeitos opostos ficavam invisíveis: um
+candidato que modela tudo num pool só é penalizado por não reproduzir a
+fragmentação do gold, e um candidato que omite **todas** as mensagens pontua
+idêntico a um que as inclui. Verificado no `23.bpmn`: omitir as 6 mensagens
+mantém DF-F1 = 1,0 e leva MF-F1 a 0,0.
+
+**Assimetria declarada entre braços.** O transpiler tem código para emitir
+`messageFlow` (`xml.py:218`) e a gramática tem `message ... from #a to #b`, mas
+**nenhuma das 1021 amostras geradas contém mensagens**. Os braços de DSL, na
+prática, não as produzem; os de XML direto podem. Contar mensagens no DF-F1
+daria vantagem estrutural a A1/A1g por uma limitação do nosso pipeline, não por
+qualidade do modelo — daí a métrica separada, que expõe a diferença em vez de
+embuti-la na primária.
+
+**Alcance**: 2 dos 53 itens do holdout têm mensagens no gold (`23.bpmn` com 6,
+`38.bpmn` com 4). O `24.bpmn`, que também tem, está entre os dois excluídos.
 
 ### 3.3 TCR — razão de compressão de tokens
 
@@ -132,17 +160,16 @@ uv run --with transformers python -m src.evaluation.run_tcr \
   --source-dsl-version json_to_dsl_v10_en --xml-transpiler-version dsl_to_xml_v5_en
 ```
 
-### 3.4 SA — adequação semântica (secundária, não determinística)
+### 3.4 SA — adequação semântica: **fora da v1**
 
-Único componente não verificável por código. Protocolo:
+Cortada em 2026-08-09. Era o único componente não verificável por código, exigia
+LLM-juiz com prompt congelado mais 15 itens rotulados à mão para calcular
+Cohen's κ, e a própria spec já determinava que **nunca sustentaria conclusão**.
+Custo de trabalho manual alto para um número que não entra em nenhuma decisão.
 
-- LLM-juiz com modelo, prompt e temperatura **congelados** e versionados neste
-  diretório (`judge_prompt.md`), julgando (texto-fonte, XML gerado).
-- Escala e critérios fixados antes da primeira execução.
-- **Checagem de concordância humana**: o autor rotula manualmente uma
-  subamostra aleatória de 15 itens; reportar concordância (Cohen's κ) juiz↔humano.
-  κ < 0,4 ⇒ SA é reportada como exploratória e **não** sustenta conclusão.
-- SA nunca entra em métrica composta neste experimento; é reportada isolada.
+Fica como trabalho futuro. A fidelidade ao texto-fonte que a SA mediria continua
+descoberta — isso é limitação a declarar na monografia, não lacuna escondida:
+DF-F1 mede estrutura contra o gold, não aderência à descrição original.
 
 ### 3.5 Métricas fora da v1
 
@@ -150,25 +177,65 @@ uv run --with transformers python -m src.evaluation.run_tcr \
 custo que não está definido no projeto. DF-F1 já mede estrutura. Fica fora da
 v1; se voltar, exige emenda com o modelo de custo explícito.
 
-**C/D** — a sigla aparece no CLAUDE.md sem expansão registrada. Ver seção 10:
-bloqueia o congelamento até ser definida ou removida.
+**C/D** — removida em 2026-08-09. A sigla constava apenas da lista de módulos do
+CLAUDE.md/AGENTS.md, sem expansão, sem definição no referencial teórico e sem
+implementação. Escopo fantasma herdado de rascunho; retirada também dos dois
+documentos.
 
 ## 4. Desenho experimental
 
 **Conjunto de avaliação:** os 53 processos do PMo (`split='holdout'`).
-Os 24 do Zenodo entram como **multi-referência** para itens PMo 25–48 (mesma
-fonte), permitindo reportar ambiguidade de modelagem — não como itens extras.
+
+**Multi-referência do Zenodo.** A fonte traz **223 modelos** em 24 processos
+(6 a 12 cada); **222 têm nota** de especialista de 0 a 5 em `*.quality.txt` e
+**175 passam no filtro ≥ 4** (3 a 10 por processo). Regra fixada: para cada
+candidato, pontuar contra todas as referências com nota ≥ 4 e ficar com o
+**máximo**. Mede a alegação correta — o candidato bate ao menos um modelo que um
+especialista aprovou — e descarta as variantes reprovadas, inclusive os três
+modelos com nota 0.
+
+**Modelo sem nota é descartado.** `M_j01/9.bpmn2.xml` é o único sem
+`.quality.txt`; sem evidência de aprovação, fica fora do conjunto de referência.
+Três modelos com nota ≥ 4 também caem por não produzirem nenhuma aresta
+direct-follows — referência degenerada não serve de referência.
+
+**Estado carregado** (`gold_models`, 2026-08-09): 53 referências primárias do PMo
+mais **172 alternativas do Zenodo** cobrindo 24 itens (4 a 11 cada). O
+mapeamento Zenodo→PMo é bijeção verificada em carga, derivada por similaridade
+de texto contra os 24 itens com `origin='Mangler et al. (2023)'`; o par
+`zenodo_G_g01 → pmo_30` casa por eliminação (similaridade 0,09, descrição
+reescrita pelo PMo) e está registrado aqui por ser o único frágil.
+
+Reportar quantas referências entraram por item: a ambiguidade de modelagem é
+resultado, não ruído.
+
+_(Contagens conferidas em 2026-08-09. A versão anterior desta seção dizia 208
+modelos — erro de apuração, corrigido antes do congelamento.)_
 
 **Braços** (todos sobre os mesmos 53 itens, comparação pareada):
 
-| ID | Braço | Caminho | Papel |
+| ID | Braço | Modelo | Papel |
 |---|---|---|---|
-| A1 | SOTA → XML direto | texto → XML BPMN | baseline forte, o que se faz hoje |
-| A2 | SOTA → DSL → XML | texto → DSL → transpiler | isola o efeito da DSL |
-| A3 | Qwen2.5-Coder-7B base → DSL | texto → DSL → transpiler | piso do modelo pequeno |
-| A4 | Qwen2.5-Coder-7B SFT → DSL | texto → DSL → transpiler | a proposta da tese |
+| A1 | SOTA independente → XML direto | `deepseek-v4-pro:cloud` | baseline forte, o que se faz hoje |
+| A2 | SOTA independente → DSL → XML | `deepseek-v4-pro:cloud` | isola o efeito da DSL |
+| A1g | Gerador → XML direto | `glm-5.2:cloud` | leitura de destilação |
+| A2g | Gerador → DSL → XML | `glm-5.2:cloud` | teto que o SFT tenta alcançar |
+| A3 | Qwen2.5-Coder-7B base → DSL | local | piso do modelo pequeno |
+| A4 | Qwen2.5-Coder-7B SFT → DSL | local | a proposta da tese |
 
-A4 depende da prioridade 5 (SFT). A1–A3 rodam antes e já sustentam a
+**Por que dois modelos prompted.** O `glm-5.2` gerou o corpus de treino
+([ADR 0002](../adr/0002-modelo-gerador.md)), então usá-lo como único baseline
+tornaria A4 uma destilação dele — leitura válida, mas que confunde "a DSL ajuda"
+com "o aluno imita o professor". O `deepseek-v4-pro` é independente do corpus
+atual e dá o baseline limpo; o GLM entra em paralelo para a leitura de
+destilação ser reportável.
+
+**Limitação de reprodutibilidade**: a Ollama Cloud não oferece tags datados para
+`deepseek-v4-pro` nem `kimi-k2.6` — só `:cloud`, que é alias móvel. Verificado em
+2026-08-09. Registrar a data de acesso e declarar que os braços prompted não são
+reexecutáveis de forma bit-idêntica; o banco é o registro autoritativo.
+
+A4 depende da prioridade 5 (SFT). A1/A1g/A2/A2g/A3 rodam antes e já sustentam a
 comparação DSL vs XML direto; A4 entra como segunda rodada sob o mesmo spec.
 
 **ProMoAI** (Kourani et al. 2024) fica como referência qualitativa de trabalho
@@ -185,10 +252,10 @@ Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`.
 | ID | Critério | Teste |
 |---|---|---|
 | AC-1 | Roda apenas sobre `split='holdout'`; recusa (levanta erro) qualquer `sample_id` presente em `export_training()`. | `test_ac1_refuses_training_samples` |
-| AC-2 | XML inválido no XSD produz linha com `xsd_valid=0` e `pme_f1=0.0` — nunca linha ausente nem exceção. | `test_ac2_invalid_xml_scores_zero` |
+| AC-2 | XML inválido no XSD produz linha com `xsd_valid=0` e `df_f1=0.0` — nunca linha ausente nem exceção. | `test_ac2_invalid_xml_scores_zero` |
 | AC-3 | Determinismo: duas execuções sobre as mesmas entradas produzem linhas idênticas exceto `created_at`. | `test_ac3_rerun_is_deterministic` |
 | AC-4 | TCR usa XML **sem** BPMNDI; XML com layout no mesmo processo dá TCR idêntico. | `test_ac4_tcr_ignores_layout` |
-| AC-5 | PME-F1 delega a `topology.compare()` sem reimplementar a projeção. | `test_ac5_pme_delegates_to_topology` |
+| AC-5 | DF-F1 delega a `topology.compare_xml()` sem reimplementar a projeção. | `test_ac5_df_delegates_to_topology` |
 | AC-6 | Falha de parse da DSL é registrada como `parse_ok=0` e **não** dispara retry no número principal. | `test_ac6_no_silent_retry` |
 | AC-7 | Cada linha grava `arm`, `model_id`, `prompt_version`, `spec_commit`, permitindo rastrear o resultado até este documento. | `test_ac7_provenance_columns_present` |
 | AC-8 | Reexecução parcial substitui as linhas do par (braço, versão) em vez de duplicar — mesmo contrato de `run_topology.py`. | `test_ac8_rerun_replaces_rows` |
@@ -197,13 +264,17 @@ Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`.
 
 ### 6.1 Hipóteses
 
-- **H1 (primária):** A2 ≥ A1 em PME-F1 — gerar DSL não perde fidelidade frente a
+- **H1 (primária):** A2 ≥ A1 em DF-F1 — gerar DSL não perde fidelidade frente a
   gerar XML direto, com o mesmo modelo.
+- **H1g (replicação):** A2g ≥ A1g em DF-F1 — o efeito da DSL se repete com o
+  outro modelo prompted. Replicação interna: se H1 vale e H1g não, o efeito é do
+  modelo e não da DSL.
 - **H2:** A2 > A1 em XSD-Val — a transpilação determinística garante validade que
   a geração direta não garante.
-- **H3:** A4 ≥ A2 em PME-F1 — o modelo pequeno finetunado alcança o SOTA
-  prompted, a custo muito menor.
-- **H4 (descritiva):** TCR ≥ 2 nos braços com DSL.
+- **H3:** A4 ≥ A2 em DF-F1 — o modelo pequeno finetunado alcança o SOTA prompted
+  independente, a custo muito menor.
+- **H4 (descritiva):** TCR ≥ 2 nos braços com DSL. _(A medição interna já dá
+  6,01 na base de treino; aqui é sobre as saídas dos braços.)_
 
 Resultado contrário a H1/H3 é **resultado publicável** e deve ser reportado como
 tal. O spec existe para tornar esse desfecho reportável em vez de tentador de
@@ -214,22 +285,39 @@ esconder.
 | Parâmetro | Valor |
 |---|---|
 | Temperatura | 0,0 (reduz variância; **não** garante determinismo — [ADR 0003](../adr/0003-nao-determinismo-temperatura-zero.md)) |
-| Amostras por item (k) | ⚠️ **em aberto** — `k=1` foi falsificado pelo ADR 0003; fixar antes do congelamento |
+| Amostras por item (k) | **3**; a unidade de análise é a **mediana por item** |
 | Seed | 42 onde aplicável |
 | Retries de parse | 0 no número principal |
-| `max_tokens` | _(preencher antes do congelamento)_ |
-| Modelo SOTA (A1/A2) | _(fixar id exato e data de acesso)_ |
+| `max_tokens` — A1/A1g (emitem XML) | **8192** |
+| `max_tokens` — A2/A2g/A3/A4 (emitem DSL) | **2048** |
+| Modelo prompted independente | `deepseek-v4-pro:cloud`, acesso em 2026-08-09 |
+| Modelo prompted gerador | `glm-5.2:cloud`, acesso em 2026-08-09 |
+| Modelo pequeno | `Qwen/Qwen2.5-Coder-7B` |
 | Prompts | versionados em `specs/003-eval-harness/prompts/`, hash no banco |
 
-Uma execução secundária com k=5, T=0,7 pode ser reportada como análise de
-variância — declarada como secundária, nunca substituindo a principal.
+**Os limites de token são deliberadamente diferentes por braço.** Medição sobre
+o holdout com o tokenizador do Qwen: a DSL usa no máximo 520 tokens (mediana
+217), o XML lógico do gold chega a 4232 (mediana 1918). Um teto único apertaria
+A1 e sabotaria o baseline que a tese quer superar; o "mesmo orçamento" de §1 é o
+**modelo**, não o teto. Truncamento é registrado por amostra e reportado — nunca
+confundido com erro de modelo.
+
+**Volume da primeira rodada**: 5 braços × 53 itens × k=3 = **795 gerações**
+(A4 entra depois do SFT, somando 159).
 
 ### 6.3 Análise
 
+- **Unidade de análise**: mediana das k=3 execuções por item. A mediana, e não a
+  média, porque o ADR 0003 mostrou saídas ocasionalmente degeneradas — uma
+  execução que falha o XSD puxaria a média de forma desproporcional.
 - Comparações **pareadas** por item (mesmos 53 em todos os braços).
-- Teste: Wilcoxon signed-rank pareado, α = 0,05, sobre a métrica primária apenas.
+- **Contrastes planejados**, fixados aqui para que a correção múltipla não vire
+  pesca: **(1)** A2 vs A1, **(2)** A2g vs A1g, **(3)** A4 vs A2. Holm sobre esses
+  três. Qualquer outro par é exploratório e reportado como tal.
+- Teste: Wilcoxon signed-rank pareado, α = 0,05, sobre a métrica primária.
 - IC95% por bootstrap pareado (10.000 reamostragens, seed 42).
-- Correção para múltiplas comparações entre braços: Holm.
+- **Variância intra-braço**: reportar a dispersão entre as k=3 execuções por
+  item. É a evidência empírica do ADR 0003 e entra na tese como limitação.
 - n = 53 é pequeno: reportar tamanho de efeito e IC, não só p-valor.
 
 ### 6.4 Desvios
@@ -246,7 +334,7 @@ data, motivo e se ocorreu antes ou depois de observar resultados.
 
 ## 8. Fora de escopo (v1)
 
-- GED (seção 3.5) · Reexecução do ProMoAI · Constrained decoding como braço
+- GED e SA (seções 3.4-3.5) · Reexecução do ProMoAI · Constrained decoding como braço
 - Qualidade visual do layout como métrica (BPMNDI é para inspeção humana)
 - GRPO (prioridade 6, opcional)
 
@@ -257,19 +345,27 @@ _(vazio até o congelamento)_
 | Data | Item alterado | Motivo | Antes/depois de ver resultados |
 |---|---|---|---|
 
-## 10. Questões em aberto — **bloqueiam o congelamento**
+## 10. Questões em aberto — **RESOLVIDAS** (2026-08-09)
 
-- [ ] **C/D**: expandir a sigla e dar definição operacional, ou remover do
-      CLAUDE.md. Sem isso a lista de métricas da tese fica inconsistente.
-- [ ] Fixar o id exato do modelo SOTA para A1/A2 e a data de acesso.
-- [ ] Definir escala e prompt do LLM-juiz (SA) — `judge_prompt.md`.
-- [ ] Definir `max_tokens` por braço (A1 gera XML longo; limite curto demais
-      vira truncamento que se confunde com erro de modelo).
-- [ ] Confirmar a regra de multi-referência do Zenodo: melhor score entre
-      referências, ou média?
-- [ ] **Fixar `k`** e o teste estatístico correspondente, dado o não determinismo
-      medido no [ADR 0003](../adr/0003-nao-determinismo-temperatura-zero.md).
-      Com k>1 a unidade de análise passa a ser a média por item.
+Todos os bloqueadores de congelamento foram fechados. Registro das decisões:
+
+| Item | Decisão | Onde |
+|---|---|---|
+| **C/D** | Removida — sigla sem definição, sem implementação | §3.5 |
+| **Modelo prompted** | Dois braços: `deepseek-v4-pro:cloud` (independente) e `glm-5.2:cloud` (gerador) | §4, §6.2 |
+| **LLM-juiz (SA)** | Cortado da v1; vira trabalho futuro | §3.4 |
+| **`max_tokens`** | 8192 para quem emite XML, 2048 para quem emite DSL — medido, não arbitrado | §6.2 |
+| **Multi-referência Zenodo** | Máximo entre referências com nota ≥ 4 | §4 |
+| **`k`** | 3, com mediana por item como unidade de análise | §6.2, §6.3 |
+
+**A spec está pronta para congelar.** O congelamento é o commit imediatamente
+anterior à primeira execução dos braços; preencher o cabeçalho com hash e data
+nesse momento.
+
+Fora de escopo desta spec, mas ainda em aberto no projeto: confirmar no paper do
+PMo se existe métrica oficial sobre o formato `pme/` (a sigla PME-F1 foi
+reservada por isso) e resolver a atribuição do dataset — o banco diz Kourani
+2024, o `.bib` usa `brissard2025pmo`.
 
 ## 11. Rastreabilidade
 

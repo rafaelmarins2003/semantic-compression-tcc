@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Status | **ATIVA** |
+| Status | **CONCLUÍDA** (2026-08-09) |
 | Tipo | Engenharia (não é experimento) |
 | Origem | [ADR 0001](../adr/0001-idioma-dos-artefatos.md) + pontas soltas achadas em 2026-08-08 |
-| Bloqueia | [spec 003](../003-eval-harness/spec.md) — o harness não roda sem isto |
+| Desbloqueia | [spec 003](../003-eval-harness/spec.md) — precondições satisfeitas |
 
 > Esta spec **não tem pré-registro, hipóteses nem análise estatística**. Não é
 > experimento: é a camada de dados de que o experimento depende. O formato curto
