@@ -21,6 +21,10 @@ from pathlib import Path
 
 _DB_PATH = Path(__file__).parent.parent.parent / "data" / "dataset.db"
 
+# Split reservado à avaliação (PMo + Zenodo). Nunca entra em treino — ver
+# CLAUDE.md e spec 003 §7.
+HOLDOUT_SPLIT = "holdout"
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS samples (
     id             TEXT PRIMARY KEY,
@@ -87,8 +91,21 @@ ON json_bpmn_generations(stage, status);
 class Database:
     """Thin wrapper around SQLite for the dataset pipeline."""
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None, *, read_only: bool = False):
+        """Abre o banco. `read_only=True` conecta em modo somente-leitura e
+        **pula as migrações**.
+
+        Necessário porque `__init__` normalmente roda `ALTER TABLE ... RENAME` +
+        recriação quando o schema difere do esperado. Testes de integração que
+        leem o banco de pesquisa precisam garantir que uma execução de `pytest`
+        jamais reescreva o dataset de onde saem os números da tese.
+        """
         self.path = Path(path) if path else _DB_PATH
+        self.read_only = read_only
+        if read_only:
+            self._conn = sqlite3.connect(f"file:{self.path}?mode=ro", uri=True)
+            self._conn.row_factory = sqlite3.Row
+            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(self.path))
         self._conn.row_factory = sqlite3.Row
@@ -334,7 +351,18 @@ class Database:
     # ── Export ─────────────────────────────────────────────────────────────
 
     def export_training(self, split: str = "sft") -> list[dict]:
-        """Export training-ready pairs: records with both raw_text and dsl."""
+        """Export training-ready pairs: records with both raw_text and dsl.
+
+        Recusa `split='holdout'`. O holdout é conjunto de avaliação (PMo +
+        Zenodo) e usá-lo em treino invalidaria o experimento inteiro da spec 003.
+        Uma função chamada *training* que entrega o holdout quando pedido é
+        armadilha; quem precisa dele para avaliar consulta `samples` direto.
+        """
+        if split == HOLDOUT_SPLIT:
+            raise ValueError(
+                f"export_training recusa split={HOLDOUT_SPLIT!r}: é conjunto de avaliação, "
+                "nunca de treino. Para avaliar, consulte `samples` diretamente."
+            )
         rows = self.query(
             "SELECT id, source, title, raw_text, dsl FROM samples "
             "WHERE split=? AND dsl IS NOT NULL AND parse_ok=1",
