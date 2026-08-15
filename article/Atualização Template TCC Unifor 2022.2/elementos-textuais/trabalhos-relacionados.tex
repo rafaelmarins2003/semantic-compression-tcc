@@ -1,103 +1,55 @@
+% ATENÇÃO (nota de trabalho, não sai no PDF): capítulo vivo.
+% Substituiu integralmente o conteúdo de exemplo do template (lipsum + \Gls de
+% um TCC de outra área). Estrutura por eixo de proximidade, não por autor.
+
 \chapter{Trabalhos Relacionados}
 \label{cap:trabalhos-relacionados}
 
-Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut. Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget. Integer eget mattis libero
+Este capítulo situa o trabalho em relação a quatro linhas de pesquisa que o tangenciam: geração de modelos de processo por modelos de linguagem, representações compactas de processos, compressão de \textit{tokens} em sistemas com LLMs, e garantia de validade sintática na geração de linguagens formais. O critério de organização é a proximidade com a pergunta desta pesquisa — o custo de gerar marcação hierárquica verbosa —, e não a cronologia ou a autoria.
 
-\section{Trabalho Relacionado A}
-\label{sec:trabalho-relacionado-a}
+\section{Geração de Modelos de Processo com LLMs}
+\label{sec:tr-geracao}
 
-\lipsum[10]
+A referência mais próxima em objetivo é o ProMoAI \cite{kourani2024promoai}, que emprega um LLM de fronteira, guiado por \textit{prompt}, para produzir código POWL executável, posteriormente traduzido para BPMN. A estratégia compartilha com este trabalho a premissa central de \textbf{não} pedir XML diretamente ao modelo, interpondo uma representação intermediária mais adequada às capacidades do gerador.
 
-	\begin{figure}[h!]
-		\centering
-		\Caption{\label{fig:exemplo-1} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse commodo lectus et augue elementum varius.}	
-		\UNIFORfig{}{
-			\fbox{\includegraphics[width=8cm]{figuras/figura-1}}
-		}{
-			\Fonte{Elaborado pelo autor}
-		}	
-	\end{figure}
-	
-\lipsum[11]
+As diferenças são de natureza e de escopo. O ProMoAI depende de um modelo de fronteira em tempo de inferência, o que mantém o custo por geração no patamar que este trabalho procura reduzir; a representação intermediária é código Python, escolhida por familiaridade do modelo com tarefas de programação, e não projetada para minimizar \textit{tokens} emitidos; e a compressão obtida não é medida nem tratada como objetivo. Aqui, ao contrário, a compressão é métrica de primeira classe, a representação é projetada para isso, e o gerador-alvo é um modelo pequeno especializado por ajuste supervisionado. A reexecução do ProMoAI está fora do escopo desta versão, de modo que ele é tratado como referência qualitativa; comparar com números publicados sob protocolo distinto seria metodologicamente indefensável.
 
-\section{Trabalho Relacionado B}
-\label{sec:trabalho-relacionado-b}
+\section{Representações Compactas de Processos}
+\label{sec:tr-representacoes}
 
-Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut. Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget. Integer eget mattis libero. Praesent ex velit, pulvinar at massa vel, fermentum dictum mauris. Ut feugiat accumsan augue, et ultrices ipsum euismod vitae
+Diversas notações alternativas ao XML BPMN foram propostas com objetivos que se sobrepõem parcialmente ao deste trabalho. A representação \textit{JSON branches} \cite{kopke2024efficient} foi introduzida explicitamente para reduzir contagem de \textit{tokens} e favorecer aderência a esquema na geração por LLMs. A representação \textit{Process Model Elements} \cite{volter2024generative} organiza o modelo em listas planas de elementos, facilitando contagem e comparação. Somam-se a elas notações de visualização como Mermaid e Graphviz, e simplificações do próprio XML.
 
-	\begin{figure}[h!]
-		\centering
-		\Caption{\label{fig:exemplo-2} Maecenas luctus augue odio, sed tincidunt nunc posuere nec}	
-		\UNIFORfig{}{
-			\fbox{\includegraphics[width=8cm]{figuras/figura-2}}
-		}{
-			\Fonte{Elaborado pelo autor}			
-		}	
-	\end{figure}
+O trabalho de \citeonline{brissard2025pmr} é o que mais se aproxima em objeto empírico: realiza análise comparativa de nove representações de modelos de processo para geração com LLMs, sobre o mesmo conjunto de dados aqui utilizado como \textit{holdout}. É, por isso, o antecedente que exige posicionamento mais cuidadoso.
 
-Nunc ac pretium dui. Mauris aliquam dapibus nulla ac mattis. Aenean non tortor volutpat, varius lectus vitae, accumsan nibh. Cras pretium vestibulum enim, id ullamcorper tortor ultrices non. Integer sodales viverra faucibus. Curabitur at dui lacinia, rhoncus lacus at, blandit metus. Integer scelerisque non enim quis ornare.
+A distinção é de \textbf{pergunta de pesquisa}, e não de artefato. Aquele trabalho pergunta qual representação produz os melhores modelos de processo quando um LLM é instruído por \textit{prompt} — uma pergunta sobre adequação de notação à tarefa de modelagem. Esta pesquisa pergunta se a estratégia de comprimir a saída e expandi-la deterministicamente torna economicamente viável a geração de marcação hierárquica verbosa por modelos pequenos, usando BPMN como caso de estudo instrumentado. Disso decorrem três diferenças operacionais:
 
-	\begin{quadro}[h!]	
-		\centering
-		\Caption{\label{qua:exemplo-1} Praesent ex velit, pulvinar at massa vel, fermentum dictum mauris. Ut feugiat accumsan augue}		
-		\UNIFORqua{}{
-			\begin{tabular}{|c|c|l|l|}
-				\hline
-				Quisque & pharetra & tempus & vulputate \\
-				\hline
-				E1 & Complete coverage by a single transcript & Both  & Complete\\
-				\hline
-				E2 & Complete coverage by more than & Both splice sites & Complete\\
-				\hline
-				E3 & Partial coverage & Both splice sites & Both \\				
-				\hline
-			\end{tabular}
-		}{
-			\Fonte{Elaborado pelo autor}
-		}
-	\end{quadro}
-	
-\lipsum[20]
+\begin{alineas}
+	\item \textbf{o gerador}: representações avaliadas por \textit{prompt} em modelos de fronteira, contra um modelo pequeno especializado por ajuste supervisionado, cujo custo por inferência é ordens de grandeza menor;
+	\item \textbf{a garantia sintática}: notações comparadas quanto à qualidade do modelo produzido, contra uma cadeia em que a validade perante o esquema é assegurada por construção, deixando de ser variável aleatória;
+	\item \textbf{a métrica de custo}: compressão medida e reportada como resultado de primeira ordem, e não como propriedade qualitativa da notação.
+\end{alineas}
 
-	
-	\begin{quadro}[h!]	
-		\centering
-		\Caption{\label{qua:exemplo-2} Duis faucibus, enim quis tincidunt pellentesque}		
-		\UNIFORqua{}{
-			\begin{tabular}{|c|c|}
-				\hline
-				Quisque & pharetra \\
-				\hline
-				E1 & Complete coverage by a single transcript \\
-				\hline
-				E2 & Complete coverage by more than \\
-				\hline
-				E3 & Partial coverage \\
-				\hline
-				E4 & Partial coverage \\
-				\hline
-				E5 & Partial coverage \\
-				\hline
-				E6 & Partial coverage \\
-				\hline
-				E7 & Partial coverage \\
-				\hline
-			\end{tabular}
-		}{
-			\Fonte{Elaborado pelo autor}
-		}
-	\end{quadro}
+Que representações compactas de BPMN já existam não é objeção a este trabalho — é evidência de que o problema é reconhecido. A contribuição pretendida não é a notação em si, mas a demonstração empírica de que a combinação entre compressão medida, expansão determinística verificável e especialização de modelo pequeno desloca a fronteira de custo da tarefa. Registre-se ainda que a DSL proposta cobre construções que algumas dessas notações não representam — múltiplos eventos de início e fim, fluxos de mensagem e raias —, embora essa maior expressividade seja consequência do desenho, e não sua justificativa.
 
-\lipsum[21]
+\section{Compressão de \textit{Tokens}: Entrada \textit{versus} Saída}
+\label{sec:tr-compressao}
 
-Integer non lacinia magna. Aenean tempor lorem tellus, non sodales nisl commodo ut. Proin mattis placerat risus sit amet laoreet. Praesent sapien arcu, maximus ac fringilla efficitur, vulputate faucibus sem. Donec aliquet velit eros, sit amet elementum dolor pharetra eget. Integer eget mattis libero.
-\Gls{ambiguidade}
-\Gls{braile}
-\Gls{coerencia}
-\Gls{dialetos}
-\Gls{elipse}
-\Gls{locucao-adjetiva}
-\Gls{modificadores}
-\Gls{paronimos}
-\Gls{sintese}
-\Gls{borboleta}
+A redução do consumo de \textit{tokens} em sistemas com LLMs é problema ativo, e a literatura predominante trata do lado da \textbf{entrada}. O LLMLingua \cite{jiang2023llmlingua} comprime \textit{prompts} removendo conteúdo de baixa informação segundo um modelo de linguagem auxiliar, preservando o desempenho na tarefa a jusante. Trabalhos de gestão de contexto perseguem objetivo análogo por seleção e sumarização do que entra na janela.
+
+Este trabalho ataca o lado oposto e complementar: o custo da \textbf{saída}. A assimetria é relevante e raramente explicitada. \textit{Tokens} de entrada podem ser processados em paralelo e beneficiam-se de mecanismos de cache; \textit{tokens} de saída são gerados sequencialmente, dominam a latência percebida e são tipicamente tarifados a preço superior. Em tarefas cuja saída é marcação verbosa, o gargalo econômico está na geração, não na leitura — e comprimir o \textit{prompt} não o alivia. As duas famílias de técnica são, portanto, ortogonais e combináveis, e não concorrentes.
+
+\section{Modelos Pequenos Especializados}
+\label{sec:tr-slm}
+
+A viabilidade da proposta depende de que um modelo de pequeno porte, especializado, alcance desempenho competitivo em tarefa estreita. Essa premissa é sustentada por evidência recente sobre o papel de modelos pequenos em sistemas agênticos \cite{belcak2025small}, que argumenta serem eles suficientes — e economicamente preferíveis — para subtarefas repetitivas e bem delimitadas, reservando modelos de fronteira para as etapas que exigem generalidade.
+
+A geração de marcação estruturada a partir de descrição textual é exatamente uma dessas subtarefas: formato fixo, vocabulário restrito, critério de sucesso verificável. Métodos de ajuste eficiente em parâmetros \cite{hu2022lora}, especialmente em sua variante quantizada \cite{dettmers2023qlora}, tornam a especialização exequível com recursos computacionais modestos, o que é condição para que o argumento econômico se sustente.
+
+\section{Garantia de Validade Sintática}
+\label{sec:tr-validade}
+
+Há uma alternativa à estratégia adotada que precisa ser reconhecida: a \textbf{decodificação restrita}, que impõe a gramática do formato-alvo durante a amostragem, impedindo por construção a emissão de sequências inválidas \cite{poesia2022synchromesh}. Aplicada ao XML BPMN, garantiria validade sintática sem representação intermediária alguma.
+
+Duas considerações delimitam a comparação. A primeira é que a decodificação restrita resolve a validade, mas \textbf{não} o custo: o modelo continua emitindo cada \textit{token} da marcação verbosa, de modo que a economia perseguida aqui permanece inalcançada — e, com efeito, as duas técnicas são combináveis, podendo a decodificação restrita ser aplicada sobre a própria DSL. A segunda é que restringir a decodificação a uma gramática garante boa formação sintática, mas não coerência estrutural: um documento pode respeitar o esquema e ainda referenciar identificadores inexistentes ou descrever um grafo desconexo, classe de erro que a expansão determinística elimina por não permitir que ela seja expressa.
+
+A avaliação empírica da decodificação restrita como braço experimental está fora do escopo desta versão, e é registrada como trabalho futuro derivado.
