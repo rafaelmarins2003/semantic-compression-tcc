@@ -12,6 +12,10 @@ dependencies = [
     "lxml>=5.0",
     "networkx>=3.3",
     "python-dotenv>=1.2.2",
+    # Wilcoxon pareado da spec 003 §6.3. Implementar à mão exigiria acertar
+    # tratamento de empates e de diferenças nulas — risco desnecessário na
+    # afirmação estatística central da tese, e não é o que um revisor espera ver.
+    "scipy>=1.14",
 ]
 
 [project.optional-dependencies]

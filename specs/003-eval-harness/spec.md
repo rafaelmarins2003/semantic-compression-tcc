@@ -92,6 +92,80 @@ gateways de roteamento.
 Ambas as funções compartilham `xml_direct_follows` e `_prf`, então a projeção é
 a mesma nos dois usos. `compare_xml(gold, gold)` é identidade nos 53 (AC-3).
 
+#### Proveniência — a métrica não é autoral
+
+Registrado aqui para que a monografia não a apresente como invenção. A relação
+*directly-follows* é a abstração canônica de process mining: é sobre ela que se
+constrói o algoritmo α (van der Aalst, Weijters & Maruster, 2004) e o DFG que
+alimenta os mineradores seguintes. Comparar **modelo contra modelo** por pares
+adjacentes tem precedente direto:
+
+| Trabalho | Relação com o DF-F1 |
+|---|---|
+| TAR — Zha et al. (2010) | pares de tarefas adjacentes, com Jaccard; é o parente mais próximo |
+| Behavioral profiles — Weidlich, Mendling & Weske (2011) | ordem estrita, exclusividade, interleaving |
+| GED — Dijkman et al. (2011) | similaridade estrutural por custo de edição |
+
+Nosso é o **empacotamento**: projeção estrutural sobre BPMN pulando gateways,
+F1 sobre multiconjuntos (multiplicidade conta), rótulo como identidade e máximo
+sobre multi-referência. Em uma frase: **DF-F1 ≈ TAR com F1 no lugar de Jaccard**.
+
+#### Limitação declarada — estrutural, não comportamental
+
+TAR e behavioral profiles derivam as relações do **comportamento** (reachability)
+do modelo; `xml_direct_follows` deriva da **estrutura** do grafo. A diferença é
+observável em bloco paralelo `A → {B, C} → join → D`: comportamentalmente B e C
+podem ocorrer adjacentes nas duas ordens, então TAR incluiria `(B,C)` e `(C,B)`;
+nossa projeção dá `{(A,B), (A,C), (B,D), (C,D)}` e nenhuma das duas.
+
+A escolha é intencional — determinística, custo linear, sem exigir conversão para
+rede de Petri sã, e mede se o candidato reproduziu a estrutura que o gold
+especifica em vez de premiar intercalações equivalentes. **Consequência que vale
+para a tese**: os números não são diretamente comparáveis a resultados publicados
+sob formulação comportamental. Dizer isso no texto, não deixar a banca descobrir.
+
+### 3.2a Alinhamento de rótulos — **decidido em 2026-08-15, antes de congelar**
+
+Descoberto ao rodar o primeiro braço de verdade (A3, `pmo_01`): com igualdade
+textual de rótulo, **DF-F1 = 0,0000** para uma saída estruturalmente razoável.
+
+| Gold (humano) | Candidato (LLM) |
+|---|---|
+| `Provide quote` | `Provide Quote` |
+| `Place order` | `Place Order` |
+| `Collect customer information` | `Collect Information` |
+
+Dois pares diferem **só em capitalização**. O gold do PMo é redigido por humano e
+qualquer LLM parafraseia: nenhum braço reproduziria "Guide customer in selecting
+product/service" literalmente. Congelar com casamento exato produziria ~0 em
+todos os braços e o experimento **não discriminaria nada** — a comparação
+central da tese seria vazia.
+
+**Regra congelada.** Normalizar (minúsculas, pontuação → espaço, espaços
+colapsados) e alinhar rótulos por Jaccard de tokens **≥ 0,5**, comparando a
+estrutura sob esse alinhamento. Emparelhamento **guloso com desempate
+determinístico** (`sorted` por similaridade decrescente, depois rótulo), e não
+ótimo: métrica pré-registrada precisa ser reproduzível bit a bit, e o ótimo com
+empates depende da implementação. Similaridade 1,0 é ordenada primeiro, então
+casamento exato sempre tem precedência. Eventos anônimos (`<start>`, `<end>`) só
+casam exatamente — são categorias, não texto.
+
+**Duas famílias reportadas, ambas pré-registradas**, para que ninguém escolha a
+mais favorável depois de ver os números:
+
+| Chave | O que mede |
+|---|---|
+| `df_*` | **primária** — estrutura, sob alinhamento de rótulos |
+| `df_strict_*` | igualdade textual — estrutura **e** redação |
+
+Precedente: \citeonline{dijkman2011similarity} também estabelece um mapeamento
+de nós antes de comparar estrutura. O limiar 0,5 é parâmetro do pré-registro.
+
+**Efeito medido** (A3 sobre `pmo_01`): estrito 0,0000 → alinhado **0,3478**, com
+4 pares casados corretamente. **O eixo 2 interno não muda**: os dois lados vêm do
+mesmo JSON, o alinhamento é identidade — verificado em 120 amostras, zero
+divergência entre as duas famílias, média 1,000000 em ambas.
+
 ### 3.2b MF-F1 — mensagens entre participantes (**secundária, reportada ao lado**)
 
 F1 sobre o multiconjunto de `messageFlow` `(rótulo_origem, rótulo_destino)`,
@@ -117,6 +191,14 @@ embuti-la na primária.
 
 **Alcance**: 2 dos 53 itens do holdout têm mensagens no gold (`23.bpmn` com 6,
 `38.bpmn` com 4). O `24.bpmn`, que também tem, está entre os dois excluídos.
+
+**Como reportar (importante).** Quando gold e candidato não têm mensagem alguma,
+MF-F1 = 1,0 por vacuidade — ambos os multiconjuntos são vazios. Isso vale para
+51 dos 53 itens, então a **média de MF-F1 sobre o holdout inteiro é enganosa**:
+ficaria perto de 1,0 sem que nenhum braço tenha acertado uma mensagem sequer.
+Reportar MF-F1 **apenas sobre os itens cujo gold contém mensagens** (n = 2), e
+declarar o n. Com n = 2 a métrica é ilustrativa, não inferencial — não entra em
+teste estatístico.
 
 ### 3.3 TCR — razão de compressão de tokens
 
@@ -220,8 +302,17 @@ modelos — erro de apuração, corrigido antes do congelamento.)_
 | A2 | SOTA independente → DSL → XML | `deepseek-v4-pro:cloud` | isola o efeito da DSL |
 | A1g | Gerador → XML direto | `glm-5.2:cloud` | leitura de destilação |
 | A2g | Gerador → DSL → XML | `glm-5.2:cloud` | teto que o SFT tenta alcançar |
-| A3 | Qwen2.5-Coder-7B base → DSL | local | piso do modelo pequeno |
+| A3 | Modelo pequeno + gramática → DSL | local | piso do modelo pequeno |
+| A3m | Modelo pequeno + prompt mínimo → DSL | local | **controle de A4** — isola o adapter |
 | A4 | Qwen2.5-Coder-7B SFT → DSL | local | a proposta da tese |
+
+**O desenho é fatorial: {modelo} × {formato de saída}.** A2 e A2g **não são
+baselines concorrentes** — são a metodologia da tese executada com um modelo caro,
+isto é, o **teto** que A4 tenta alcançar a custo muito menor. O único baseline
+externo é A1/A1g (XML direto, o que se faz hoje). Daí os contrastes de §6.3:
+A2 vs A1 mantém o modelo fixo e varia só o formato, separando "a DSL ajuda" de
+"o modelo é bom"; sem esse par, um A4 bom seria ambíguo entre efeito da DSL e
+efeito do finetuning.
 
 **Por que dois modelos prompted.** O `glm-5.2` gerou o corpus de treino
 ([ADR 0002](../adr/0002-modelo-gerador.md)), então usá-lo como único baseline
@@ -247,7 +338,21 @@ de comparar com números publicados sob protocolo diferente.
 > ACs descrevem **comportamento do harness**, não resultado do experimento.
 > Resultados esperados são hipóteses (seção 6.1) e não viram teste.
 
-Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`.
+Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`
+(**implementados em 2026-08-15, 14 testes, todos passando**).
+
+Dois ajustes de redação feitos ao implementar, ambos **antes** do congelamento e
+portanto edição, não emenda:
+
+- AC-7 falava em `prompt_version`. O concreto é `prompt_name` + `prompt_sha256`:
+  o hash identifica o prompt sem depender de alguém lembrar de incrementar uma
+  versão, que é o modo de falha clássico dessa coluna.
+- AC-4 dizia que XML com layout "dá TCR idêntico", o que só era verdade porque a
+  coluna nunca continha layout. Agora é verdade **por construção**: `run_tcr`
+  ganhou `strip_di`, que remove `BPMNDiagram` antes de contar. Em produção é
+  identidade (nenhuma amostra tem DI) e a TCR segue 6,01 — verificado após a
+  mudança. Existe como defesa contra o risco registrado no TODO: se o layout for
+  materializado nessa coluna, a métrica inflaria ~3x em silêncio.
 
 | ID | Critério | Teste |
 |---|---|---|
@@ -257,7 +362,7 @@ Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`.
 | AC-4 | TCR usa XML **sem** BPMNDI; XML com layout no mesmo processo dá TCR idêntico. | `test_ac4_tcr_ignores_layout` |
 | AC-5 | DF-F1 delega a `topology.compare_xml()` sem reimplementar a projeção. | `test_ac5_df_delegates_to_topology` |
 | AC-6 | Falha de parse da DSL é registrada como `parse_ok=0` e **não** dispara retry no número principal. | `test_ac6_no_silent_retry` |
-| AC-7 | Cada linha grava `arm`, `model_id`, `prompt_version`, `spec_commit`, permitindo rastrear o resultado até este documento. | `test_ac7_provenance_columns_present` |
+| AC-7 | Cada linha grava `arm`, `model_id`, `prompt_name`, `prompt_sha256`, `spec_commit`, permitindo rastrear o resultado até este documento. | `test_ac7_provenance_columns_present` |
 | AC-8 | Reexecução parcial substitui as linhas do par (braço, versão) em vez de duplicar — mesmo contrato de `run_topology.py`. | `test_ac8_rerun_replaces_rows` |
 
 ## 6. Protocolo experimental (pré-registro)
@@ -275,6 +380,13 @@ Cada AC tem um teste homônimo em `tests/evaluation/test_harness_spec.py`.
   independente, a custo muito menor.
 - **H4 (descritiva):** TCR ≥ 2 nos braços com DSL. _(A medição interna já dá
   6,01 na base de treino; aqui é sobre as saídas dos braços.)_
+  Implementada em `run_tcr --arm/--all-arms`, **mesma definição e mesmo módulo**
+  da medição do corpus — duas implementações divergiriam e os números deixariam
+  de ser comparáveis. Reporta também **tokens emitidos**, que é a grandeza
+  econômica de fato: existe em todo braço e é comparável item a item, enquanto a
+  TCR só se define onde há representação intermediária. Nos braços de XML direto
+  não há compressão a medir, e a razão **não** é reportada como 1,0 — seria
+  apresentar uma tautologia como resultado.
 
 Resultado contrário a H1/H3 é **resultado publicável** e deve ser reportado como
 tal. O spec existe para tornar esse desfecho reportável em vez de tentador de
@@ -292,8 +404,84 @@ esconder.
 | `max_tokens` — A2/A2g/A3/A4 (emitem DSL) | **2048** |
 | Modelo prompted independente | `deepseek-v4-pro:cloud`, acesso em 2026-08-09 |
 | Modelo prompted gerador | `glm-5.2:cloud`, acesso em 2026-08-09 |
-| Modelo pequeno | `Qwen/Qwen2.5-Coder-7B` |
-| Prompts | versionados em `specs/003-eval-harness/prompts/`, hash no banco |
+| Modelo pequeno | `Qwen/Qwen2.5-Coder-7B-Instruct` (Apache 2.0) — **A3 e A4 partem do mesmo** |
+| Quantização de **inferência** A3/A4 | **4-bit NF4**, dupla quantização, compute `float16` |
+| Attention A3/A4 | `sdpa` (FlashAttention-2 não suporta Turing) |
+| Prompts | `configs/prompts/benchmark/`, hash SHA-256 gravado por linha no banco |
+| Prompt A1/A1g | `xml_direct.md` (896 tokens) |
+| Prompt A2/A2g/A3 | `dsl_grammar.md` (1000 tokens) — carrega a gramática |
+| Prompt A4 | `dsl_minimal.md` (392 tokens) — **idêntico ao prompt de treino do SFT** |
+
+**Prompts — escritos e travados por teste em 2026-08-15.** Três, não dois. O
+caminho `specs/003-eval-harness/prompts/` que constava aqui foi trocado por
+`configs/prompts/benchmark/`: é a convenção do projeto (`load_prompt`), e a
+rastreabilidade que a versão anterior queria já vem do hash no banco.
+
+Garantia de justiça do desenho, verificada em
+`tests/evaluation/test_benchmark_prompts.py`:
+
+1. Os blocos `<role>`, `<language>`, `<modeling_rules>` e `<output_contract>` são
+   **byte-idênticos** nos três. A única diferença permitida é `<output_format>` e
+   `<notation_example>`. Instrução de modelagem divergente faria o benchmark
+   medir "qual prompt é melhor" em vez de "qual formato é melhor".
+2. Os exemplos de notação de `xml_direct.md` e `dsl_grammar.md` são o **mesmo
+   processo**, verificado por `compare_xml` (DF-F1 = 1,0, `df_exact`). Nenhum
+   braço recebe padrão de modelagem que o outro não recebeu.
+3. `xml_direct.md` **proíbe** BPMNDI — o teto de 8192 tokens vai inteiro para a
+   lógica, e a métrica ignora layout. A proibição favorece o baseline.
+4. `dsl_minimal.md` não contém gramática, e o teste falha se ela vazar.
+
+**Por que o A4 tem prompt próprio.** Restrição dura de SFT: o prefixo de
+instrução na inferência tem de ser idêntico ao do treino. E é a tese — carregar
+gramática a cada inferência moveria custo da saída para a entrada, que é
+justamente o que o trabalho alega resolver.
+
+*Confundimento resolvido em 2026-08-15*: A3 e A4 diferiam em pesos **e** em
+prompt. Acrescentado o braço **A3m** — mesmo modelo e mesmo prompt do A4, sem o
+adapter —, de modo que **A4 vs A3m isole o ajuste supervisionado** (só os pesos
+mudam). A4 vs A3 continua disponível e mede a intervenção inteira; os dois são
+exploratórios, nenhum é contraste pré-registrado de §6.3.
+
+**Custo de entrada, medido.** O preâmbulo da DSL custa **+104 tokens** sobre o
+prompt de XML (1000 vs 896) — não os ~1000 que uma estimativa inicial supôs, já
+que o braço de XML também precisa de especificação de formato. Contra isso, a
+economia de saída é de ~1701 tokens por item (medianas do gold: 1918 no XML
+lógico, 217 na DSL). O A4 ainda economiza 608 tokens de entrada sobre o A2.
+Reportar isso: o argumento econômico precisa ser feito, não assumido.
+
+**Base do modelo pequeno: `-Instruct`, não a base pura** (2026-08-15, ao
+implementar a inferência local). Duas razões:
+
+1. **A3 seria um espantalho com a base pura.** O papel do A3 é o piso honesto —
+   "o que um modelo pequeno faz com a nossa DSL, sem o nosso treino". Um modelo
+   base não segue instrução de forma confiável, então o piso mediria "modelos
+   base não seguem instrução" e não "modelos pequenos não dão conta da tarefa".
+   Isso **inflaria o ganho atribuído ao nosso SFT** — e um revisor perceberia.
+2. **A3 e A4 passam a partir do mesmo ponto.** Com base idêntica, A4 vs A3 isola
+   o adapter: os pesos diferem só por ele. Antes difeririam também de base.
+
+Com 768 pares de treino, partir do Instruct também é a escolha mais provável de
+funcionar: sobra menos para o modelo aprender. O tokenizador é o mesmo da linha
+Qwen2.5-Coder, então **o TCR de 6,01 não é afetado**, e a licença segue Apache 2.0.
+
+*Permanece declarado*: A3 e A4 ainda diferem no **prompt** (`dsl_grammar` vs
+`dsl_minimal`), pelas razões do bloco anterior.
+
+**Quantização — decidida em 2026-08-15** (`article/deep-research-report.md`).
+4-bit NF4 nos dois braços locais. A restrição que manda é **A3 e A4 na mesma
+configuração**: quantização diferente entre eles faria o contraste medir precisão
+numérica junto com efeito do finetuning.
+
+A ressalva do relatório contra 7B na 2080 Ti é sobre **treino** ("possible but
+fragile", §RTX 2080 Ti) e não nos atinge: o SFT roda em H100 na nuvem e a placa
+local só faz **inferência**, para a qual o mesmo relatório classifica 7B 4-bit
+como "practical" (5,52 GB medidos em int4). Turing impõe `float16` como dtype de
+compute — não há BF16 nativo — e `sdpa` no lugar de FlashAttention-2.
+
+Nota registrada porque remove uma restrição que se supunha existir: o tokenizador
+é **idêntico** em toda a linha Qwen2.5-Coder (vocabulário de 151.643 verificado
+entre 7B e 1.5B), então **trocar de tamanho dentro da família não invalida o TCR**
+congelado no §3.3. Só a troca de família invalidaria.
 
 **Os limites de token são deliberadamente diferentes por braço.** Medição sobre
 o holdout com o tokenizador do Qwen: a DSL usa no máximo 520 tokens (mediana
@@ -302,8 +490,9 @@ A1 e sabotaria o baseline que a tese quer superar; o "mesmo orçamento" de §1 �
 **modelo**, não o teto. Truncamento é registrado por amostra e reportado — nunca
 confundido com erro de modelo.
 
-**Volume da primeira rodada**: 5 braços × 53 itens × k=3 = **795 gerações**
-(A4 entra depois do SFT, somando 159).
+**Volume da primeira rodada**: 6 braços × 53 itens × k=3 = **954 gerações**
+(A4 entra depois do SFT, somando 159). O braço A3m foi acrescentado em
+2026-08-15, antes do congelamento, para tornar o contraste A4 vs A3 interpretável.
 
 ### 6.3 Análise
 
@@ -314,7 +503,14 @@ confundido com erro de modelo.
 - **Contrastes planejados**, fixados aqui para que a correção múltipla não vire
   pesca: **(1)** A2 vs A1, **(2)** A2g vs A1g, **(3)** A4 vs A2. Holm sobre esses
   três. Qualquer outro par é exploratório e reportado como tal.
-- Teste: Wilcoxon signed-rank pareado, α = 0,05, sobre a métrica primária.
+- Teste: Wilcoxon signed-rank pareado, α = 0,05, sobre a métrica primária,
+  **bilateral**. As hipóteses são direcionais ("A2 ≥ A1"), mas a alegação é de
+  não inferioridade e quem a responde é o **intervalo de confiança**, não a
+  lateralidade do teste. Bilateral é o conservador e afasta a suspeita de que a
+  direção foi escolhida depois de ver os dados. Diferenças nulas são descartadas
+  (`zero_method="wilcox"`) e o número de empates é reportado.
+- Implementação: `src/evaluation/run_analysis.py`, **escrito antes de qualquer
+  braço rodar**, com 10 testes contra valores calculados à mão.
 - IC95% por bootstrap pareado (10.000 reamostragens, seed 42).
 - **Variância intra-braço**: reportar a dispersão entre as k=3 execuções por
   item. É a evidência empírica do ADR 0003 e entra na tese como limitação.
@@ -373,6 +569,8 @@ reservada por isso) e resolver a atribuição do dataset — o banco diz Kourani
 |---|---|
 | Este spec | `specs/003-eval-harness/spec.md` |
 | Testes de AC | `tests/evaluation/test_harness_spec.py` |
+| Prompts dos braços | `configs/prompts/benchmark/` |
+| Invariantes dos prompts | `tests/evaluation/test_benchmark_prompts.py` |
 | Métrica topológica | `src/evaluation/topology.py` |
 | Runner existente (padrão a seguir) | `src/evaluation/run_topology.py` |
 | Harness novo | `src/evaluation/run_benchmark.py` _(a criar)_ |

@@ -147,3 +147,69 @@ def test_branch_tail_to_join_emitted_inside_sibling_branch():
     assert res["nodes_match"]
     assert res["df_missing"] == {}
     assert res["df_exact"]
+
+
+# ── Alinhamento de rótulos (spec 003 §3.2a) ──────────────────────────────────
+
+
+def test_normalize_label_colapsa_caixa_e_pontuacao():
+    from src.evaluation.topology import normalize_label
+
+    assert normalize_label("Provide Quote") == normalize_label("provide quote")
+    assert normalize_label("Select Product/Service") == "select product service"
+    assert normalize_label("  Place   order!  ") == "place order"
+
+
+def test_align_labels_casa_parafrase_e_ignora_divergente():
+    from src.evaluation.topology import align_labels
+
+    ref = {"Collect customer information", "Provide quote", "Send order confirmation"}
+    cand = {"Collect Information", "Provide Quote", "Cancel everything"}
+    mapa = align_labels(ref, cand)
+
+    assert mapa["Provide Quote"] == "Provide quote"
+    assert mapa["Collect Information"] == "Collect customer information"
+    assert "Cancel everything" not in mapa, "rótulo sem contraparte não pode ser forçado"
+
+
+def test_align_labels_nao_reusa_a_mesma_referencia():
+    """Emparelhamento é injetivo: duas atividades do candidato não podem casar
+    com a mesma do gold, senão uma duplicação inflaria o recall."""
+    from src.evaluation.topology import align_labels
+
+    mapa = align_labels({"Approve request"}, {"Approve Request", "Approve request now"})
+
+    assert list(mapa.values()) == ["Approve request"]
+    assert len(mapa) == 1
+
+
+def test_align_labels_eventos_anonimos_so_casam_exatamente():
+    """`<start>` e `<end>` são categorias. Aproximá-los confundiria início e fim."""
+    from src.evaluation.topology import align_labels
+
+    mapa = align_labels({"<start>", "<end>"}, {"<start>", "<end>"})
+
+    assert mapa == {"<start>": "<start>", "<end>": "<end>"}
+
+
+def test_align_labels_e_deterministico():
+    from src.evaluation.topology import align_labels
+
+    ref = {"Review the document", "Review the report", "Archive file"}
+    cand = {"Review document", "Review report", "Archive the file"}
+
+    assert [align_labels(ref, cand) for _ in range(5)].count(align_labels(ref, cand)) == 5
+
+
+def test_alinhamento_recupera_f1_de_parafrase():
+    """O caso que motivou a regra: capitalização não pode zerar a métrica."""
+    from src.evaluation.topology import compare_xml
+    from src.transpiler.xml import transpile
+
+    gold = transpile('process "P" { start -> task "Provide quote" -> task "Place order" -> end }')
+    cand = transpile('process "P" { start -> task "Provide Quote" -> task "Place Order" -> end }')
+    r = compare_xml(gold, cand)
+
+    assert r["df_f1"] == 1.0, "alinhado deve casar apesar da caixa"
+    assert r["df_strict_f1"] < 1.0, "estrito deve continuar penalizando"
+    assert r["df_exact"] and not r["df_strict_exact"]
