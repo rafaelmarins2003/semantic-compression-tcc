@@ -19,8 +19,11 @@ from src.data.db import Database
 from src.data.migrations.create_topology_eval import ensure_schema
 from src.evaluation.topology import compare
 
-DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v8"
-DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v3"
+# Base ativa. Estes defaults apontavam para a base PT antiga (v8/v3): o comando
+# sem argumentos repontuava o corpus obsoleto. Mesmo defeito já corrigido em
+# `run_tcr.py`. Ao trocar a base ativa, atualizar nos dois.
+DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v10_en"
+DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v5_en"
 PREVIEW_MAX = 2000
 
 
