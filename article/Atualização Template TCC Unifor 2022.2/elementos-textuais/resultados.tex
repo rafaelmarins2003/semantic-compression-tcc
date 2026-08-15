@@ -1,14 +1,113 @@
+% ATENÇÃO (nota de trabalho, não sai no PDF): capítulo vivo.
+% Contém APENAS resultados já medidos e reproduzíveis a partir do banco.
+% A Seção "Avaliação Comparativa" é um placeholder declarado: os braços ainda não
+% foram executados. Não preencher com estimativa — só com número medido.
+% Fonte de todos os valores: data/dataset.db, base json_to_dsl_v10_en + dsl_to_xml_v5_en.
+
 \chapter{Resultados}
 \label{chap:resultados}
 
-\lipsum[2]
+Este capítulo reporta os resultados obtidos até o momento. Eles se dividem em duas partes de maturidade distinta: a \textbf{verificação do protocolo determinístico} sobre o corpus completo, concluída e reproduzível, e a \textbf{avaliação comparativa dos braços experimentais} contra os modelos de referência, ainda pendente de execução. A separação é explícita para que nenhum número parcial seja lido como resultado final.
 
-\section{Resultados do Experimento A}
-\label{sec:resultados-do-experimento-a}
+Todos os valores desta seção são recuperáveis do banco de dados do projeto, no qual cada execução de conversor é registrada com versão, estado e diagnósticos por amostra.
 
-\lipsum[3]
+\section{Composição do Corpus}
+\label{sec:res-corpus}
 
-\section{Resultados do Experimento B}
-\label{sec:resultados-do-experimento-b}
+Foram coletadas 1.047 amostras, das quais 26 foram excluídas por degradação identificada durante a validação, resultando em \textbf{1.021 amostras ativas}. A distribuição por partição é apresentada na Tabela~\ref{tab:res-particoes}.
 
-\lipsum[4]
+\begin{table}[h!]
+	\Caption{\label{tab:res-particoes} Distribuição do corpus por partição}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrl}
+			\toprule
+			Partição & N & Uso \\
+			\midrule \midrule
+			\textit{sft}     & 772   & treino supervisionado \\
+			\textit{grpo}    & 172   & etapa opcional de reforço \\
+			\textit{holdout} & 77    & avaliação exclusivamente \\
+			\midrule
+			Total            & 1.021 & \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{A partição \textit{holdout} agrega os 53 itens do PMo e as 24 descrições da fonte Zenodo, esta última excluída do treino por compartilhar origem com parte do PMo.}%
+}
+\end{table}
+
+Registra-se uma ameaça à validade externa: 900 das 944 amostras de treino (95,3\%) provêm de uma única fonte, o \textit{handbook} da GitLab. O modelo especializado é, portanto, treinado predominantemente sobre o estilo redacional de uma única organização e avaliado contra o PMo, de domínio distinto. Essa assimetria é reconhecida como limitação, e a consequência prática é que aumento de volume só reduz o risco se vier de \textbf{fontes novas}, não de mais seções do mesmo \textit{handbook}.
+
+\section{Eixo 1: Validade Sintática}
+\label{sec:res-eixo1}
+
+As 1.021 amostras ativas produzem DSL aceita pela gramática e XML válido contra o XSD oficial da BPMN 2.0: \textbf{1.021/1.021 (100\%)} em ambos os critérios. O resultado é esperado por construção — a validade sintática do XML final é responsabilidade do transpilador determinístico, não do modelo probabilístico — e sua função aqui é confirmar que o transpilador cumpre a garantia que o protocolo lhe atribui.
+
+O valor desse número está no contraste que ele permite: nos braços que geram XML diretamente, a validade passa a ser uma variável aleatória dependente do modelo, e a diferença entre 100\% garantido e a taxa observada é precisamente o que a hipótese H2 afirma.
+
+\section{Eixo 2: Fidelidade Topológica}
+\label{sec:res-eixo2}
+
+Sobre a base ativa, a comparação entre o JSON canônico de origem e o XML reconstituído pela cadeia DSL apresenta \textbf{1.017 de 1.021 amostras (99,6\%) com equivalência exata de arestas} e DF-F1 médio de \textbf{0,9999} (mínimo observado 0,9545). A contagem de nós por categoria coincide em \textbf{1.021/1.021 (100\%)} das amostras.
+
+Por partição: \textit{sft} 768/772, \textit{grpo} 172/172 e \textit{holdout} 77/77 com equivalência exata. O subconjunto de 768 pares da partição \textit{sft} com equivalência exata constitui o conjunto de treino supervisionado de alta confiança.
+
+\subsection{Trajetória entre Versões}
+\label{subsec:res-trajetoria}
+
+O desenvolvimento iterativo do linearizador foi verificado executando-se a comparação topológica sobre o corpus \textbf{inteiro} a cada versão, e não por inspeção amostral. A Tabela~\ref{tab:res-versoes} apresenta a trajetória.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-versoes} Fidelidade topológica por versão do conversor}%
+	\IBGEtab{}{%
+		\begin{tabular}{llrrr}
+			\toprule
+			Versão (DSL / XML) & Idioma & Exatas & DF-F1 & Com arestas perdidas \\
+			\midrule \midrule
+			v7 / v3      & pt & 891   & 0,9939 & 127 \\
+			v8 / v3      & pt & 1.015 & 0,9999 & 0 \\
+			v8 / v3      & en & 998   & 0,9970 & 20 \\
+			v9 / v3      & en & 1.015 & 0,9998 & 1 \\
+			v10 / v4     & en & 1.016 & 0,9998 & 1 \\
+			\textbf{v10 / v5} & \textbf{en} & \textbf{1.017} & \textbf{0,9999} & \textbf{0} \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{N = 1.021 em todas as versões. "Com arestas perdidas" conta amostras em que ao menos uma aresta da referência não aparece no candidato.}%
+}
+\end{table}
+
+Dois achados metodológicos emergem da tabela. O primeiro é o salto de v7 para v8, que corrigiu a perda silenciosa de arestas de convergência em estruturas não estritamente aninhadas: 891 para 1.015 amostras exatas, com as 127 amostras que perdiam arestas indo a zero. Essa classe de defeito é particularmente perigosa porque não produz erro observável — o XML permanece válido no esquema e apenas descreve um processo diferente.
+
+O segundo é a \textbf{regressão introduzida pela regeneração em inglês}: a versão v8 aplicada ao corpus regenerado voltou a apresentar 20 amostras com arestas perdidas, apesar de a mesma versão do conversor ter atingido zero na base anterior. O conteúdo novo expôs defeitos latentes que o corpus antigo não exercitava — notadamente a divisão implícita descrita na Seção~\ref{subsec:json-to-dsl}. As versões v9 e v10 eliminaram a regressão. O episódio sustenta uma escolha metodológica do trabalho: verificação sobre o corpus completo a cada versão, com resultado persistido, é o que torna regressões detectáveis; amostragem manual não as teria revelado.
+
+\subsection{Análise do Resíduo}
+\label{subsec:res-residuo}
+
+As quatro amostras sem equivalência exata na base ativa compartilham uma propriedade relevante: em todas, o conjunto de arestas ausentes é \textbf{vazio}. O resíduo consiste exclusivamente em arestas \textit{excedentes} — uma ou duas por amostra — e não em lógica perdida. Em termos práticos, a cadeia determinística nunca descarta uma relação de precedência presente no processo de origem; nos quatro casos remanescentes, ela introduz uma relação adicional decorrente da serialização de convergências. Sendo a preservação da lógica do processo o objetivo do componente determinístico, essa assimetria do erro é favorável: o modo de falha residual é conservador.
+
+\section{Eixo 4: Compressão de \textit{Tokens}}
+\label{sec:res-tcr}
+
+Medida com o tokenizador do modelo base sobre as 1.021 amostras, a razão de compressão é de \textbf{6,01} (IC95\% $[5{,}96;\ 6{,}06]$, mediana 5,99), correspondente a uma \textbf{redução de 83,4\%} no número de \textit{tokens} que o modelo precisa emitir em relação ao XML BPMN lógico equivalente.
+
+Cabe explicitar o que o número \textbf{não} é. O denominador é o XML lógico, sem a seção de diagrama. Medindo-se contra o XML com informação de leiaute, a razão triplicaria — e seria um artefato de medição, já que o leiaute é gerado deterministicamente por pós-processamento e nenhuma das abordagens comparadas exige que o modelo o produza. Essa distinção é registrada aqui porque uma medição preliminar contra o artefato errado chegou a indicar cerca de 91\% de redução, valor que foi descartado ao se identificar a inconsistência; a definição normativa da métrica foi então fixada no protocolo, e o XML com leiaute deixou de ser materializado na mesma coluna do XML lógico no banco, tornando o erro irreproduzível.
+
+Registra-se ainda que a meta de projeto inicialmente estipulada era de 85\% de redução, e o valor medido (83,4\%) ficou abaixo dela. Como a meta havia sido fixada antes de qualquer medição e sem base empírica, e como o protocolo de avaliação foi congelado com a definição normativa da métrica, opta-se por reportar o valor obtido e registrar a divergência, em vez de reajustar a meta \textit{a posteriori}.
+
+\section{Conjunto de Referência}
+\label{sec:res-gold}
+
+O conjunto de avaliação reúne \textbf{53 modelos de referência primários} do PMo, um por item, e \textbf{172 referências alternativas} da fonte Zenodo distribuídas sobre 24 desses itens (de 4 a 11 por item), admitidas segundo a regra de nota mínima da Seção~\ref{subsec:multi-referencia}.
+
+A curadoria descartou referências por dois motivos declarados: um modelo sem nota de especialista atribuída, por ausência de evidência de aprovação, e três modelos que, apesar de nota suficiente, não produzem nenhuma aresta na projeção adotada — referência degenerada não serve de referência. O mapeamento entre as duas fontes é verificado como bijeção no momento da carga, falhando explicitamente caso a propriedade não se sustente, em vez de gravar correspondência parcial.
+
+\section{Avaliação Comparativa dos Braços}
+\label{sec:res-bracos}
+
+\textit{Esta seção será preenchida após a execução dos braços experimentais descritos na Seção~\ref{subsec:bracos}. O protocolo encontra-se congelado; nenhum resultado comparativo havia sido observado até a redação deste capítulo.}
+
+Serão reportados, por braço: taxa de validade sintática (DSL e XSD), DF-F1 e MF-F1 contra os modelos de referência sob a regra de máximo, TCR sobre as saídas efetivamente geradas, taxa de truncamento, e a dispersão entre as três execuções por item. Os três contrastes planejados serão submetidos a teste de Wilcoxon pareado com correção de Holm, acompanhados de tamanho de efeito e intervalo de confiança por \textit{bootstrap}.
+
+Reitera-se o compromisso registrado no pré-registro: resultado contrário às hipóteses é resultado publicável e será reportado como tal.

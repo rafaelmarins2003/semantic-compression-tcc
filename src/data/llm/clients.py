@@ -79,7 +79,8 @@ def generate_ollama_cloud(
     timeout: int = 300,
     think: bool = False,
     num_predict: int = 32768,
-) -> str:
+    with_meta: bool = False,
+) -> str | tuple[str, dict]:
     """Call Ollama Cloud chat API and return the message content.
 
     `think=False` disables reasoning-mode for thinking models (kimi, deepseek-r1, etc.).
@@ -108,6 +109,11 @@ def generate_ollama_cloud(
     if not text:
         done_reason = data.get("done_reason", "?")
         raise LLMError(f"Ollama Cloud returned no text (done_reason={done_reason}): {data}")
+    if with_meta:
+        # `done_reason == "length"` é truncamento por teto de tokens. A spec 003
+        # §6.2 exige registrá-lo por amostra e reportá-lo separado de erro de
+        # modelo: os braços de XML operam perto do teto de 8192 por desenho.
+        return text.strip(), {"done_reason": data.get("done_reason")}
     return text.strip()
 
 

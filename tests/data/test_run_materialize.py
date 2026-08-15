@@ -7,8 +7,8 @@ from src.data.migrations.create_dsl_transpiler_runs import CREATE_TABLE as DSL_R
 from src.data.migrations.create_xml_transpiler_runs import ensure_schema as ensure_xml
 from src.data.run_materialize import materialize, pending
 
-DSL_V = "json_to_dsl_v8"
-XML_V = "dsl_to_xml_v3"
+DSL_V = "json_to_dsl_v10_en"
+XML_V = "dsl_to_xml_v5_en"
 
 
 def _seed(tmp_path, *, xml_status="succeeded"):

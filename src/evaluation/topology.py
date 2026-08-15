@@ -17,6 +17,7 @@ o emissor XML coloca em eventos anônimos).
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, deque
 
 from lxml import etree
@@ -209,6 +210,80 @@ def message_flows(xml_text: str) -> Counter:
     return Counter((rotulos.get(s, s), rotulos.get(t, t)) for s, t in mensagens)
 
 
+LABEL_MATCH_THRESHOLD = 0.5  # Jaccard de tokens normalizados. Pré-registrado (spec 003 §3.2a).
+_PONTUACAO = re.compile(r"[^0-9a-z]+")
+
+
+def normalize_label(rotulo: str) -> str:
+    """Minúsculas, pontuação vira espaço, espaços colapsam.
+
+    `Provide quote` e `Provide Quote` são o mesmo trabalho; sem isto a métrica
+    reporta zero para diferença de capitalização.
+    """
+    return " ".join(_PONTUACAO.sub(" ", rotulo.lower()).split())
+
+
+def _tokens(rotulo: str) -> frozenset[str]:
+    return frozenset(normalize_label(rotulo).split())
+
+
+def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    return len(a & b) / len(a | b) if (a or b) else 1.0
+
+
+def align_labels(
+    ref: set[str], cand: set[str], limiar: float = LABEL_MATCH_THRESHOLD
+) -> dict[str, str]:
+    """Mapa `rótulo_do_candidato -> rótulo_da_referência`.
+
+    O gold é escrito por humano e o candidato é parafraseado por um LLM: exigir
+    igualdade textual mediria coincidência de redação, não fidelidade de
+    processo. Medido sobre saída real, o casamento exato dá F1 = 0 mesmo quando
+    o candidato acerta a estrutura — todos os braços pontuariam ~0 e o
+    experimento não discriminaria nada.
+
+    **Guloso, com desempate determinístico**, e não emparelhamento ótimo: uma
+    métrica pré-registrada precisa ser reproduzível bit a bit, e o ótimo com
+    empates depende da implementação. Nos tamanhos aqui (dezenas de rótulos) a
+    diferença é imaterial. Similaridade 1,0 vem primeiro, então casamento exato
+    e por normalização sempre têm precedência sobre casamento aproximado.
+
+    Rótulos de evento anônimo (`<start>`, `<end>`) só casam exatamente: são
+    categorias, não texto, e aproximá-los confundiria início com fim.
+    """
+    mapa: dict[str, str] = {}
+    livres = set(ref)
+    candidatos = []
+    for c in cand:
+        if c.startswith("<"):
+            if c in livres:
+                mapa[c] = c
+                livres.discard(c)
+            continue
+        tc = _tokens(c)
+        for r in ref:
+            if r.startswith("<"):
+                continue
+            s = _jaccard(tc, _tokens(r))
+            if s >= limiar:
+                candidatos.append((-s, r, c))
+    for _, r, c in sorted(candidatos):
+        if c not in mapa and r in livres:
+            mapa[c] = r
+            livres.discard(r)
+    return mapa
+
+
+def _apply_alignment(df_ref: Counter, df_cand: Counter) -> Counter:
+    """Reescreve as arestas do candidato nos rótulos da referência."""
+    rot = lambda d: {x for aresta in d for x in aresta}  # noqa: E731
+    mapa = align_labels(rot(df_ref), rot(df_cand))
+    if not mapa:
+        return df_cand
+    t = lambda x: mapa.get(x, x)  # noqa: E731
+    return Counter({(t(a), t(b)): n for (a, b), n in df_cand.items()})
+
+
 def _prf(reference: Counter, candidate: Counter) -> tuple[float, float, float]:
     """Precision/recall/F1 of candidate vs reference, over multisets.
 
@@ -227,21 +302,33 @@ def _prf(reference: Counter, candidate: Counter) -> tuple[float, float, float]:
 def _result(df_ref: Counter, nm_ref: Counter, df_cand: Counter, nm_cand: Counter) -> dict:
     """Resultado comum a `compare` e `compare_xml` — um só formato de saída.
 
-    `df_ref_size`/`df_cand_size` valem para os dois: quem consome não precisa
-    saber qual comparador produziu o dicionário.
+    Reporta **duas** famílias, ambas pré-registradas (spec 003 §3.2a), para que
+    ninguém escolha a mais favorável depois de ver os números:
+
+    `df_*`        alinhado por rótulo — a métrica primária, que mede estrutura
+    `df_strict_*` igualdade textual — número estrito, mede estrutura E redação
+
+    Quando os rótulos já coincidem (eixo 2 interno, em que os dois lados vêm do
+    mesmo JSON) o alinhamento é a identidade e as duas famílias coincidem.
     """
-    p, r, f1 = _prf(df_ref, df_cand)
+    alinhado = _apply_alignment(df_ref, df_cand)
+    p, r, f1 = _prf(df_ref, alinhado)
+    ps, rs, f1s = _prf(df_ref, df_cand)
     return {
         "nodes_match": nm_ref == nm_cand,
         "node_delta": dict((nm_cand - nm_ref) + (nm_ref - nm_cand)),
-        "df_exact": df_ref == df_cand,
+        "df_exact": df_ref == alinhado,
         "df_precision": p,
         "df_recall": r,
         "df_f1": f1,
+        "df_strict_precision": ps,
+        "df_strict_recall": rs,
+        "df_strict_f1": f1s,
+        "df_strict_exact": df_ref == df_cand,
         "df_ref_size": sum(df_ref.values()),
         "df_cand_size": sum(df_cand.values()),
-        "df_missing": dict(df_ref - df_cand),  # na referência e ausentes no candidato
-        "df_extra": dict(df_cand - df_ref),  # inventadas pelo candidato
+        "df_missing": dict(df_ref - alinhado),  # na referência e ausentes no candidato
+        "df_extra": dict(alinhado - df_ref),  # inventadas pelo candidato
         "parse_error": None,
     }
 
@@ -292,6 +379,10 @@ def compare_xml(gold_xml: str, candidate_xml: str) -> dict:
                 "df_precision": 0.0,
                 "df_recall": 0.0,
                 "df_f1": 0.0,
+                "df_strict_precision": 0.0,
+                "df_strict_recall": 0.0,
+                "df_strict_f1": 0.0,
+                "df_strict_exact": False,
                 "mf_precision": 0.0,
                 "mf_recall": 0.0,
                 "mf_f1": 0.0,
