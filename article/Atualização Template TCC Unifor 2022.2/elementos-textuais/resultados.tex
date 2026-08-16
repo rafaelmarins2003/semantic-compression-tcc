@@ -1,15 +1,23 @@
 % ATENÇÃO (nota de trabalho, não sai no PDF): capítulo vivo.
 % Contém APENAS resultados já medidos e reproduzíveis a partir do banco.
-% A Seção "Avaliação Comparativa" é um placeholder declarado: os braços ainda não
-% foram executados. Não preencher com estimativa — só com número medido.
 % Fonte de todos os valores: data/dataset.db, base json_to_dsl_v10_en + dsl_to_xml_v5_en.
+%
+% Seção "Avaliação Comparativa": 5 dos 6 braços executados (795 gerações), 2026-08-16.
+% Falta só o A4, que depende do SFT — H3 segue sem avaliação.
+% Reprodução dos números:
+%   uv run python -m src.evaluation.run_analysis
+%   uv run --with transformers python -m src.evaluation.run_tcr --all-arms
+% Ao reexecutar qualquer braço, reconferir TODOS os números desta seção: eles
+% vêm de per_item_medians sobre benchmark_eval, não de valores fixos.
 
 \chapter{Resultados}
 \label{chap:resultados}
 
-Este capítulo reporta os resultados obtidos até o momento. Eles se dividem em duas partes de maturidade distinta: a \textbf{verificação do protocolo determinístico} sobre o corpus completo, concluída e reproduzível, e a \textbf{avaliação comparativa dos braços experimentais} contra os modelos de referência, ainda pendente de execução. A separação é explícita para que nenhum número parcial seja lido como resultado final.
+Este capítulo reporta os resultados em duas partes de natureza distinta. A primeira é a \textbf{verificação do protocolo determinístico} sobre o corpus completo (Seções~\ref{sec:res-corpus} a~\ref{sec:res-gold}): trata-se de comportamento de \textit{software}, e os valores próximos de 100\% ali apresentados são esperados por construção, servindo para confirmar que o transpilador cumpre a garantia que lhe é atribuída. A segunda é a \textbf{avaliação comparativa dos braços experimentais} (Seção~\ref{sec:res-bracos}), na qual as hipóteses do trabalho são efetivamente testadas contra modelos de referência produzidos por especialistas.
 
-Todos os valores desta seção são recuperáveis do banco de dados do projeto, no qual cada execução de conversor é registrada com versão, estado e diagnósticos por amostra.
+A distinção é essencial para a leitura: os dois conjuntos de números \textbf{não são comparáveis entre si}. Um DF-F1 de 0,9999 na primeira parte mede a fidelidade de uma conversão determinística entre representações do mesmo processo; um DF-F1 de 0,19 na segunda mede o quanto um modelo de linguagem, partindo apenas de texto em prosa, reconstrói um processo modelado independentemente por um especialista. São tarefas de dificuldade incomparável, e confundi-las levaria a conclusão inteiramente equivocada.
+
+Todos os valores são recuperáveis do banco de dados do projeto, no qual cada execução é registrada com versão, estado e diagnósticos por amostra.
 
 \section{Composição do Corpus}
 \label{sec:res-corpus}
@@ -106,8 +114,251 @@ A curadoria descartou referências por dois motivos declarados: um modelo sem no
 \section{Avaliação Comparativa dos Braços}
 \label{sec:res-bracos}
 
-\textit{Esta seção será preenchida após a execução dos braços experimentais descritos na Seção~\ref{subsec:bracos}. O protocolo encontra-se congelado; nenhum resultado comparativo havia sido observado até a redação deste capítulo.}
+Esta seção reporta a execução dos braços experimentais definidos na Seção~\ref{subsec:bracos}. Foram executados cinco dos seis braços, totalizando \textbf{795 gerações} (5 braços $\times$ 53 itens $\times$ 3 repetições). O braço A4 depende do ajuste fino supervisionado e permanece pendente; consequentemente, a hipótese H3 não é avaliada aqui.
 
-Serão reportados, por braço: taxa de validade sintática (DSL e XSD), DF-F1 e MF-F1 contra os modelos de referência sob a regra de máximo, TCR sobre as saídas efetivamente geradas, taxa de truncamento, e a dispersão entre as três execuções por item. Os três contrastes planejados serão submetidos a teste de Wilcoxon pareado com correção de Holm, acompanhados de tamanho de efeito e intervalo de confiança por \textit{bootstrap}.
+Antecipa-se o desfecho, para que a leitura das subseções seguintes seja feita com ele em mente: \textbf{as hipóteses H1, H1g e H2 foram refutadas}, e refutadas com significância estatística nas duas famílias de modelos. Gerar XML diretamente superou gerar a DSL. A hipótese H4, de natureza descritiva, foi confirmada com folga. O pré-registro (Seção~\ref{sec:pre-registro}) existe precisamente para que este parágrafo pudesse ser escrito.
 
-Reitera-se o compromisso registrado no pré-registro: resultado contrário às hipóteses é resultado publicável e será reportado como tal.
+\subsection{Resultados Descritivos por Braço}
+\label{subsec:res-descritivo}
+
+A Tabela~\ref{tab:res-bracos} apresenta o panorama. Duas convenções de leitura são necessárias. Primeiro, a validade XSD é reportada \textbf{por geração} (sobre 159), enquanto a coluna de itens conta quantos dos 53 obtiveram ao menos uma geração válida — a distinção importa porque um item pode alternar entre válido e inválido nas três repetições. Segundo, o DF-F1 reportado é a \textbf{média das medianas por item}, conforme a unidade de análise fixada na Seção~\ref{subsec:parametros}.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-bracos} Panorama dos braços executados}%
+	\IBGEtab{}{%
+		\begin{tabular}{llrrrrr}
+			\toprule
+			Braço & Saída & XSD & Itens & DF-F1 & Máx. & \textit{Tokens} \\
+			\midrule \midrule
+			A1  (DeepSeek)  & XML & 98,1\% & 53/53 & \textbf{0,1942} & 0,571 & 631 \\
+			A1g (GLM)       & XML & 94,3\% & 53/53 & \textbf{0,1551} & 0,593 & 699 \\
+			A2  (DeepSeek)  & DSL & 64,8\% & 40/53 & 0,1375 & 0,714 & \textbf{138} \\
+			A2g (GLM)       & DSL & 54,7\% & 41/53 & 0,0773 & 0,387 & \textbf{149} \\
+			A3  (Qwen 7B)   & DSL & 58,5\% & 31/53 & 0,0666 & 0,333 & 159 \\
+			A3m (Qwen 7B)   & DSL & 0,0\%  & 0/53  & 0,0000 & 0,000 & 2.041 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{XSD por geração (N = 159 por braço). "Itens" conta itens com ao menos uma geração válida. DF-F1 é a média das medianas por item. "Máx." é o melhor item do braço. \textit{Tokens} é a mediana de \textit{tokens} emitidos. Nenhum braço registrou erro de geração.}%
+}
+\end{table}
+
+Três leituras imediatas. A primeira é que \textbf{os braços de XML dominam a coluna de DF-F1}, e a segunda é que \textbf{os braços de DSL dominam a coluna de \textit{tokens}} por uma margem de quatro a cinco vezes. A terceira é que o melhor item isolado pertence ao A2 (0,714), acima do melhor item do A1 (0,571) — indício, explorado adiante, de que a DSL não é inferior \textit{quando funciona}.
+
+O braço A3m merece registro à parte por não ser uma falha de medição. Submetido ao \textit{prompt} mínimo — o mesmo que será usado no treinamento do A4, e que deliberadamente não contém gramática nem exemplo de notação — o modelo base produziu \textbf{BPMN XML em 53 dos 53 itens}, jamais tentando a DSL. Um modelo sem a notação nos pesos e sem a especificação no contexto recorre ao formato que conhece do pré-treinamento. Os 81 truncamentos do braço têm a mesma origem: gerar um documento XML completo sob um teto de 2.048 \textit{tokens} dimensionado para DSL. O zero do A3m não mede incapacidade de modelagem; mede que \textbf{o \textit{prompt} mínimo não carrega informação suficiente sem o ajuste fino} — que é exatamente a função de piso que lhe foi atribuída no desenho.
+
+\subsection{Testes das Hipóteses Pré-Registradas}
+\label{subsec:res-hipoteses}
+
+Os contrastes planejados foram submetidos ao teste de Wilcoxon pareado bilateral com correção de Holm, conforme o plano de análise congelado. A Tabela~\ref{tab:res-testes} apresenta os resultados.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-testes} Contrastes pré-registrados}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrrl}
+			\toprule
+			Contraste & Dif. mediana & IC95\% & $r_{rb}$ & $p_{Holm}$ & Desfecho \\
+			\midrule \midrule
+			A2 vs A1   & $-0{,}0067$ & $[-0{,}0769;\ 0{,}0]$ & $-0{,}366$ & 0,0193 & H1 refutada \\
+			A2g vs A1g & $-0{,}0287$ & $[-0{,}0845;\ 0{,}0]$ & $-0{,}463$ & 0,0034 & H1g refutada \\
+			A4 vs A2   & \multicolumn{5}{c}{\textit{braço ausente — H3 não avaliada}} \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{N = 53 pares em ambos os contrastes, com 12 empates cada. $r_{rb}$ é o tamanho de efeito rank-biserial. IC95\% por \textit{bootstrap} pareado com 10.000 reamostragens e semente fixa. Sinal negativo indica vantagem do braço de XML.}%
+}
+\end{table}
+
+O sinal negativo em ambos os contrastes indica que o braço de XML superou o de DSL. A magnitude do efeito é moderada ($|r_{rb}|$ entre 0,37 e 0,46), e o valor-$p$ permanece significativo após a correção de Holm nos dois casos.
+
+A \textbf{replicação interna} cumpriu sua função de desenho. A Seção~\ref{subsec:bracos} havia registrado que, se H1 falhasse e H1g se sustentasse, o efeito seria atribuível ao modelo e não ao formato. Como ambas falharam na mesma direção, com dois modelos de famílias distintas, a conclusão é atribuível ao \textbf{formato}: não é idiossincrasia do DeepSeek.
+
+A hipótese H2 foi a refutada de forma mais acentuada, e por isso mesmo a mais instrutiva. Ela afirmava que a transpilação determinística garantiria validade que a geração direta não garante. O raciocínio estava correto quanto ao transpilador — este produz XML válido em 100\% dos casos, conforme a Seção~\ref{sec:res-eixo1} — mas \textbf{condicionado a que a DSL seja aceita pela gramática}. O protocolo tratava o \textit{parsing} como etapa dada, e é ele o gargalo: apenas 64,8\% das gerações do A2 produziram DSL sintaticamente aceita. Enquanto isso, o DeepSeek redigiu BPMN XML válido contra o esquema oficial em 98,1\% das gerações, sem qualquer garantia estrutural — apenas por competência adquirida no pré-treinamento.
+
+Esse resultado contradiz uma premissa implícita e raramente examinada do trabalho: a de que uma notação compacta seria \textit{mais fácil} de emitir do que XML verboso. Para um modelo que processou milhões de documentos XML durante o pré-treinamento, a verbosidade não constitui dificuldade. A \textbf{novidade} da notação, sim.
+
+\subsection{Análise do Mecanismo: Validade e Não Qualidade}
+\label{subsec:res-mecanismo}
+
+A refutação de H1 admite duas explicações concorrentes, com implicações opostas para a continuidade do trabalho. Ou a DSL degrada a qualidade da modelagem, ou ela apenas falha em ser produzida corretamente, sendo competitiva quando produzida. A distinção é decisiva: a primeira invalidaria a abordagem, a segunda a redirecionaria para o ajuste fino.
+
+Para separá-las, repetiu-se o contraste \textbf{restrito aos itens em que o braço de DSL produziu saída válida}. Trata-se de análise exploratória, não pré-registrada, e o condicionamento em uma variável posterior à intervenção introduz viés de seleção — o subconjunto pode conter os itens mais fáceis. O resultado é indicativo, não confirmatório.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-condicional} Contraste restrito aos itens com saída válida (exploratório)}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrr}
+			\toprule
+			Subconjunto & N & DSL & XML & Diferença \\
+			\midrule \midrule
+			Todos os itens (A2 vs A1)      & 53 & 0,1375 & 0,1942 & $-0{,}0567$ \\
+			Só onde A2 valida              & 40 & 0,1821 & 0,2040 & $-0{,}0219$ \\
+			\midrule
+			Todos os itens (A2g vs A1g)    & 53 & 0,0773 & 0,1551 & $-0{,}0778$ \\
+			Só onde A2g valida             & 41 & 0,0999 & 0,1420 & $-0{,}0421$ \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Análise exploratória, não pré-registrada. O condicionamento em variável pós-intervenção introduz viés de seleção; os valores são indicativos.}%
+}
+\end{table}
+
+A distância cai a menos da metade quando se descartam as falhas de validade: de $-0{,}0567$ para $-0{,}0219$ no DeepSeek, e de $-0{,}0778$ para $-0{,}0421$ no GLM. \textbf{A maior parte da desvantagem da DSL é perda de validade, não perda de qualidade de modelagem} — porém a diferença não se anula, e portanto a explicação não é exclusivamente de validade. Some-se a isso que o melhor item do A2 (0,714) supera o melhor do A1 (0,571).
+
+A consequência para o trabalho é direta e delimita o que resta a investigar: se a desvantagem se concentra na taxa de aceitação sintática, então a intervenção adequada é \textbf{internalizar a notação nos pesos}, que é precisamente o que o ajuste fino do braço A4 se propõe a fazer. A cadeia de evidências A3m ($0/53$, sem gramática no contexto) $\rightarrow$ A3 ($31/53$, com gramática no contexto) $\rightarrow$ A2 ($40/53$, com gramática e modelo grande) mostra a aceitação sintática crescendo com a informação disponível sobre a notação, o que torna a hipótese plausível — sem, evidentemente, demonstrá-la.
+
+\subsection{Verificações de Validade do Resultado Adverso}
+\label{subsec:res-verificacoes}
+
+Um resultado contrário às hipóteses do autor exige o mesmo escrutínio que um resultado favorável, e preferencialmente antes de ser aceito. Quatro verificações foram executadas.
+
+\textbf{Simetria do casamento de rótulos.} O DF-F1 identifica nós por rótulo, com alinhamento por Jaccard (Seção~\ref{subsec:eixo2}). Se um formato induzisse rótulos sistematicamente mais longos ou mais curtos, o limiar penalizaria os formatos de modo desigual e contaminaria o contraste. Mediu-se o comprimento dos rótulos efetivamente emitidos: mediana de \textbf{3,0 palavras em todos os quatro braços}, com médias entre 3,02 e 3,46, contra 3,61 na referência. A penalidade é simétrica; o contraste não está contaminado por esse caminho.
+
+\textbf{Revalidação independente do XSD.} A taxa de 98,1\% do braço A1 foi reverificada submetendo-se as 53 saídas novamente ao esquema oficial, a partir do texto bruto armazenado. A concordância com o valor registrado foi total, sem saídas vazias. A validade do baseline é real, não artefato de contabilização.
+
+\textbf{Truncamento.} Os braços de DSL não registraram truncamento algum; os de XML registraram 3 e 2 gerações truncadas em 159. O teto de \textit{tokens} não é fator explicativo do resultado. Medição prévia sobre o conjunto de referência já havia estabelecido que o pior caso do XML lógico consome 4.232 dos 8.192 \textit{tokens} disponíveis, e o pior caso da DSL, 520 dos 2.048.
+
+\textbf{Correção de defeito no tratamento de cercas.} Durante a análise do braço A3m identificou-se que a função de remoção de cercas \textit{markdown} exigia delimitador de fechamento, ausente por construção em saídas truncadas, deixando a abertura no texto e reprovando o candidato por defeito do instrumento. O viés não seria neutro: emitir cerca é hábito mais treinado em XML, e os braços de XML são os que mais se aproximam do teto. O defeito foi corrigido antes da execução dos braços A1 e A1g, com teste de regressão, e verificou-se que o braço A3m permanece inalterado — suas 53 saídas são XML e seguem sem aceitação pela gramática. Registra-se por integridade: a correção \textbf{favoreceu o baseline} contra o qual a hipótese do trabalho compete.
+
+\subsection{Emenda ao Protocolo Congelado}
+\label{subsec:res-emenda}
+
+O pré-registro admite emendas mediante declaração explícita de data, motivo e de sua anterioridade ou posterioridade à observação dos resultados. Uma emenda foi registrada, e sua divulgação integral é aqui cumprida.
+
+Após a execução do braço A3, constatou-se que o bloco de gramática do \textit{prompt} listava as palavras-chave dos \textit{gateways} sem vinculá-las aos nomes de conceito empregados no bloco de regras de modelagem — este último deliberadamente neutro quanto à notação, por ser compartilhado com o braço de XML. Adicionalmente, o \textit{prompt} exibia duas formas distintas de sintaxe de ramificação sem advertir que uma não generaliza para a outra. O \textit{prompt} de XML não requer glosa equivalente, pois a terminologia BPMN já integra o pré-treinamento dos modelos; a omissão penalizava, portanto, \textbf{apenas os braços de DSL}.
+
+Ambos os defeitos são verificáveis pela leitura dos artefatos e pela submissão de construções ao \textit{parser}, sem qualquer referência a pontuação obtida — critério adotado para distinguir emenda legítima de racionalização posterior. A emenda foi realizada \textbf{depois} de observados os resultados do A3, e é defensável apenas porque seu efeito possível era unicamente contrário às hipóteses do autor: elevar o A3 reduz o ganho aparente que o A4 poderá reivindicar.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-emenda} Braço A3 antes e depois da emenda ao \textit{prompt}}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrr}
+			\toprule
+			Métrica & Antes & Depois \\
+			\midrule \midrule
+			\textit{Parsing} aceito       & 27/53  & 31/53 \\
+			XSD válido                    & 26/53  & 31/53 \\
+			DF-F1                         & 0,0525 & 0,0666 \\
+			Palavras-chave inventadas     & 9      & 7 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{As 159 gerações descartadas foram preservadas em arquivo e permanecem auditáveis. Contagem de palavras-chave inventadas sobre a primeira repetição.}%
+}
+\end{table}
+
+O efeito da correção foi \textbf{pequeno}, e as palavras-chave inventadas não desapareceram. Conclui-se que o gargalo do braço A3 é a capacidade do modelo de 7 bilhões de parâmetros, não a redação do \textit{prompt}. Esse desfecho é favorável à integridade do trabalho: caso a emenda tivesse elevado substancialmente o A3, boa parte do ganho que o ajuste fino viesse a demonstrar seria atribuível a um defeito introduzido pelo próprio autor, e não ao método.
+
+\subsection{Eixo Econômico}
+\label{subsec:res-economico}
+
+A hipótese H4 estipulava TCR $\geq 2$ nos braços com representação intermediária. A Tabela~\ref{tab:res-tcr-bracos} apresenta o resultado.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-tcr-bracos} Compressão e custo de saída por braço}%
+	\IBGEtab{}{%
+		\begin{tabular}{llrrr}
+			\toprule
+			Braço & Saída & \textit{Tokens} (mediana) & TCR & Redução \\
+			\midrule \midrule
+			A1  & XML & 631   & --- & --- \\
+			A1g & XML & 699   & --- & --- \\
+			A2  & DSL & 138   & \textbf{7,03} & 85,8\% \\
+			A2g & DSL & 149   & 6,70 & 85,1\% \\
+			A3  & DSL & 159   & 6,70 & 85,1\% \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{IC95\% da TCR: A2 $[6{,}88;\ 7{,}17]$, A2g $[6{,}57;\ 6{,}83]$, A3 $[6{,}44;\ 6{,}94]$. Nos braços de XML direto não há representação intermediária e a razão não é definida; reportá-la como 1,0 apresentaria uma tautologia como resultado.}%
+}
+\end{table}
+
+\textbf{H4 é confirmada com folga}: a razão observada situa-se em torno de 7, contra o limiar de 2. O braço A2 emite \textbf{138 \textit{tokens} medianos contra 631 do A1} — uma redução de 4,6 vezes no custo de saída para a mesma tarefa. Registra-se que a TCR medida sobre as saídas dos braços (7,03) supera a medida sobre o corpus de treino (6,01, Seção~\ref{sec:res-tcr}), o que é coerente com a medição prévia sobre o conjunto de referência, que indicava razão de 8,84 para os itens do PMo especificamente.
+
+Este é o eixo em que a abordagem permanece integralmente sustentada, e é ele que confere sentido à continuidade: o trabalho não se propôs a demonstrar superioridade absoluta de qualidade, mas \textbf{viabilidade econômica na geração de linguagens de marcação hierárquicas}. A pergunta que resta, formalizada em H3 e ainda não respondida, é se um modelo pequeno com a notação internalizada nos pesos recupera a qualidade perdida operando a um quinto do custo de saída.
+
+\subsection{Limitação Relevante da Métrica de Fidelidade}
+\label{subsec:res-limitacao-df}
+
+Os valores absolutos de DF-F1 são baixos em todos os braços, incluindo os de modelos de fronteira, e a interpretação desse fato exige cautela. Investigação sobre o braço A2 revelou que \textbf{apenas 53\% dos rótulos da referência encontram par no candidato} sob o limiar de Jaccard adotado, com mediana de 12 rótulos na referência contra 11 no candidato — isto é, os modelos produzem processos da escala correta, porém \textbf{nomeiam as atividades de modo distinto}.
+
+Como cada aresta do multiconjunto \textit{direct-follows} depende do alinhamento de \textbf{dois} rótulos, uma taxa de alinhamento de 53\% deprime o F1 muito abaixo desse patamar. Um item ilustrativo obteve DF-F1 nulo apesar de XSD válido: onde a referência registra \textit{Clarify shipment method}, o candidato escreveu \textit{Clarify shipping responsibility} --- paráfrase cuja sobreposição de \textit{tokens} normalizados fica abaixo do limiar.
+
+Decorrem daí duas consequências. A primeira é que \textbf{o DF-F1 absoluto não deve ser lido como percentual de acerto}; ele constitui um limite inferior severo, que penaliza paráfrase junto com erro estrutural sem distinguir as duas causas. A segunda é que \textbf{as comparações entre braços permanecem válidas}, pois todos são submetidos ao mesmo critério, com a simetria de comprimento de rótulo verificada na Seção~\ref{subsec:res-verificacoes}.
+
+O limiar não foi alterado. Diferentemente da emenda descrita na Seção~\ref{subsec:res-emenda}, cujo efeito possível era exclusivamente contrário às hipóteses do autor, afrouxar o casamento de rótulos após observar que a métrica produz valores baixos elevaria indistintamente todos os braços — movimento que o pré-registro existe para impedir. Recomenda-se, como trabalho futuro, análise de sensibilidade sobre múltiplos limiares, reportada como verificação de robustez, mantendo-se o valor congelado como número primário.
+
+\subsection{Não Avaliabilidade do Eixo de Fluxos de Mensagem}
+\label{subsec:res-mf}
+
+O Eixo 3 (Seção~\ref{subsec:eixo3}) previa a medição de MF-F1 sobre os fluxos de mensagem entre participantes. Constatou-se que \textbf{apenas 2 dos 53 itens do conjunto de avaliação} --- \textit{pmo\_23} e \textit{pmo\_38} --- possuem \texttt{messageFlow} no modelo de referência. O eixo é, portanto, \textbf{não avaliável} neste conjunto, e os valores são reportados como descritivos, jamais como base de comparação entre braços.
+
+A limitação é dupla. A primeira é de \textbf{potência}: seis linhas por braço (2 itens $\times$ 3 repetições) não sustentam inferência estatística de espécie alguma, e nenhum teste foi conduzido sobre elas. A segunda é de \textbf{construção da métrica}, e produz o efeito ilustrado na Tabela~\ref{tab:res-mf}: quando referência e candidato não têm fluxo de mensagem, o F1 é definido como 1,0 por vacuidade. Em 125 das 159 gerações do braço A1 esse é o caso, de modo que a média sobre todas as linhas (0,786) mede predominantemente a ausência de mensagens, e não o acerto sobre elas.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-mf} MF-F1 restrito aos dois itens com fluxo de mensagem na referência}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrr}
+			\toprule
+			Braço & MF-F1 & Gerações que emitiram \texttt{messageFlow} \\
+			\midrule \midrule
+			A1  & 0,500 & 3/6 \\
+			A1g & 0,000 & 6/6 \\
+			A2  & 0,167 & 0/6 \\
+			A2g & 0,333 & 0/6 \\
+			A3  & 0,500 & 0/6 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{N = 6 linhas por braço (2 itens $\times$ 3 repetições). Valores descritivos; nenhum teste de hipótese foi conduzido sobre eles.}%
+}
+\end{table}
+
+A tabela evidencia o problema de forma direta: o braço A1g emitiu \texttt{messageFlow} em todas as seis gerações e obteve MF-F1 nulo, enquanto o A3 não emitiu em nenhuma e obteve 0,500. Um número que ordena assim os braços não está medindo competência em modelar comunicação entre participantes --- está medindo, sobretudo, coincidência de ausências.
+
+Registra-se que essa fragilidade havia sido antecipada no protocolo, que já determinava reportar o MF-F1 apenas sobre os itens cuja referência contém mensagens e jamais somá-lo ao DF-F1. A execução confirmou a previsão e acrescentou a magnitude: com 2 itens, a restrição prescrita pelo protocolo esvazia o eixo em vez de corrigi-lo.
+
+A consequência prática é que \textbf{avaliar geração de colaborações BPMN exige um conjunto de avaliação construído para esse fim}. O PMo, concebido para processos únicos, não o oferece, e nenhuma correção de métrica supre ausência de dados. Fica registrado como trabalho futuro, e como critério para a seleção de conjuntos de avaliação em extensões deste trabalho.
+
+\subsection{Síntese}
+\label{subsec:res-sintese}
+
+A Tabela~\ref{tab:res-sintese} consolida o estado das hipóteses.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-sintese} Estado das hipóteses pré-registradas}%
+	\IBGEtab{}{%
+		\begin{tabular}{lll}
+			\toprule
+			Hipótese & Enunciado & Desfecho \\
+			\midrule \midrule
+			H1  & A2 $\geq$ A1 em DF-F1        & \textbf{Refutada} ($p_{Holm} = 0{,}019$) \\
+			H1g & A2g $\geq$ A1g em DF-F1      & \textbf{Refutada} ($p_{Holm} = 0{,}003$) \\
+			H2  & A2 $>$ A1 em XSD-Val         & \textbf{Refutada} (64,8\% vs 98,1\%) \\
+			H3  & A4 $\geq$ A2 em DF-F1        & Não avaliada \\
+			H4  & TCR $\geq 2$ nos braços DSL  & \textbf{Confirmada} (TCR $\approx$ 7) \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+}
+\end{table}
+
+O conjunto de evidências sustenta uma cadeia argumentativa distinta daquela originalmente antecipada, e mais informativa que ela:
+
+\begin{enumerate}
+	\item Fornecer a notação \textbf{no contexto} é inferior a permitir que o modelo emita o formato que já domina --- H1, H1g e H2 refutadas, com replicação em duas famílias de modelos.
+	\item A notação precisa estar \textbf{nos pesos}: o braço sem gramática no contexto obteve 0/53, e o braço com gramática, 31/53.
+	\item A desvantagem observada concentra-se em \textbf{validade sintática}, não em qualidade de modelagem, e reduz-se à metade quando se condiciona a saídas válidas.
+	\item O ganho econômico é \textbf{substancial e não contestado}: redução de 4,6 vezes no custo de saída, com TCR em torno de 7.
+\end{enumerate}
+
+A pergunta empírica remanescente é, portanto, se o ajuste fino supervisionado converte o ganho econômico do item 4 em paridade de qualidade, superando a barreira de validade sintática do item 3. Essa é a hipótese H3, cuja avaliação depende do braço A4 e constitui a continuidade natural deste trabalho.
+
+Reitera-se o compromisso registrado no pré-registro e agora exercido: resultado contrário às hipóteses é resultado publicável, e foi reportado como tal.

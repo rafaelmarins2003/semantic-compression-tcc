@@ -7,6 +7,17 @@ Atualizado em 2026-08-09. Specs em `specs/`; decisões de alcance amplo em `spec
 **Base ativa**: `json_to_dsl_v10_en` + `dsl_to_xml_v5_en` — 1021 amostras em inglês,
 XSD 1021/1021, DF-F1 0,9999, TCR 6,01 (83,4% de redução).
 
+> Corrigido em 2026-08-15: os defaults de `run_tcr.py` apontavam para a base PT
+> antiga (`v8`/`v3`), então o comando documentado media o corpus obsoleto e
+> imprimia **5,08** em vez de 6,01. Ao trocar a base ativa, atualizar as duas
+> constantes no topo do módulo — o número vai para a monografia.
+
+**Métricas** (definidas em [spec 003](specs/003-eval-harness/spec.md) §3): **DF-F1**
+projeta o processo no multiconjunto de pares `(a, b)` "a é diretamente seguida por
+b", pulando gateways — mede ordem do trabalho, não escolha de encoding. **MF-F1** faz
+o mesmo sobre `messageFlow` (comunicação entre pools) e é **reportada ao lado, nunca
+somada**. **TCR** = tokens(XML lógico)/tokens(DSL). **XSD-Val** = validade sintática.
+
 **Pronto e verificado**
 - DSL + parser (Lark), transpiler DSL→XML, `json_to_xml` direto, layout/BPMNDI
 - Fases 1, 2 e 3 concluídas (estrutura, seleção de modelo, regeneração)
@@ -76,23 +87,171 @@ todos os 7 ACs da spec 004 cobertos por teste.
 - [x] Bloqueadores §10 fechados (2026-08-09): C/D removida · dois braços prompted
       (`deepseek-v4-pro` independente + `glm-5.2` gerador) · SA cortada da v1 ·
       `max_tokens` 8192/2048 medido · Zenodo = máx entre refs nota ≥ 4 · k=3
-- [ ] Migration `benchmark_eval` + `run_benchmark.py`
-- [ ] `tests/evaluation/test_harness_spec.py` (AC-1 a AC-8)
+
+Ainda mexem no pré-registro (fazer **antes** de congelar):
+
+- [x] **Prompts dos braços — escritos** em 2026-08-15, em `configs/prompts/benchmark/`.
+      **Três, não dois**: `xml_direct.md` (A1/A1g, 896 tk) · `dsl_grammar.md`
+      (A2/A2g/A3, 1000 tk, carrega a gramática) · `dsl_minimal.md` (A4, 392 tk, sem
+      gramática — **é também o prompt de treino do SFT**, e tem de continuar sendo).
+      Justiça travada por teste (`tests/evaluation/test_benchmark_prompts.py`, 12):
+      blocos de instrução byte-idênticos entre os três, e os exemplos de notação do
+      XML e da DSL provados o **mesmo processo** via `compare_xml` (DF-F1 = 1,0).
+      Custo de entrada medido: o preâmbulo da DSL é só **+104 tokens** sobre o de
+      XML — a objeção "a DSL empurra custo para a entrada" é quase nula frente aos
+      ~1701 tokens de saída economizados por item.
+- [x] Corrigido §6.2/§11: caminho dos prompts é `configs/prompts/benchmark/`
+      (convenção do projeto, via `load_prompt`), não `specs/003-eval-harness/prompts/`.
+- [x] **A4 vs A3 isolado** — braço **A3m** acrescentado em 2026-08-15 (aval do
+      Rafael): mesmo modelo e mesmo prompt do A4, sem o adapter. A4 vs A3m isola o
+      ajuste supervisionado; A4 vs A3 segue disponível e mede a intervenção
+      inteira. Ambos exploratórios. Primeira rodada passa a **954 gerações**.
+- [x] **Quantização — decidida** em 2026-08-15: **4-bit NF4**, `float16` de compute,
+      `sdpa`. Registrada no §6.2. Base: `article/deep-research-report.md`. A ressalva
+      do relatório contra 7B na 2080 Ti é sobre **treino** e não nos atinge (SFT em
+      H100; a placa local só infere, e para inferência ele classifica 7B 4-bit como
+      "practical", 5,52 GB em int4). Restrição que manda: **A3 e A4 na mesma**.
+
+Implementação sob spec fixa:
+
+- [x] **Inferência local do Qwen** — `src/evaluation/local_model.py`, 2026-08-15.
+      4-bit NF4 + dupla quantização, `float16`, `sdpa`, decodificação gulosa com
+      semente 42. Cache do modelo por processo (`lru_cache`): carregar 7B leva ~1
+      min e o braço faz 159 gerações — sem cache a carga dominaria o experimento.
+      Deps pesadas em import tardio, então `--dry-run` e a suíte não exigem torch.
+      Ligado ao `run_benchmark` pelo `backend="local"`; adapter LoRA opcional serve
+      o A4 depois. `uv sync --extra training` (torch 2.11+cu130, bnb 0.49, peft 0.18).
+- [x] **Modelo confirmado pelo Rafael em 2026-08-15**: A3/A3m/A4 usam
+      `Qwen2.5-Coder-7B-Instruct`, não a base pura. Com a base, o A3 mediria
+      "modelos base não seguem instrução" em vez de "modelo pequeno sem o nosso
+      treino", **inflando o ganho atribuído ao SFT**. Efeito colateral bom: A3 e A4
+      partem do mesmo ponto, então diferem só pelo adapter. Tokenizador idêntico ⇒
+      **TCR 6,01 intacto**. Registrado no spec §6.2 e na Metodologia.
+- [x] Migration `create_benchmark_eval.py` + `run_benchmark.py` — 2026-08-15.
+      Tabela com uma linha por (braço, amostra, repetição); mediana por item é
+      calculada na leitura, nunca gravada, para não esconder a dispersão que o
+      ADR 0003 exige reportar. **Duas fases separadas**: `generate` (rede, cara,
+      não determinística) e `score` (local, determinística, `--rescore`) — é a
+      separação que torna o AC-3 satisfazível. Retomada por (sample_id, rep) e
+      `--restart`, no mesmo contrato do `run_model_pilot`.
+      Verificado sem rede: gold contra si mesmo dá DF-F1 1,0; XML malformado dá
+      0,0 com linha gravada (AC-2); multi-referência resolve 11 refs no pmo_39.
+      `strip_fence` normaliza cerca markdown **igual em todos os braços** — sem
+      isso a métrica mediria aderência à instrução, com viés a favor do XML.
+- [x] `tests/evaluation/test_harness_spec.py` (AC-1 a AC-8) — 2026-08-15, 14 testes.
+      Duas mudanças no harness saíram daí, porque os ACs pediam garantia que o
+      código ainda não dava:
+      · **AC-1** ganhou `assert_holdout_only`, que *levanta erro* em vez de só
+        filtrar — rede de segurança se alguém mexer em `EVAL_SOURCE` ou no split.
+      · **AC-4** ganhou `strip_di` no `run_tcr`: a TCR passou a ser invariante a
+        BPMNDI *por construção*, não por acidente da coluna estar limpa. Em
+        produção é identidade e **o TCR segue 6,01** (reconferido).
+      Dois ajustes de redação no spec, pré-congelamento: `prompt_version` virou
+      `prompt_name`+`prompt_sha256` (hash não depende de alguém lembrar de
+      incrementar), e o AC-4 passou a descrever invariância real.
+- [x] 🔴 **Casamento de rótulos — resolvido em 2026-08-15.** Achado ao rodar o
+      primeiro braço real: com igualdade textual, **DF-F1 = 0,0000** numa saída
+      estruturalmente razoável (`Provide quote` vs `Provide Quote` — só a caixa).
+      O gold é humano, o candidato é parafraseado por LLM: congelar assim daria ~0
+      em **todos** os braços e o experimento não discriminaria nada.
+      Regra congelada (spec §3.2a): normaliza + alinha por Jaccard de tokens ≥ 0,5,
+      guloso com desempate determinístico. Reporta **duas** famílias
+      pré-registradas — `df_*` (alinhado, primária) e `df_strict_*` (textual) —
+      para ninguém escolher a mais favorável depois de ver os números.
+      Efeito medido: 0,0000 → **0,3478**. **Eixo 2 intacto** (alinhamento é
+      identidade; 120 amostras, zero divergência). 6 testes novos.
+- [ ] **Reportar MF-F1 só sobre itens cujo gold tem mensagem** (n=2). Nos outros 51
+      ambos os multiconjuntos são vazios e o F1 dá 1,0 por vacuidade — a média
+      sobre o holdout inteiro ficaria perto de 1,0 sem ninguém acertar mensagem
+      nenhuma. Com n=2 é ilustrativa, não entra em teste estatístico.
+- [x] **`configs/prompts/` saiu do `.gitignore`** — corrigido pelo Rafael em
+      2026-08-15. Os prompts do benchmark e os de construção do corpus passam a ser
+      versionados, restaurando o §1 ("reprodutível por terceiros"), o §6.2 e a
+      cadeia do AC-7. Falta `git add configs/`.
+- [x] **Análise estatística — `src/evaluation/run_analysis.py`**, 2026-08-15,
+      **escrita antes de qualquer braço rodar**, que é o ponto: análise redigida
+      depois de ver os números pode ser ajustada a eles. Wilcoxon pareado
+      bilateral, Holm sobre os 3 contrastes planejados, IC95% por bootstrap
+      (10.000, seed 42), efeito rank-biserial e contagem de empates.
+      Exploratórios (A4vsA3m, A4vsA3, A3vsA3m) reportados **sem** correção e
+      rotulados não confirmatórios. 10 testes contra valores calculados à mão.
+      Nova dep: `scipy` — justificada no `pyproject.toml`.
+      Lateralidade **bilateral** registrada na §6.3: as hipóteses são direcionais,
+      mas quem responde não inferioridade é o IC, não a lateralidade.
+- [x] **TCR por braço** — `run_tcr --arm A2` / `--all-arms`, 2026-08-15. Ficou no
+      **mesmo módulo** da medição do corpus de propósito: duas implementações da
+      mesma métrica divergiriam e os números deixariam de ser comparáveis.
+      Reporta **tokens emitidos** (grandeza econômica, existe em todo braço,
+      comparável item a item) e a TCR só onde há representação intermediária —
+      braço de XML direto não tem compressão a medir, e reportar 1,0 seria
+      apresentar tautologia como resultado. 4 testes.
+      Verificado com dados reais do A3: mediana 164,5 tokens emitidos, TCR 8,03.
 - [ ] **Congelar a spec** (commit datado) e só então rodar A1, A1g, A2, A2g, A3 — 795 gerações
 
 ## Fase 6 — Monografia
 
+Capítulos escritos são **documentos vivos**: atualizar conforme o projeto avança.
+Marcador `% ATENÇÃO (nota de trabalho...)` no topo de cada `.tex` já escrito.
+Compilação verificada em 2026-08-15: 67 páginas, zero citação/referência indefinida.
+
+- [x] Metodologia — reescrita em 2026-08-15 a partir das specs 003/004. Acrescentadas
+      as seções de delimitação do problema (marcação verbosa; BPMN como caso),
+      pré-registro, seleção do gerador, idioma dos artefatos, DF-F1 com proveniência
+      e limitação estrutural, MF-F1, TCR, multi-referência, os 6 braços e a análise
+      estatística. Corrigidas 4 defasagens: Kimi+DeepSeek → gerador único (ADR 0002),
+      GED removida (fora da v1), 3 baselines → 6 braços, exemplo de DSL em pt → en.
+- [x] Resultados — escrito com os números medidos; seção comparativa é placeholder
+      declarado até os braços rodarem. Inclui a trajetória entre versões e a análise
+      do resíduo (as 4 não-exatas têm `df_missing` vazio: só arestas extras).
+- [x] Trabalhos Relacionados — escrito. Substituiu o lipsum do TCC-exemplo. Cinco
+      eixos: ProMoAI · representações compactas (**Brissard et al. 2025**) ·
+      compressão de entrada vs saída (LLMLingua/Headroom) · SLMs · decodificação
+      restrita.
+- [x] Atribuição do PMo — **resolvida**. O README do dataset pede citar o paper
+      `brissard2025pmr` ("What is the Best Process Model Representation?", AI4BPM @
+      BPM 2025). "Kourani 2024" no banco não está errado: é o PMo Benchmark, que é
+      só os pares 01–20. Ambas as entradas agora no `.bib`.
 - [ ] Migrar Fundamentação Teórica do `referencial_teorico` para o template oficial
-- [ ] Trabalhos Relacionados — incluir parágrafo compressão de entrada (LLMLingua/Headroom) vs geração; posicionar contra ProMoAI
-- [ ] Metodologia — derivar das specs 003/004
-- [ ] Resultados e Conclusão — após a Fase 5
-- [ ] Substituir lista de siglas do template-exemplo (hoje é do TCC de saúde) por BPMN, DSL, LLM, XSD, TCR, DF-F1
-- [ ] Resolver atribuição do PMo: banco diz Kourani 2024, `.bib` usa `brissard2025pmo`
-- [ ] Corrigir `\imprimirglossario` (`main.tex:214` usa `\glossarystyle`, removido no glossaries v4)
+- [ ] Conclusão — após a Fase 5
+- [ ] Substituir lista de siglas do template-exemplo (hoje é do TCC de saúde) por
+      BPMN, DSL, LLM, XSD, TCR, DF-F1, MF-F1
+- [ ] Corrigir `\imprimirglossario` (`main.tex:214` usa `\glossarystyle`, removido no
+      glossaries v4). Os `\Gls{braile}`/`\Gls{borboleta}` do template-exemplo saíram
+      junto com o lipsum de Trabalhos Relacionados.
+- [ ] Conferir no PDF original as entradas `.bib` marcadas `% [conferir]`
+      (zha2010tar, weidlich2011behavioral, dijkman2011similarity, kopke2024efficient,
+      volter2024generative) — veículo/páginas preenchidos sem consultar o original.
+
+### Decisão de escopo em aberto — braço de representação compacta
+
+`brissard2025pmr` compara 9 representações de processo para geração com LLM **no
+mesmo dataset que usamos como holdout**, várias criadas para reduzir tokens
+(JSON branches, Simplified XML, PME). Não invalida a tese — a pergunta deles é
+"qual notação modela melhor por prompt", a nossa é "comprimir a saída e expandir
+deterministicamente torna viável gerar marcação verbosa com modelo pequeno" —, e o
+posicionamento já está escrito no capítulo.
+
+Fica a decisão: vale acrescentar um braço **SOTA → JSON branches → BPMN**, para
+comparar contra a melhor representação compacta existente e não só contra XML
+direto? Fortaleceria bastante o resultado; custa +159 gerações e um conversor novo.
 
 ## Fase 7 — SFT e publicação
 
-- [ ] SFT sobre o pool exato regenerado (QLoRA 4-bit)
+- [ ] SFT sobre o pool exato regenerado (QLoRA 4-bit NF4, `all-linear`, checkpointing)
+      Hiperparâmetros de partida em `article/deep-research-report.md`; para 7B:
+      r=8–16, alpha 16–32, dropout 0.05, LR 5e-5–1e-4, 2–4 épocas, seq 1024,
+      AdamW 8-bit paged. Em H100 dá para começar em BF16 LoRA e só quantizar se
+      precisar — a placa local não é o gargalo do treino.
+- [ ] **Separar split de validação antes do SFT.** Hoje só existem `sft`/`grpo`/
+      `holdout`; não há conjunto de parada. O relatório é explícito: com corpus
+      pequeno a perda de treino não serve de critério de parada, e o checkpoint
+      deve ser escolhido por taxa de acerto em validação retida. Cortar do `sft`,
+      **agrupando por seção/documento de origem** — 95,3% do treino é do mesmo
+      handbook e seções templatizadas vazariam entre treino e validação num corte
+      aleatório. Não afeta o holdout (fontes distintas), afeta a escolha de época.
+- [ ] Anotar que o pool de treino (768 pares de alta confiança) é ~38% das ~2.000
+      amostras que o relatório assume nas suas estimativas. Overfitting é o risco
+      dominante, não subajuste — ver [ADR 0004](specs/adr/0004-estrategia-de-dados.md).
 - [ ] Publicar dataset + adapter no HuggingFace: model card, datasheet, splits, licença, script de exportação
 - [ ] GRPO — opcional, fora do escopo mínimo
 
@@ -122,8 +281,12 @@ sobrescrevendo o XML lógico, senão o AC-4 da spec 003 quebra.
 ## Em aberto (sem data)
 
 - **Modelo base**: Qwen2.5-Coder-7B está datado; há coders pequenos melhores hoje.
-  Trocar **invalida o TCR** — a spec 003 §3.3 fixa o tokenizador do Qwen. Decidir
-  antes de escrever o número na tese.
+  **Correção (2026-08-15)**: trocar *não* invalida necessariamente o TCR. O
+  tokenizador é idêntico em toda a linha Qwen2.5-Coder (vocabulário 151.643,
+  verificado entre 7B e 1.5B), então mudar de **tamanho** dentro da família preserva
+  os 6,01; só mudar de **família** invalidaria. Consequência: dá para reportar 1,5B
+  e 7B lado a lado sem tocar em métrica congelada — e o `deep-research-report.md`
+  recomenda justamente 1,5B como modelo de partida para hardware de 11 GB.
 - **PME-F1**: nome reservado para a métrica do benchmark sobre `data/raw/pmo/pme/`.
   Confirmar no paper do PMo antes de comparar com resultados publicados.
 

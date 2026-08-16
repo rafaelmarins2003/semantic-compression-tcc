@@ -315,6 +315,25 @@ def test_tcr_nao_se_aplica_a_braco_de_xml_direto(banco):
     assert r["tokens_emitidos_mediana"] == len(XML_MINIMO.strip()), "tokens valem sempre"
 
 
+def test_strip_fence_remove_cerca_sem_fechamento():
+    """Saída truncada pelo teto de tokens não tem cerca de fechamento.
+
+    Regressão do A3m (2026-08-16): exigir o par ``` deixava a abertura no texto
+    e reprovava o candidato por defeito do harness, não do modelo. O viés não é
+    neutro — os braços de XML são os que mais emitem cerca e os que mais se
+    aproximam do teto, então o bug penalizava justamente o baseline.
+    """
+    from src.evaluation.run_benchmark import strip_fence
+
+    truncada = '```xml\n<definitions>\n  <process id="p"'
+    assert strip_fence(truncada) == '<definitions>\n  <process id="p"'
+
+    # o caso fechado continua valendo, e a cerca interna não é tocada
+    fechada = '```dsl\nprocess "P" { start -> end }\n```'
+    assert strip_fence(fechada) == 'process "P" { start -> end }'
+    assert strip_fence("sem cerca alguma") == "sem cerca alguma"
+
+
 def test_tcr_por_braco_ignora_linha_sem_saida(banco):
     """Falha de geração não entra na TCR, mas aparece na contagem."""
     from src.evaluation.run_tcr import arm_report

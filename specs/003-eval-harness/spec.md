@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Status | **PRONTA PARA CONGELAR** — bloqueadores fechados em 2026-08-09 |
-| Congelar em | commit imediatamente anterior à primeira execução do experimento |
-| Commit de congelamento | _(preencher: `git rev-parse HEAD`)_ |
-| Data de congelamento | _(preencher)_ |
+| Status | 🔒 **CONGELADA** em 2026-08-15 |
+| Protocolo congelado no commit | `f24aba57b8a86ff8e5307eba13938391d4dd2cd2` |
+| Data de congelamento | 2026-08-15 |
+| Tag | `spec-003-frozen` |
 | Prioridade | 3 (CLAUDE.md) |
 | Depende de | `json_to_dsl_v10_en`, `dsl_to_xml_v5_en`, `src.evaluation.topology` |
 
@@ -13,6 +13,31 @@
 > emenda registrada na seção 9. Alterar definição de métrica, braço ou critério
 > de análise **após ver resultados** invalida a comparação. Emendas são
 > permitidas; emendas silenciosas não.
+
+**Estado no momento do congelamento**, verificado e registrado para auditoria:
+
+| Item | Valor |
+|---|---|
+| `benchmark_eval` | **0 linhas** — nenhum resultado observado |
+| Suíte de testes | 290 passando, `ruff` limpo |
+| Conjunto de avaliação | 53 itens PMo (`split='holdout'`) |
+| Referências | 53 primárias + 172 alternativas do Zenodo (nota ≥ 4) |
+| Volume da 1ª rodada | 6 braços × 53 × k=3 = **954 gerações** |
+
+`sha256` dos prompts, que o harness grava por linha (AC-7):
+
+| Prompt | `sha256` |
+|---|---|
+| `benchmark/xml_direct.md` | `0dbf1e014ff29c0c4365b66ce0c9929634fd6ffbd967c414e7ba71dbde961ddc` |
+| `benchmark/dsl_grammar.md` | ~~`59f28d37daefac9c82d4f9e15330a7ae4647b07a430cff474e7cd7512b0774ad`~~ → `c6bb757ea9b1…` (emenda **E-1**, §9) |
+| `benchmark/dsl_minimal.md` | `11eaf38e24354cdc17f5b4ab3320bb0d46c066779dadbe889c4efe8c328174b1` |
+
+**O que está congelado**: definição das métricas (§3), braços e regra de
+multi-referência (§4), critérios de aceitação (§5), hipóteses (§6.1), parâmetros
+(§6.2) e plano de análise (§6.3).
+
+**O que não está**: implementação. Corrigir um defeito do harness e reexecutar
+não é emenda — é conserto. Emenda é mudar o que este documento *define*.
 
 ---
 
@@ -536,10 +561,81 @@ data, motivo e se ocorreu antes ou depois de observar resultados.
 
 ## 9. Emendas e desvios
 
-_(vazio até o congelamento)_
+Toda linha acrescentada aqui exige a última coluna preenchida com honestidade:
+uma emenda **posterior** à observação dos resultados enfraquece a comparação e
+tem de ser declarada como tal na monografia, não escondida.
 
 | Data | Item alterado | Motivo | Antes/depois de ver resultados |
 |---|---|---|---|
+| 2026-08-16 | `benchmark/dsl_grammar.md`: `59f28d37…` → `c6bb757e…` (+90 tok, +7,1%) | Glosa conceito→keyword no bloco GATEWAYS e explicitação da assimetria de sintaxe de ramificação. Ver E-1 abaixo. | **DEPOIS** — A3 já executado por completo (159 gerações) |
+
+### E-1 — Glosa de gateways no prompt do braço A3/A2/A2g (2026-08-16)
+
+**Defeito.** O bloco `<modeling_rules>`, compartilhado byte a byte pelos três
+prompts, é deliberadamente neutro de notação e nomeia os conceitos em vocabulário
+BPMN ("exclusive split", "parallel split"). O bloco `GATEWAYS` do prompt da DSL
+listava `xor`, `or`, `and` e `event` **sem glosa alguma** ligando keyword a
+conceito. Além disso, a sintaxe de ramificação não é uniforme — `and` separa por
+`;` e não admite `->` inicial; `xor`/`or`/`event` separam por espaço e exigem
+`->` após o colchete — e o prompt exibia as duas formas sem nunca advertir que
+uma não generaliza para a outra.
+
+**Verificabilidade sem recurso aos resultados.** Ambos os defeitos se constatam
+lendo os artefatos: a ausência de glosa, comparando os dois blocos do prompt; a
+assimetria, submetendo seis construções ao parser. Nenhuma das duas constatações
+depende de olhar pontuação de braço algum. Este é o critério que separa emenda
+legítima de racionalização pós-hoc, e toda emenda futura deve satisfazê-lo.
+
+**Assimetria que o defeito introduzia.** O prompt de XML é autossuficiente sem
+glosa porque BPMN está no pré-treino do modelo: "exclusive split" mapeia sozinho
+para `exclusiveGateway`. A DSL é notação nova e não tem esse recurso. A omissão
+penalizava, portanto, **apenas os braços de DSL** — handicap específico de
+formato, exatamente o eixo que o H1 mede.
+
+**Por que a emenda é defensável apesar de posterior aos resultados.** A correção
+só pode elevar A3, A2 e A2g. Elevar A3 **encolhe** o ganho aparente do A4 (H2);
+elevar A2/A2g **encolhe** a margem da DSL sobre o XML apenas se o ganho vier de
+parsing, e em qualquer cenário reduz o espaço para atribuir à DSL um mérito que
+era só do prompt. Uma emenda cujo efeito possível é unicamente contrário às
+hipóteses do autor não constitui grau de liberdade do pesquisador.
+
+**Resultados descartados (divulgação obrigatória na monografia).** O braço A3 sob
+o prompt `59f28d37…` produziu: 159 gerações, 0 erro de geração, 0 truncamento,
+27/53 itens com parse válido (50,9%), 26/53 XSD-válidos, DF-F1 mediano por item
+**0,0525**, DF-F1 estrito 0,0083, dispersão intra-item 0,0. Modos de falha:
+26/26 `UnexpectedCharacters`, com `parallel`/`parallel_split` (6) e `choice` (3)
+entre as keywords inventadas. Estas linhas foram removidas de `benchmark_eval` e
+o braço foi reexecutado sob `c6bb757e…`. **Os dois valores devem ser reportados
+lado a lado na monografia**; suprimir o primeiro converteria esta emenda em
+exatamente o viés que ela pretende corrigir.
+
+**Resultado após a emenda (2026-08-16, prompt `c6bb757e…`).** 159 gerações, 0
+erro, 0 truncamento, **31/53** com parse válido, **31/53** XSD-válidos, DF-F1
+médio das medianas por item **0,0666**.
+
+| | antes `59f28d37…` | depois `c6bb757e…` |
+|---|---|---|
+| parse válido | 27/53 | **31/53** |
+| XSD válido | 26/53 | **31/53** |
+| DF-F1 (média das medianas) | 0,0525 | **0,0666** |
+| keywords inventadas `parallel` / `choice` | 7 / 2 | 5 / 2 |
+
+**Leitura.** A correção melhorou pouco: +4 itens de parse e +0,014 de DF-F1, e as
+keywords inventadas **não desapareceram**. O gargalo do A3 é, portanto,
+capacidade do modelo de 7B, não redação do prompt. Isso reforça a motivação do
+SFT por mérito próprio, e não por handicap induzido — que era precisamente a
+dúvida que a emenda existia para dissipar. Registrar assim na monografia: a
+emenda não salvou o A3, e é isso que a torna informativa.
+
+**Escopo.** `xml_direct.md` (`0dbf1e01…`) e `dsl_minimal.md` (`11eaf38e…`)
+permanecem com sha inalterado. Logo A1, A1g, A3m e A4 não são afetados, e a
+execução do A3m em curso na data da emenda continua válida.
+
+**Nota de contagem de tokens.** A tabela de estado do congelamento registrou
+1000 tokens para `dsl_grammar.md`; a medição feita nesta emenda dá 1264 para o
+mesmo arquivo (sha idêntico). A divergência é de **método de contagem**, não de
+conteúdo. Os números de custo reportados na monografia devem usar uma única
+medição, declarada, e não a tabela do congelamento.
 
 ## 10. Questões em aberto — **RESOLVIDAS** (2026-08-09)
 
@@ -554,9 +650,11 @@ Todos os bloqueadores de congelamento foram fechados. Registro das decisões:
 | **Multi-referência Zenodo** | Máximo entre referências com nota ≥ 4 | §4 |
 | **`k`** | 3, com mediana por item como unidade de análise | §6.2, §6.3 |
 
-**A spec está pronta para congelar.** O congelamento é o commit imediatamente
-anterior à primeira execução dos braços; preencher o cabeçalho com hash e data
-nesse momento.
+Fechados depois, ainda antes do congelamento (2026-08-15): prompts dos três
+tipos de braço · alinhamento de rótulos (§3.2a) · quantização e modelo pequeno
+`-Instruct` (§6.2) · braço de controle A3m (§4) · lateralidade do teste (§6.3).
+
+**🔒 Congelada em 2026-08-15.** Daqui em diante, mudança só por emenda na §9.
 
 Fora de escopo desta spec, mas ainda em aberto no projeto: confirmar no paper do
 PMo se existe métrica oficial sobre o formato `pme/` (a sigla PME-F1 foi

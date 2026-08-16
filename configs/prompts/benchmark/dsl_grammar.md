@@ -77,14 +77,17 @@ EVENTS
 TASKS — KEYWORD "Name"
   task | user | service | manual | script | send | receive | rule
 
-GATEWAYS
-  xor "Question?" { ["condition"] -> FLOW
+GATEWAYS — the concept names used in the rules above map to these keywords
+  xor "Question?" { ["condition"] -> FLOW        exclusive split (a decision)
                     ["condition"] -> FLOW }
-  or  "Question?" { ["condition"] -> FLOW ... }
-  and             { FLOW ; FLOW ; FLOW }        branches separated by ;
-  event           { [:message] -> FLOW
+  or  "Question?" { ["condition"] -> FLOW ... }  inclusive split
+  and             { FLOW ; FLOW ; FLOW }         parallel split (concurrent)
+  event           { [:message] -> FLOW           event-based split
                     [:timer]   -> FLOW }
   An empty branch is written ()   e.g.  ["no"] -> ()
+  Branch syntax is not uniform: `xor`, `or` and `event` branches open with `->`
+  after the bracket and are separated by whitespace; `and` branches carry no
+  leading `->` and are separated by `;`. Arrows inside a branch are always fine.
 
 IDENTIFIERS AND REFERENCES
   Append #id to any named element to make it referenceable: task "Fetch" #fetch

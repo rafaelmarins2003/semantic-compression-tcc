@@ -91,7 +91,11 @@ def strip_fence(texto: str) -> str:
     linhas = t.splitlines()
     if len(linhas) >= 2 and linhas[-1].strip().startswith("```"):
         return "\n".join(linhas[1:-1]).strip()
-    return t
+    # Cerca sem fechamento: acontece sempre que a saída é truncada pelo teto de
+    # tokens. Exigir o par deixava a abertura no texto e reprovava o candidato
+    # por defeito do harness. O viés não era neutro — os braços de XML são ao
+    # mesmo tempo os que mais emitem cerca e os que mais chegam perto do teto.
+    return "\n".join(linhas[1:]).strip()
 
 
 def to_xml(arm: Arm, raw: str) -> tuple[str | None, int | None, str | None]:
