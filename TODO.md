@@ -237,9 +237,94 @@ direto? Fortaleceria bastante o resultado; custa +159 gerações e um conversor 
 
 ## Fase 7 — SFT e publicação
 
+### Oráculo do pipeline — teto medido antes do SFT (2026-08-16)
+
+A DSL do próprio pipeline para os 53 itens do PMo, pontuada contra o gold pela
+métrica dos braços, dá **DF-F1 0,1236** — abaixo do A1 (0,1942) e do A2 (0,1375).
+Isto é, **um modelo que aprendesse o treino com perfeição ainda perderia para o
+baseline**. É o teto da H3 imposto pelos dados, não pelo modelo.
+
+Três causas foram investigadas e **descartadas**:
+
+| hipótese | medição | veredito |
+|---|---|---|
+| conversor perde paralelismo | JSON 68% → DSL 66% no PMo | falso (perda residual) |
+| rótulos derivam do texto por 2 saltos de LLM | ancoragem 62,1% vs gold 60,8%, A1 60,4% | falso (somos os mais ancorados) |
+| estrutura subdimensionada | arestas 14 vs gold 18; A1 tem 12 | falso (somos os mais próximos) |
+
+Resta a **escolha lexical**: pipeline e especialista tiram nomes diferentes do
+mesmo texto, ambos legítimos, e o DF-F1 pontua isso como erro estrutural. Não
+isenta o pipeline — os braços prompted alinham melhor (40–49% vs 32,3%) sobre o
+mesmo texto — mas realoca o problema: **não é volume nem estrutura, é
+convergência de nomenclatura**.
+
+Consequência para a pergunta "scrape mais dados?": **não resolveria**. Mais
+amostras pelo mesmo pipeline não movem o teto. Antes de investir em volume, subir
+o alinhamento de rótulos é o que tem efeito direto no teto.
+
+Viés colateral registrado: o pipeline põe raias em **100%** das amostras, o gold
+usa em **3/53**. Não afeta DF-F1 (raias não alteram precedência), mas é estilo
+herdável pelo SFT.
+
+### Teto humano da métrica — DECIDIDO: não atacar rótulos nem topologia (2026-08-16)
+
+Referências múltiplas do Zenodo (24 itens, 4–11 modelos do mesmo processo)
+permitem medir a concordância **entre especialistas**, com a régua idêntica à
+dos braços:
+
+| limiar Jaccard | teto humano | A1 | oráculo do pipeline |
+|---|---|---|---|
+| 0,50 (congelado) | 0,1449 | 0,2070 (143%) | 0,1533 (106%) |
+| 0,01 (estrutura pura) | 0,2734 | 0,3940 (144%) | 0,3419 (**125%**) |
+
+Alinhamento de rótulos: humano vs humano **31,0%**, nosso pipeline **32,3%**.
+
+**Estamos acima do teto humano nos dois eixos.** Logo:
+
+- **Rótulos**: nada a corrigir, já estamos na faixa de variação humana.
+- **Topologia**: melhoria seria **inverificável**, não apenas cara. "Melhor" só
+  se define como concordância com uma referência, e já superamos a concordância
+  que as referências têm entre si. Como todo o gold é holdout, qualquer ajuste
+  seria contaminação disfarçada de melhoria.
+- **Volume**: não move um teto que não é imposto pelos dados.
+
+O limitante é a **métrica**, não o pipeline: DF-F1 contra referência única satura
+perto do ruído numa tarefa sem resposta única. Isso é achado da tese, com número.
+
+### Onde ainda há folga real
+
+1. **Validade sintática** — A2 64,8%, A3 58,5%, A1 98,1%. Resposta certa existe,
+   folga é grande, e nada do que medimos prevê o resultado do SFT aqui.
+2. **Custo** — 138 tokens vs 631.
+
+Pergunta reformulada da H3: *um 7B finetunado atinge validade e fidelidade dentro
+da faixa de concordância humana emitindo 1/5 dos tokens, sem modelo de fronteira?*
+
+### Plano se o SFT decepcionar
+
+Diagnosticar **qual** eixo falhou antes de agir:
+
+| sintoma | ação | por quê |
+|---|---|---|
+| parse baixo | curva de aprendizado (25/50/100% dos dados) | decide se volume é o gargalo, sem tocar holdout |
+| parse baixo + curva saturada | **GRPO só com recompensa verificável** (r_sint + r_comp) | não precisa de dado novo; a recompensa é uma chamada ao parser |
+| parse bom, DF-F1 baixo | **nada** — reportar | métrica saturada, já estamos no teto humano |
+| qualquer | topologia | **nunca**, salvo se conseguirmos referência fora do holdout |
+
+GRPO antes de mais dados: a recompensa `r_sint` é verificável por código e ataca
+exatamente o gargalo medido. Descartar `r_topo` do peso — otimizá-la é ajustar à
+referência. `r_sem` continua sendo a parte frágil (não verificável).
+
+- [ ] **CORRIGIR `seq 1024` antes de treinar.** Medido em 768 pares com o
+      tokenizador do Qwen2.5-Coder: exemplo mediano tem **1.586 tokens**
+      (prompt fixo 756 + texto 600 + DSL 268), p90 2.725, max 13.083.
+      `seq=1024` trunca **751/768 (98%)**, e o corte é no fim — ou seja, no alvo.
+      `seq=2048` trunca 24%; **`seq=4096` trunca 2%**. Usar 4096 e descartar ou
+      truncar explicitamente os 18 restantes. Orçamento: **1,39 M tokens/época**.
 - [ ] SFT sobre o pool exato regenerado (QLoRA 4-bit NF4, `all-linear`, checkpointing)
       Hiperparâmetros de partida em `article/deep-research-report.md`; para 7B:
-      r=8–16, alpha 16–32, dropout 0.05, LR 5e-5–1e-4, 2–4 épocas, seq 1024,
+      r=8–16, alpha 16–32, dropout 0.05, LR 5e-5–1e-4, 2–4 épocas, **seq 4096**
+      (o relatório sugeria 1024; medido, truncaria 98% — ver item acima),
       AdamW 8-bit paged. Em H100 dá para começar em BF16 LoRA e só quantizar se
       precisar — a placa local não é o gargalo do treino.
 - [ ] **Separar split de validação antes do SFT.** Hoje só existem `sft`/`grpo`/

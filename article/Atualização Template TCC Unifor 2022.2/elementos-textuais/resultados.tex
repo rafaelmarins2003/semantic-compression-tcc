@@ -326,6 +326,84 @@ Registra-se que essa fragilidade havia sido antecipada no protocolo, que já det
 
 A consequência prática é que \textbf{avaliar geração de colaborações BPMN exige um conjunto de avaliação construído para esse fim}. O PMo, concebido para processos únicos, não o oferece, e nenhuma correção de métrica supre ausência de dados. Fica registrado como trabalho futuro, e como critério para a seleção de conjuntos de avaliação em extensões deste trabalho.
 
+\subsection{Teto Humano da Métrica}
+\label{subsec:res-teto}
+
+A seção anterior estabelece que o DF-F1 penaliza divergência de nomenclatura como se fosse erro estrutural. Resta quantificar a magnitude dessa penalidade, e o conjunto de referências múltiplas permite fazê-lo diretamente: as 172 referências alternativas cobrem 24 itens com 4 a 11 modelos distintos do \textbf{mesmo} processo, todos aprovados por especialista. Comparar essas referências \textbf{entre si} mede o quanto dois modeladores humanos competentes concordam --- isto é, o valor máximo que qualquer método pode razoavelmente aspirar.
+
+A medição aplica aos especialistas exatamente o tratamento dado aos braços: cada referência é pontuada contra as demais sob a regra do máximo. Pares exatamente idênticos são descartados, pois em 17 dos 24 itens a referência primária coincide com uma das alternativas --- ambas derivam da mesma fonte --- e mantê-los mediria autocomparação.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-teto} Desempenho relativo ao teto humano (24 itens com referência múltipla)}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrr}
+			\toprule
+			Origem do modelo & DF-F1 & \% do teto \\
+			\midrule \midrule
+			\textbf{Teto humano} (especialista vs.\ especialista) & \textbf{0,1449} & --- \\
+			\midrule
+			A1  (DeepSeek $\rightarrow$ XML)   & 0,1698 & \textbf{117\%} \\
+			A1g (GLM $\rightarrow$ XML)        & 0,1295 & 89\% \\
+			Pipeline de augmentation           & 0,1103 & 76\% \\
+			A2g (GLM $\rightarrow$ DSL)        & 0,0602 & 42\% \\
+			A2  (DeepSeek $\rightarrow$ DSL)   & 0,0498 & 34\% \\
+			A3  (Qwen 7B $\rightarrow$ DSL)    & 0,0473 & 33\% \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Restrito aos 24 itens com referência múltipla, para que todas as linhas sejam comparáveis. Os valores diferem da Tabela~\ref{tab:res-bracos}, calculada sobre os 53 itens.}%
+}
+\end{table}
+
+O teto humano situa-se em \textbf{0,1449}. A consequência é de primeira ordem para a leitura de todo este capítulo: \textbf{os valores de DF-F1 não devem ser comparados a 1,0}, que é inalcançável, mas a essa faixa. O braço A1 não obtém 19\% de um máximo teórico --- obtém \textbf{117\% da concordância que dois especialistas humanos exibem entre si} sobre os mesmos processos.
+
+O mecanismo é aritmético e coerente com a Seção~\ref{subsec:res-limitacao-df}. Mediu-se em 31,0\% a taxa média com que dois especialistas concordam quanto aos rótulos. Como cada aresta do multiconjunto \textit{direct-follows} exige o alinhamento de \textbf{dois} rótulos, a concordância esperada ao nível de aresta cai para a ordem de $0{,}31^2 \approx 0{,}10$, antes ainda de exigir que a aresta exista em ambos os modelos. Uma métrica de identidade lexical aplicada a uma tarefa com liberdade de denominação satura, portanto, muito abaixo da unidade.
+
+Três consequências são registradas. A primeira é que \textbf{a refutação de H1 permanece válida}: o contraste A2 vs.\ A1 é pareado, aplicado às mesmas referências e ao mesmo critério, e a ordenação entre braços não depende da escala absoluta. A segunda é que \textbf{a magnitude do efeito deve ser lida contra o teto}, e não contra a unidade, sob pena de superestimar a distância que separa os métodos avaliados do desempenho humano. A terceira é que \textbf{o pipeline de augmentation opera a 76\% do teto humano}, superando todos os braços que emitem DSL, o que reposiciona o oráculo discutido na seção seguinte.
+
+Registra-se a limitação da própria estimativa: o teto é obtido sobre 24 itens, e não sobre os 53, por serem os únicos com referência múltipla. Trata-se, ainda assim, da melhor estimativa disponível, e sua ausência levaria a interpretação sistematicamente pessimista de todos os resultados reportados.
+
+\subsection{Validação do Pipeline de Augmentation}
+\label{subsec:res-oraculo}
+
+A verificação do Eixo 2 (Seção~\ref{sec:res-eixo2}), com 99,6\% de equivalência exata, atesta a fidelidade da cadeia \textbf{determinística} JSON $\rightarrow$ DSL $\rightarrow$ XML. Ela nada afirma, contudo, sobre o passo \textbf{anterior} --- a conversão de texto em prosa para o JSON canônico, executada por modelos de linguagem --- que até a obtenção do conjunto de referência jamais fora confrontado com modelagem humana. O conjunto \textit{gold} do PMo fecha esse ponto cego, e a medição correspondente é reportada aqui.
+
+Construiu-se para isso um \textbf{oráculo}: a DSL produzida pelo próprio pipeline de augmentation para os 53 itens do PMo, transpilada e pontuada contra as referências de especialista pela mesma métrica aplicada aos braços. Esse valor estima o \textbf{teto} que o ajuste fino poderia alcançar, pois representa o desempenho de um modelo que reproduzisse os dados de treinamento com fidelidade perfeita.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-oraculo} Oráculo do pipeline de augmentation contra o \textit{gold}}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrr}
+			\toprule
+			Origem do modelo & DF-F1 & Rótulos alinhados & Arestas \\
+			\midrule \midrule
+			\textit{Gold} (referência)        & ---    & ---    & 18 \\
+			A1 (DeepSeek $\rightarrow$ XML)   & 0,1942 & 40,5\% & 12 \\
+			A2 (DeepSeek $\rightarrow$ DSL)   & 0,1375 & 48,6\% & 12 \\
+			Pipeline de augmentation          & 0,1236 & 32,3\% & 14 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Arestas: mediana do multiconjunto \textit{direct-follows}. Rótulos alinhados: proporção dos rótulos da referência com par no candidato sob o limiar de Jaccard adotado.}%
+}
+\end{table}
+
+O oráculo situa-se em \textbf{0,1236} sobre os 53 itens, e em 0,1103 no subconjunto de referência múltipla --- \textbf{76\% do teto humano} estabelecido na Seção~\ref{subsec:res-teto}, acima de todos os braços que emitem DSL e abaixo apenas dos braços de XML direto.
+
+A leitura correta desse valor exige a moldura da seção anterior. Confrontado com a unidade, o oráculo sugeriria dado de treinamento gravemente defeituoso; confrontado com o teto, indica que \textbf{o pipeline de augmentation produz modelos cuja divergência em relação à referência é da ordem da divergência entre dois especialistas humanos}. O limite que ele impõe a H3 é, portanto, real mas moderado, e não o obstáculo intransponível que a comparação ingênua sugeriria.
+
+A investigação das causas descartou três explicações que a inspeção superficial sugeria. A primeira é perda de paralelismo na conversão: o JSON canônico registra \textit{gateways} paralelos em 68\% dos itens do PMo e a DSL preserva 66\%, com perda residual compatível com a da Seção~\ref{subsec:res-residuo}. A segunda é afastamento do vocabulário de origem por efeito dos dois estágios de processamento por modelo de linguagem: mediu-se a proporção de palavras do rótulo presentes no texto-fonte e obteve-se 62,1\% para o pipeline, contra 60,4\% do braço A1 e 60,8\% da própria referência --- o pipeline é, dos três, o \textbf{mais} ancorado no texto original. A terceira é subdimensionamento estrutural: a contagem de arestas do pipeline (14) é a \textbf{mais próxima} da referência (18) entre todas as origens avaliadas.
+
+O que resta como explicação é a \textbf{escolha lexical}: pipeline e especialista extraem denominações distintas do mesmo texto, ambas legítimas e ambas ancoradas na fonte, e o DF-F1 pontua tal divergência como erro estrutural. E aqui a Seção~\ref{subsec:res-teto} fornece o parâmetro decisivo: a taxa de alinhamento de rótulos do pipeline com a referência é de \textbf{32,3\%}, ao passo que dois especialistas humanos alinham entre si a \textbf{31,0\%}. O pipeline opera, portanto, \textbf{dentro da faixa de variação humana normal} quanto à denominação de atividades.
+
+A consequência prática é que \textbf{não há defeito de nomenclatura a corrigir}. Tentar elevar o alinhamento acima desse patamar significaria ajustar o pipeline às escolhas lexicais idiossincráticas de um modelador específico --- e, como todas as referências disponíveis pertencem à partição \textit{holdout}, tal ajuste constituiria contaminação do conjunto de avaliação, não melhoria de método. Registra-se a decisão de não o fazer.
+
+Registra-se ainda uma divergência de composição entre treino e avaliação, de efeito distinto: o pipeline atribui raias a \textbf{100\%} das amostras, enquanto apenas \textbf{3 dos 53} modelos de referência as empregam. Como raias particionam elementos sem alterar relações de precedência, a divergência não afeta o DF-F1; ela é registrada por constituir viés de estilo herdável pelo ajuste fino, e por decorrer da predominância do \textit{handbook} corporativo documentada na Seção~\ref{sec:res-corpus}.
+
+A conclusão metodológica generaliza para além deste trabalho: \textbf{validar a porção determinística de um pipeline de geração de dados não valida o pipeline}. A etapa probabilística que a antecede requer confronto com referência independente, e a ausência desse confronto permaneceu invisível enquanto o único critério disponível foi a consistência interna entre representações.
+
 \subsection{Síntese}
 \label{subsec:res-sintese}
 

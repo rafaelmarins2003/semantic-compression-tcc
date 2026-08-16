@@ -1,0 +1,49 @@
+{
+  "prompt": "benchmark/dsl_minimal.md",
+  "prompt_sha256": "11eaf38e24354cdc17f5b4ab3320bb0d46c066779dadbe889c4efe8c328174b1",
+  "dsl_version": "json_to_dsl_v10_en",
+  "total": 768,
+  "grupos": 232,
+  "treino": {
+    "n": 690,
+    "tokens_mediana": 1590,
+    "tokens_p90": 2734,
+    "tokens_max": 13081,
+    "acima_de_4096": 18
+  },
+  "val": {
+    "n": 78,
+    "tokens_mediana": 1546,
+    "tokens_p90": 2587,
+    "tokens_max": 3971,
+    "acima_de_4096": 0
+  },
+  "grupos_val": [
+    "gitlab_handbook:acquisitions/acquisition-process/_index.md",
+    "gitlab_handbook:company/culture/all-remote/meetings.md",
+    "gitlab_handbook:customer-success/csm/escalations/_index.md",
+    "gitlab_handbook:customer-success/professional-services-engineering/professional-services-operations/mavenlink-processes/index.md",
+    "gitlab_handbook:engineering/architecture/design-documents/cells/impacted_features/contributions-forks.md",
+    "gitlab_handbook:engineering/development/sec/software-supply-chain-security/oncall/rotation-leader.md",
+    "gitlab_handbook:engineering/devops/_index.md",
+    "gitlab_handbook:engineering/devops/runner/environments/_index.md",
+    "gitlab_handbook:engineering/infrastructure-platforms/gitlab-delivery/delivery/_index.md",
+    "gitlab_handbook:engineering/workflow/code-review.md",
+    "gitlab_handbook:enterprise-data/data-governance/data-quality-program.md",
+    "gitlab_handbook:finance/procurement/contingent-worker-policy.md",
+    "gitlab_handbook:hiring/candidate-faq/_index.md",
+    "gitlab_handbook:marketing/_index.md",
+    "gitlab_handbook:marketing/developer-relations/developer-advocacy/content.md",
+    "gitlab_handbook:marketing/marketing-operations/asana/index.md",
+    "gitlab_handbook:marketing/marketing-operations/outreach/index.md",
+    "gitlab_handbook:marketing/virtual-events/webcasts/_index.md",
+    "gitlab_handbook:people-policies/_index.md",
+    "gitlab_handbook:product/product-management/_index.md",
+    "gitlab_handbook:sales/field-operations/customer-success-operations/gainsight/gainsight-user-management.md",
+    "gitlab_handbook:sales/field-operations/sales-systems/_index.md",
+    "pet:pet_doc-5_1",
+    "pet:pet_doc-6_3",
+    "pet:pet_doc-9_5"
+  ],
+  "vazamento_de_grupo": []
+}

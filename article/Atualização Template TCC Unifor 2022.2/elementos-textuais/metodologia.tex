@@ -265,6 +265,8 @@ O modelo base é o Qwen2.5-Coder-7B-Instruct \cite{hui2024qwen25coder}, um model
 
 A especialização usa ajuste supervisionado com adaptação de baixo posto (LoRA) \cite{hu2022lora} sobre pesos quantizados em 4 \textit{bits} (QLoRA) \cite{dettmers2023qlora}, viabilizando a inferência local na fase exploratória, com o treinamento final executado em infraestrutura de nuvem. Os exemplos de treino são os pares (descrição textual bruta, DSL) da partição \textit{sft} com equivalência topológica exata verificada pelo Eixo 2 — o texto de entrada é a descrição original, e não o texto pré-processado, de modo que o modelo especializado absorva também a etapa de estruturação e o sistema final dependa de uma única inferência.
 
+O comprimento de sequência foi fixado por medição, e não por convenção. Tokenizando os 768 pares com o tokenizador do modelo base, o exemplo mediano ocupa \textbf{1.586 \textit{tokens}} --- 756 do \textit{prompt} fixo, cerca de 600 da descrição textual e 268 da DSL de destino --- com percentil 90 em 2.725 e máximo em 13.083. O valor de 1.024 \textit{tokens}, usual em ajuste de modelos desse porte e inicialmente previsto, truncaria \textbf{751 dos 768 exemplos}. Como o truncamento incide sobre o final da sequência, ele removeria precisamente o alvo a ser aprendido, e o efeito esperado seria degradação da validade sintática --- isto é, exatamente o sintoma que o ajuste se propõe a corrigir, atribuído por engano ao método. Adota-se \textbf{4.096 \textit{tokens}}, que preserva 98\% dos exemplos íntegros, com os 18 restantes truncados de forma explícita e registrada. O orçamento resultante é de 1,39 milhão de \textit{tokens} por época.
+
 \subsection{Etapa Opcional: Aprendizado por Reforço com Recompensa Verificável}
 \label{subsec:grpo-metodo}
 
@@ -274,7 +276,21 @@ Como extensão opcional ao escopo deste trabalho, prevê-se uma etapa de \textit
 	r \;=\; 0{,}35\, r_{\text{sint}} \;+\; 0{,}30\, r_{\text{sem}} \;+\; 0{,}25\, r_{\text{topo}} \;+\; 0{,}10\, r_{\text{comp}},
 \end{equation}
 
-\noindent em que $r_{\text{sint}}$ (validade da DSL e do XML), $r_{\text{topo}}$ (coerência topológica) e $r_{\text{comp}}$ (economia de tokens) são integralmente verificáveis por código, enquanto $r_{\text{sem}}$ (adequação semântica ao texto) requer sinal aproximado e é o componente metodologicamente mais frágil. Por essa razão, e por restrição de cronograma, essa etapa é tratada como trabalho futuro caso não seja concluída no prazo do TCC.
+\noindent em que $r_{\text{sint}}$ (validade da DSL e do XML), $r_{\text{topo}}$ (coerência topológica) e $r_{\text{comp}}$ (economia de tokens) são integralmente verificáveis por código, enquanto $r_{\text{sem}}$ (adequação semântica ao texto) requer sinal aproximado e é o componente metodologicamente mais frágil.
+
+\subsubsection*{Revisão do desenho da recompensa}
+
+A medição do teto humano da métrica de fidelidade (Seção~\ref{subsec:res-teto}) impõe uma revisão a esta formulação, registrada aqui por afetar o desenho e não apenas a execução. O componente $r_{\text{topo}}$ recompensa a concordância com um modelo de referência; uma vez estabelecido que os artefatos produzidos pelo trabalho já \textbf{superam} a concordância que duas referências de especialista exibem entre si, otimizar esse termo deixa de significar ``aproximar-se do modelo correto'' e passa a significar ``aproximar-se das escolhas idiossincráticas de um modelador específico''. Como todas as referências disponíveis pertencem à partição \textit{holdout}, tal otimização constituiria ainda contaminação do conjunto de avaliação.
+
+Prevê-se, portanto, que a etapa seja executada — caso venha a sê-lo — com a recompensa restrita aos componentes \textbf{verificáveis sem referência}:
+
+\begin{equation}
+	r' \;=\; 0{,}80\, r_{\text{sint}} \;+\; 0{,}20\, r_{\text{comp}}.
+\end{equation}
+
+A restrição tem três justificativas convergentes. A primeira é de \textbf{validade}: $r_{\text{sint}}$ e $r_{\text{comp}}$ são calculáveis por chamada ao \textit{parser} e ao tokenizador, sem qualquer modelo de referência, e portanto não podem contaminar a avaliação. A segunda é de \textbf{alvo}: a validade sintática é o eixo em que os resultados da Seção~\ref{sec:res-bracos} identificam folga substancial — 64,8\% no braço A2 contra 98,1\% no A1 — ao passo que a fidelidade topológica encontra-se saturada. A terceira é de \textbf{custo}: uma recompensa que dispensa referência dispensa também dado anotado, tornando a etapa viável sem ampliação do corpus.
+
+Por restrição de cronograma, essa etapa permanece tratada como trabalho futuro caso não seja concluída no prazo do TCC. Registra-se, contudo, que a análise acima altera sua posição relativa: de extensão opcional, passa a ser a intervenção de melhor relação entre custo e retorno esperado \textbf{caso o ajuste supervisionado não resolva a validade sintática}, à frente tanto da ampliação do corpus quanto de modificações no \textit{pipeline} de geração de dados.
 
 \section{Infraestrutura e Reprodutibilidade}
 \label{sec:reprodutibilidade}
