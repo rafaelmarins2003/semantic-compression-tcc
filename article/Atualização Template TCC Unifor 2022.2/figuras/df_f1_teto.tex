@@ -1,0 +1,41 @@
+% DF-F1 por braço contra o teto humano. A linha de referência é o ponto inteiro
+% da figura: sem ela o leitor compara com 1,0 e conclui que todos os métodos
+% fracassaram. Tracejada e rotulada — não depende de cor para ser lida.
+\begin{figure}[htb]
+	\Caption{\label{fig:df-f1-teto} Fidelidade topológica por braço, relativa à concordância entre especialistas}
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.86\textwidth, height=6.4cm,
+			ybar, bar width=17pt, bar shift=0pt,
+			ymin=0, ymax=0.225,
+			ylabel={DF-F1},
+			symbolic x coords={A1,A1g,A2,A4,A2g,A3,A3m},
+			xtick={A1,A1g,A2,A4,A2g,A3,A3m},
+			% `fill=white` para que o valor da barra atravesse a linha do teto sem
+			% colidir com ela — a A2 fica a 0,1375, a poucos milímetros de 0,1449.
+			nodes near coords, nodes near coords style={font=\scriptsize, text=black, fill=white, inner sep=1pt, /pgf/number format/fixed, /pgf/number format/precision=4},
+			ymajorgrids, grid style={draw=black!12},
+			axis lines*=left, tick align=outside,
+			tick label style={font=\small}, label style={font=\small},
+			legend style={font=\small, at={(0.5,1.04)}, anchor=south, draw=none, legend columns=3, column sep=1.2em},
+			legend cell align=left,
+		]
+			\addplot+[draw=none, fill=corXML] coordinates {(A1,0.1942) (A1g,0.1551)};
+			\addlegendentry{XML direto}
+			\addplot+[draw=none, fill=corDSL] coordinates {(A2,0.1375) (A2g,0.0773) (A3,0.0666) (A3m,0.0)};
+			\addlegendentry{DSL por \textit{prompting}}
+			\addplot+[draw=none, fill=corSFT] coordinates {(A4,0.1114)};
+			\addlegendentry{DSL, 7B com ajuste fino}
+
+			\draw[corTeto, dashed, very thick] (axis cs:A1,0.1449) -- (axis cs:A3m,0.1449);
+			\node[corTeto, font=\small, fill=white, inner sep=1.5pt, anchor=south east, yshift=1.5pt] at (axis cs:A3m,0.1449) {teto humano $= 0{,}1449$};
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Média das medianas por item sobre os 53 itens. O teto humano é a
+	concordância média entre referências de especialista do mesmo processo,
+	medida sobre os 24 itens com referência múltipla e sob a mesma regra do
+	máximo aplicada aos braços (Seção~\ref{subsec:res-teto}). Apenas os dois
+	braços de XML direto o ultrapassam.}
+\end{figure}

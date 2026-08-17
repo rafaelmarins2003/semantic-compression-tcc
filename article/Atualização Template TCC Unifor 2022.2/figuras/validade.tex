@@ -1,0 +1,36 @@
+% Validade sintática por braço. Barras ordenadas por magnitude — a comparação é
+% de ordenação, não de série temporal, e ordem alfabética esconderia o achado.
+% `bar shift=0pt` em cada série: sem isso o pgfplots desloca lateralmente cada
+% \addplot e as barras deixam de coincidir com o rótulo do eixo.
+% Legenda horizontal acima da área de plotagem, para não cobrir barra alguma.
+\begin{figure}[htb]
+	\Caption{\label{fig:validade} Validade sintática por braço experimental}
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.86\textwidth, height=6.4cm,
+			ybar, bar width=17pt, bar shift=0pt,
+			ymin=0, ymax=108,
+			ylabel={Saídas válidas no XSD (\%)},
+			symbolic x coords={A1,A1g,A4,A2,A3,A2g,A3m},
+			xtick={A1,A1g,A4,A2,A3,A2g,A3m},
+			nodes near coords, nodes near coords style={font=\scriptsize, text=black, /pgf/number format/fixed, /pgf/number format/precision=1},
+			ymajorgrids, grid style={draw=black!12},
+			axis lines*=left, tick align=outside,
+			tick label style={font=\small}, label style={font=\small},
+			legend style={font=\small, at={(0.5,1.04)}, anchor=south, draw=none, legend columns=3, column sep=1.2em},
+			legend cell align=left,
+		]
+			\addplot+[draw=none, fill=corXML] coordinates {(A1,98.1) (A1g,94.3)};
+			\addlegendentry{XML direto}
+			\addplot+[draw=none, fill=corSFT] coordinates {(A4,86.8)};
+			\addlegendentry{DSL, 7B com ajuste fino}
+			\addplot+[draw=none, fill=corDSL] coordinates {(A2,64.8) (A3,58.5) (A2g,54.7) (A3m,0.0)};
+			\addlegendentry{DSL por \textit{prompting}}
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Percentual sobre as 159 gerações de cada braço. Nos braços de DSL a
+	validade XSD coincide com a taxa de \textit{parsing}, pois a transpilação é
+	determinística e sempre produz XML válido a partir de DSL aceita.}
+\end{figure}

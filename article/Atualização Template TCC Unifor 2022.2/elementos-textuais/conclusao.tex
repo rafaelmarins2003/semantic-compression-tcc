@@ -1,24 +1,49 @@
 \chapter{Conclusões e Trabalhos Futuros}
 \label{chap:conclusoes-e-trabalhos-futuros}
 
-\lipsum[2]
-\lipsum[34]
+O objetivo geral deste trabalho (Seção~\ref{sec:objetivo-geral}) foi investigar se a geração de uma representação intermediária comprimida, seguida de expansão determinística, produz modelos BPMN 2.0 válidos de forma mais confiável e mais econômica em \textit{tokens} do que a geração direta de XML. A resposta obtida é \textbf{parcialmente afirmativa, e sua parte negativa é tão informativa quanto a positiva}.
+
+Quanto à economia, a resposta é inequívoca: a representação proposta reduz em cerca de 85\% o volume de \textit{tokens} que o modelo precisa emitir, com razão de compressão em torno de 7 medida sobre as saídas efetivamente geradas. Quanto à confiabilidade, a resposta depende de como a representação chega ao modelo. Fornecida por \textit{prompt}, ela \textbf{piora} o resultado: os braços que descrevem a gramática no contexto obtiveram 64,8\% e 54,7\% de validade, contra 98,1\% e 94,3\% da geração direta de XML pelos mesmos modelos. Internalizada nos pesos por ajuste fino supervisionado, ela \textbf{melhora substancialmente}: um modelo de sete bilhões de parâmetros atingiu 86,8\% de validade, superando em vinte e dois pontos percentuais o modelo de fronteira instruído pela mesma gramática, ainda que sem alcançar a geração direta de XML.
+
+A explicação para essa assimetria organiza os achados do trabalho. A serialização XML da BPMN é verbosa, mas está amplamente representada no pré-treinamento dos modelos de linguagem; a linguagem proposta é compacta, porém inteiramente nova para eles. Verbosidade não constitui dificuldade para quem já viu o formato milhões de vezes --- novidade, sim. Segue-se que o benefício de uma representação intermediária compacta não se realiza por instrução em contexto, e sim por especialização do modelo, o que reposiciona o ajuste fino de etapa acessória a condição necessária da abordagem.
 
 \section{Contribuições do Trabalho}
 \label{sec:contribuicoes-do-trabalho}
 
-\lipsum[3]
+\textbf{Artefato técnico.} Uma linguagem de domínio específico para descrição de processos, com gramática EBNF formalmente especificada, e um transpilador determinístico que a expande em XML BPMN 2.0. Sobre as 1.021 amostras ativas, a cadeia produz 100\% de documentos válidos contra o esquema oficial da OMG e preserva a equivalência topológica em 99,6\% dos casos, com resíduo composto exclusivamente por arestas excedentes --- isto é, o modo de falha remanescente nunca descarta lógica do processo de origem.
+
+\textbf{Evidência empírica sobre representações intermediárias.} Três hipóteses foram refutadas com significância estatística e replicação em duas famílias de modelos: descrever uma notação nova em \textit{prompt} é inferior a deixar o modelo emitir o formato que já domina, tanto em fidelidade quanto em validade. Resultados negativos dessa natureza raramente são publicados, e sua ausência na literatura leva projetos a repetirem a mesma tentativa. O pré-registro do protocolo (Seção~\ref{sec:pre-registro}), prática incomum em trabalhos de conclusão de curso, é o que tornou esse relato possível sem suspeita de racionalização posterior.
+
+\textbf{Viabilidade econômica da especialização.} O modelo ajustado emite 200 \textit{tokens} medianos contra 631 da geração direta, executa em placa gráfica de consumidor e custou menos de um dólar para ser treinado. Sua fidelidade topológica é estatisticamente indistinguível da obtida por um modelo de fronteira operado por \textit{prompt}. A afirmação sustentada pelos dados não é de superioridade absoluta, e sim de posição favorável na fronteira entre custo e qualidade.
+
+\textbf{Contribuição metodológica.} Mediu-se o \textbf{teto humano} da métrica de fidelidade adotada (Seção~\ref{subsec:res-teto}): duas referências de especialista para o mesmo processo concordam entre si em DF-F1 de apenas 0,1449, e em apenas 31,0\% dos rótulos. Todos os métodos avaliados operam nessa vizinhança, e os dois braços de geração direta de XML a ultrapassam. Decorre daí que \textbf{métricas estruturais com identidade de nó por rótulo saturam próximo ao ruído} quando aplicadas a uma tarefa sem resposta única, e que reportá-las contra um máximo teórico de 1,0 conduz a interpretação sistematicamente pessimista. Essa observação não depende da BPMN nem da linguagem aqui proposta, e é possivelmente a contribuição de maior alcance do trabalho.
 
 \section{Limitações}
 \label{sec:limitacoes}
 
-\lipsum[4]
+\textbf{Validade externa do conjunto de treino.} 95,3\% das amostras de treinamento provêm de uma única fonte, o \textit{handbook} corporativo da GitLab (Seção~\ref{sec:res-corpus}). O modelo especializado é, portanto, treinado predominantemente sobre o estilo redacional de uma organização e avaliado contra um conjunto de domínio distinto. Ampliar o volume só reduz esse risco se as amostras vierem de fontes novas.
+
+\textbf{Um único modelo base.} A alegação de que um modelo pequeno especializado atinge o desempenho reportado repousa sobre uma única família de modelos. A replicação com duas famílias, que se mostrou decisiva no contraste entre \textit{prompting} e geração direta, não foi realizada no eixo do ajuste fino.
+
+\textbf{Teto imposto pelos dados de treinamento.} A saída do próprio \textit{pipeline} de geração de dados, pontuada contra as referências, alcança DF-F1 de 0,1533 (Seção~\ref{subsec:res-oraculo}). Um modelo que aprendesse o conjunto de treinamento com fidelidade perfeita não superaria esse valor, o que limita superiormente qualquer ganho atribuível ao ajuste fino sob os dados atuais.
+
+\textbf{Limitações da métrica primária.} Além da saturação já discutida, oito dos cinquenta e três itens de avaliação produzem DF-F1 nulo em \textbf{todos} os braços, incluindo os de geração direta de XML. A causa é convenção de nomenclatura: essas referências nomeiam atividades como orações em terceira pessoa com o ator por sujeito, ao passo que o protocolo instrui a forma imperativa. Como o casamento de rótulos não aplica radicalização morfológica, a similaridade fica estruturalmente abaixo do limiar. O efeito é uniforme entre braços e não altera ordenação alguma, mas deprime todos os valores absolutos em cerca de 18\%.
+
+\textbf{Eixo de fluxos de mensagem não avaliável.} Apenas dois dos cinquenta e três itens possuem \texttt{messageFlow} na referência (Seção~\ref{subsec:res-mf}), o que impede qualquer inferência sobre a capacidade de modelar comunicação entre participantes.
+
+\textbf{Dimensão do conjunto de avaliação.} Com $n = 53$ itens e variância elevada, os contrastes têm potência estatística modesta. A ordenação entre braços chegou a inverter-se entre o conjunto completo e o subconjunto com referência múltipla, o que recomenda cautela na leitura de diferenças pequenas.
 
 \section{Trabalhos Futuros}
 \label{sec:trabalhos-futuros}
 
-\lipsum[5]
+\textbf{Refinamento do casamento de rótulos.} Radicalização morfológica e remoção de ator no início do rótulo endereçam diretamente a limitação mais severa identificada, e podem ser avaliadas como verificação de robustez sobre múltiplos limiares, preservando-se o valor congelado como número primário. Alterar o limiar após observar que a métrica produz valores baixos elevaria indistintamente todos os braços, motivo pelo qual não foi feito neste trabalho.
 
+\textbf{Replicação com segundo modelo base.} Repetir o ajuste fino sobre outra família de modelos, mantidos constantes os demais fatores, testaria se o desempenho observado é propriedade do método ou do modelo escolhido --- exatamente a função que a replicação cumpriu no contraste entre formatos.
 
+\textbf{Curva de aprendizado.} Treinar sobre frações crescentes do conjunto disponível determinaria se o volume de dados ainda é fator limitante ou se o desempenho já saturou, questão que este trabalho respondeu apenas de forma indireta e que dispensa qualquer acesso ao conjunto de avaliação.
 
+\textbf{Aprendizado por reforço com recompensa verificável.} A etapa prevista na Seção~\ref{subsec:grpo-metodo} permanece como extensão, com a ressalva ali registrada: a recompensa restrita a componentes verificáveis sem referência é explorável, pois premia a emissão da menor saída sintaticamente válida. Seu reparo exige um termo de ancoragem no texto de origem, cuja calibração constitui contribuição autônoma.
 
+\textbf{Decodificação restrita como linha de base concorrente.} Garantir conformidade sintática durante a geração é alternativa direta ao que o ajuste fino alcançou aqui por outro caminho, e o contraste entre as duas estratégias --- uma que restringe o espaço de saída, outra que o internaliza --- não foi avaliado.
+
+\textbf{Generalização para além da BPMN.} A hipótese que motivou o trabalho é independente do domínio: aplica-se a qualquer esquema formal cuja serialização oficial seja verbosa. Avaliar o mesmo protocolo sobre outra linguagem de marcação testaria se o padrão observado --- benefício condicionado à internalização da notação nos pesos --- é propriedade geral da abordagem ou particularidade da BPMN.

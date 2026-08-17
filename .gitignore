@@ -123,3 +123,4 @@ configs/prompts/private/
 AGENTS.md
 CLAUDE.md
 fontes.txt
+experiments/sft/adapter/

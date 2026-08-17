@@ -37,6 +37,22 @@
 \usepackage[utf8]{inputenc}                         % Acentuação direta
 \usepackage[T1]{fontenc}                            % Codificação da fonte em 8 bits
 \usepackage{graphicx}                               % Inserir figuras
+% Gráficos gerados a partir dos CSV em article/figuras/dados/, produzidos por
+% `uv run python -m src.evaluation.export_figuras`. Nenhum número das figuras é
+% transcrito à mão: reexecutar um braço e rodar o script regenera tudo.
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{statistics}
+% Diagramas BPMN qualitativos, gerados por `src.evaluation.bpmn_tikz` a partir
+% do BPMNDI do próprio pipeline — o leiaute mostrado é o que o sistema produz.
+\usetikzlibrary{shapes.geometric, arrows.meta}
+% Paleta validada para daltonismo (deuteranopia/tritanopia) — ΔE mínimo 11,6
+% entre pares adjacentes. Toda figura usa também codificação secundária
+% (traçado ou marcador), para o caso de impressão em tons de cinza.
+\definecolor{corXML}{HTML}{1B6EC2}
+\definecolor{corDSL}{HTML}{D95F02}
+\definecolor{corSFT}{HTML}{1B9E77}
+\definecolor{corTeto}{HTML}{6B6B6B}
 \usepackage{amsfonts, amssymb, amsmath}             % Fonte e símbolos matemáticos
 \usepackage{booktabs}                               % Comandos para tabelas
 \usepackage{verbatim}                               % Texto é interpretado como escrito no documento

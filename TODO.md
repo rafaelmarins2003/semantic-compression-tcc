@@ -1,6 +1,7 @@
 # TODO — roteiro de execução
 
 Atualizado em 2026-08-09. Specs em `specs/`; decisões de alcance amplo em `specs/adr/`.
+Histórico de achados, bugs e pendências de verificação: `docs/registro-tecnico.md`.
 
 ## Estado atual
 

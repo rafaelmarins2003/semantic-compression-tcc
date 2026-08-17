@@ -1,0 +1,33 @@
+% Perda de validação do ajuste supervisionado. Três pontos apenas — uma época é
+% a unidade de avaliação —, mas é a série que decide qual checkpoint vira o
+% modelo entregue, e o mínimo na época 2 é visível de imediato.
+\begin{figure}[htb]
+	\Caption{\label{fig:sft-eval} Perda de validação por época no ajuste supervisionado}
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.62\textwidth, height=5.2cm,
+			xlabel={Época}, ylabel={Perda de validação},
+			xmin=0.7, xmax=3.3, ymin=0.408, ymax=0.448,
+			xtick={1,2,3},
+			ytick={0.41,0.42,0.43,0.44},
+			yticklabel style={/pgf/number format/fixed, /pgf/number format/precision=3},
+			ymajorgrids, grid style={draw=black!12},
+			axis lines*=left, tick align=outside,
+			tick label style={font=\small}, label style={font=\small},
+			nodes near coords, nodes near coords style={font=\scriptsize, /pgf/number format/fixed, /pgf/number format/precision=4},
+			every node near coord/.append style={anchor=south west, xshift=2pt},
+		]
+			\addplot[corSFT, thick, mark=*, mark size=2.6pt]
+				table[x=epoca, y=eval_loss, col sep=comma] {figuras/dados/sft_eval.csv};
+			\draw[corTeto, dashed] (axis cs:2,0.408) -- (axis cs:2,0.416);
+			\node[corTeto, font=\scriptsize, anchor=north] at (axis cs:2,0.4128) {\textit{checkpoint} entregue};
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Validação de 78 exemplos, agrupada por documento de origem. O mínimo na
+	época 2 determinou o adaptador entregue: a subida na época 3 indica início de
+	sobreajuste, e o critério de parada por validação descartou-a
+	automaticamente. Verificado por soma de verificação que o adaptador salvo é
+	idêntico ao \textit{checkpoint} da época 2.}
+\end{figure}

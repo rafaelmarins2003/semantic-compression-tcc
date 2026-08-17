@@ -290,7 +290,15 @@ Prevê-se, portanto, que a etapa seja executada — caso venha a sê-lo — com 
 
 A restrição tem três justificativas convergentes. A primeira é de \textbf{validade}: $r_{\text{sint}}$ e $r_{\text{comp}}$ são calculáveis por chamada ao \textit{parser} e ao tokenizador, sem qualquer modelo de referência, e portanto não podem contaminar a avaliação. A segunda é de \textbf{alvo}: a validade sintática é o eixo em que os resultados da Seção~\ref{sec:res-bracos} identificam folga substancial — 64,8\% no braço A2 contra 98,1\% no A1 — ao passo que a fidelidade topológica encontra-se saturada. A terceira é de \textbf{custo}: uma recompensa que dispensa referência dispensa também dado anotado, tornando a etapa viável sem ampliação do corpus.
 
-Por restrição de cronograma, essa etapa permanece tratada como trabalho futuro caso não seja concluída no prazo do TCC. Registra-se, contudo, que a análise acima altera sua posição relativa: de extensão opcional, passa a ser a intervenção de melhor relação entre custo e retorno esperado \textbf{caso o ajuste supervisionado não resolva a validade sintática}, à frente tanto da ampliação do corpus quanto de modificações no \textit{pipeline} de geração de dados.
+\subsubsection*{Degenerescência da recompensa restrita}
+
+A formulação $r'$ acima, contudo, é \textbf{explorável}, e registra-se a objeção por ser decisiva quanto à viabilidade da etapa. Sob $r'$, a política ótima consiste em emitir a menor DSL sintaticamente válida possível --- um processo contendo apenas evento inicial e final ---, o que maximiza simultaneamente $r_{\text{sint}}$ e $r_{\text{comp}}$ enquanto descreve processo algum. Ao remover $r_{\text{topo}}$ para evitar contaminação do conjunto de avaliação, elimina-se o único termo que penalizava conteúdo incorreto, e o desenho passa a premiar a degenerescência que pretende evitar.
+
+O reparo exige um termo de ancoragem \textbf{calculável sem referência}. A Seção~\ref{subsec:res-oraculo} fornece um candidato: a proporção de palavras do rótulo presentes no texto de origem, medida em 60,4\% a 62,1\% em todas as origens avaliadas, inclusive nas referências de especialista. Um termo dessa natureza penaliza saída degenerada --- que não cobre o texto --- sem consultar modelo de referência algum. Sua calibração, entretanto, constitui contribuição autônoma e não trivial, e não uma configuração a ser ajustada em poucas horas.
+
+\subsubsection*{Posição no cronograma}
+
+Conjugadas, as duas observações desta seção reposicionam a etapa. O resultado do braço A4 (Seção~\ref{subsec:res-sft}) reduziu a folga em validade sintática de 41,5 para 13,2 pontos percentuais, de modo que o retorno esperado do aprendizado por reforço é hoje substancialmente menor do que se antecipava; e a recompensa aplicável requer redesenho com validação própria. Mantém-se, portanto, a classificação original de \textbf{trabalho futuro}, agora por razão substantiva e não apenas por cronograma.
 
 \section{Infraestrutura e Reprodutibilidade}
 \label{sec:reprodutibilidade}

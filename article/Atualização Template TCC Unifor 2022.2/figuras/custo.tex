@@ -1,0 +1,49 @@
+% Custo de saída contra validade — o argumento econômico da tese em um plano.
+% Rótulos posicionados um a um: `nodes near coords` colidia nos aglomerados
+% (A1/A1g à direita, A2/A2g/A3 à esquerda). Eixo x logarítmico porque os
+% tokens variam de 138 a 2.041.
+\begin{figure}[htb]
+	\Caption{\label{fig:custo} Custo de saída contra validade sintática, por braço}
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.86\textwidth, height=6.8cm,
+			xmode=log, log basis x=10,
+			xlabel={\textit{Tokens} emitidos por item (mediana, escala log)},
+			ylabel={Saídas válidas no XSD (\%)},
+			xmin=105, xmax=3200, ymin=-8, ymax=115,
+			xtick={125,250,500,1000,2000}, xticklabels={125,250,500,1000,2000},
+			ytick={0,25,50,75,100},
+			ymajorgrids, xmajorgrids, grid style={draw=black!12},
+			axis lines*=left, tick align=outside,
+			tick label style={font=\small}, label style={font=\small},
+			legend style={font=\small, at={(0.97,0.52)}, anchor=east, draw=none, fill=white, fill opacity=0.9, text opacity=1},
+			legend cell align=left,
+		]
+			\addplot[only marks, mark=*, mark size=2.8pt, corXML]
+				coordinates {(631,98.1) (699,94.3)};
+			\addlegendentry{XML direto}
+			\addplot[only marks, mark=square*, mark size=2.8pt, corDSL]
+				coordinates {(138,64.8) (149,54.7) (159,58.5) (2041,0.0)};
+			\addlegendentry{DSL por \textit{prompting}}
+			\addplot[only marks, mark=triangle*, mark size=4pt, corSFT]
+				coordinates {(200,86.8)};
+			\addlegendentry{DSL, 7B com ajuste fino}
+
+			% Rótulos individuais, ancorados para evitar sobreposição
+			\node[font=\scriptsize, anchor=south]      at (axis cs:631,99.5)  {A1};
+			\node[font=\scriptsize, anchor=north west] at (axis cs:699,92.5)  {A1g};
+			\node[font=\scriptsize, anchor=south east] at (axis cs:200,88.5)  {\textbf{A4}};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:138,66.5)  {A2};
+			\node[font=\scriptsize, anchor=west]       at (axis cs:159,58.5)  {\ A3};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:149,52.5)  {A2g};
+			\node[font=\scriptsize, anchor=south east] at (axis cs:2041,2.5)  {A3m};
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Canto superior esquerdo é o desejável: alta validade a baixo custo. O
+	braço A4 emite 200 \textit{tokens} medianos contra 631 do A1, mantendo 86{,}8\%
+	de validade, e executa em placa de consumidor. O A3m aparece isolado à direita
+	por gerar XML sob teto dimensionado para DSL, truncando em metade das
+	execuções.}
+\end{figure}

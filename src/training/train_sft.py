@@ -52,9 +52,7 @@ def montar(tok, exemplos: list[dict], seq: int) -> list[dict]:
     saida, truncados, divergentes = [], 0, 0
     for e in exemplos:
         conversa = [{"role": "user", "content": e["prompt"]}]
-        texto_prompt = tok.apply_chat_template(
-            conversa, tokenize=False, add_generation_prompt=True
-        )
+        texto_prompt = tok.apply_chat_template(conversa, tokenize=False, add_generation_prompt=True)
         texto_full = tok.apply_chat_template(
             [*conversa, {"role": "assistant", "content": e["completion"]}], tokenize=False
         )
@@ -90,9 +88,7 @@ def colar(lote: list[dict], pad_id: int) -> dict:
         "input_ids": torch.tensor(
             [x["input_ids"] + [pad_id] * (largura - len(x["input_ids"])) for x in lote]
         ),
-        "labels": torch.tensor(
-            [x["labels"] + [-100] * (largura - len(x["labels"])) for x in lote]
-        ),
+        "labels": torch.tensor([x["labels"] + [-100] * (largura - len(x["labels"])) for x in lote]),
         "attention_mask": torch.tensor(
             [[1] * len(x["input_ids"]) + [0] * (largura - len(x["input_ids"])) for x in lote]
         ),
@@ -229,7 +225,10 @@ def main() -> None:
                 "n_treino": len(treino),
                 "n_val": len(val),
                 "seed": SEED,
-                "historico": treinador.state.log_history[-8:],
+                # Histórico completo, não as últimas entradas: é a fonte das
+                # curvas de treino e validação da monografia. O `trainer_state`
+                # dos checkpoints também guarda, mas `save_total_limit` os apaga.
+                "historico": treinador.state.log_history,
             },
             ensure_ascii=False,
             indent=2,
