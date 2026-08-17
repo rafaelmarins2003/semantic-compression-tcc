@@ -1,27 +1,31 @@
+% Siglas efetivamente empregadas no texto. Cada entrada foi conferida por
+% contagem de ocorrências nos capítulos textuais — nada é declarado aqui sem
+% uso, e nada usado no texto ficou de fora.
+%
+% O arquivo é carregado no preâmbulo (as declarações \newacronym precisam
+% preceder \begin{document}), e `\glsaddall` em main.tex força a impressão de
+% todas: o texto usa as siglas em forma literal, não via \gls.
 
-\newacronym{PCS}{PCS}{Paulo Cirillo Souza}
+% --- Notação e formatos ---
+\newacronym{BPMN}{BPMN}{\textit{Business Process Model and Notation}}
+\newacronym{XML}{XML}{\textit{eXtensible Markup Language}}
+\newacronym{XSD}{XSD}{\textit{XML Schema Definition}}
+\newacronym{JSON}{JSON}{\textit{JavaScript Object Notation}}
+\newacronym{DSL}{DSL}{\textit{Domain-Specific Language} (linguagem de domínio específico)}
+\newacronym{EBNF}{EBNF}{\textit{Extended Backus-Naur Form}}
+\newacronym{OMG}{OMG}{\textit{Object Management Group}}
 
-\newacronym{TMMFC}{TMMFC}{Taxa de Mortalidade por Malformação Congênita}
-\newacronym{TMI}{TMI}{Taxa de Mortalidade Infantil}
-\newacronym{SUS}{SUS}{Sistema Único de Saúde}
-\newacronym{DO}{DO}{Declaração de Óbito}
-\newacronym{DNV}{DNV}{Declaração de Nascido Vivo}
-\newacronym{PNI}{PNI}{Programa Nacional de Imunização}
-\newacronym{ONU}{ONU}{Organização das Nações Unidades}
-\newacronym{OMS}{OMS}{Organização Mundial de Saúde}
-\newacronym{SINASC}{SINASC}{Sistema de Informação de Nascidos Vivos}
-\newacronym{KNN}{KNN}{K - Neareast Neighbor}
-\newacronym{SIM}{SIM}{Sistema de Informação de Mortalidade}
-\newacronym{RN}{RN}{Recém-nascido}
-\newacronym{MS}{MS}{Ministério da Saúde}
-\newacronym{MI}{MI}{Mortalidade Infantil}
-\newacronym{MFC}{MFC}{Malformação Congênita}
-\newacronym{OI}{OI}{Óbito Infantil}
-\newacronym{ODM}{ODM}{Objetivos do Desenvolvimento do Milênio}
-\newacronym{NV}{NV}{Nascido Vivo}
-\newacronym{IBGE}{IBGE}{Instituto Brasileiro de Geografia e Estatística}
-\newacronym{ESF}{ESF}{Estratégia de Saúde da Família}
-\newacronym{DATASUS}{DATASUS}{Departamento de Informática do Sistema Único de Saúde}
-\newacronym{RIPSA}{RIPSA}{Rede Interagencial de Informações para a Saúde}
-\newacronym{PSF}{PSF}{Programa Saúde da Família}
+% --- Modelos de linguagem e especialização ---
+\newacronym{LLM}{LLM}{\textit{Large Language Model} (modelo de linguagem de grande escala)}
+\newacronym{SFT}{SFT}{\textit{Supervised Fine-Tuning} (ajuste fino supervisionado)}
+\newacronym{LoRA}{LoRA}{\textit{Low-Rank Adaptation} (adaptação de baixo posto)}
+\newacronym{QLoRA}{QLoRA}{\textit{Quantized Low-Rank Adaptation}}
+\newacronym{NF4}{NF4}{\textit{Normal Float} de 4 \textit{bits}}
+\newacronym{GRPO}{GRPO}{\textit{Group Relative Policy Optimization}}
+\newacronym{GPU}{GPU}{\textit{Graphics Processing Unit} (unidade de processamento gráfico)}
 
+% --- Métricas do protocolo de avaliação ---
+\newacronym{TCR}{TCR}{\textit{Token Compression Ratio} (razão de compressão de \textit{tokens})}
+\newacronym{DFF1}{DF-F1}{medida F1 sobre o multiconjunto \textit{direct-follows}}
+\newacronym{MFF1}{MF-F1}{medida F1 sobre os fluxos de mensagem}
+\newacronym{XSDVal}{XSD-Val}{taxa de validade contra o esquema XSD oficial}

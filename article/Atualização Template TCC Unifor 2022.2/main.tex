@@ -199,6 +199,11 @@
 	\imprimirlistadequadros
 	\imprimirlistadealgoritmos
 	\imprimirlistadecodigosfonte
+	% O texto emprega as siglas em forma literal, sem marcação \gls, de modo que
+	% nenhuma seria registrada como "usada" e a lista sairia vazia. \glsaddall
+	% inclui todas as declaradas — e a lista declara apenas siglas que ocorrem
+	% no texto, conferidas por contagem.
+	\glsaddall
 	\imprimirlistadeabreviaturasesiglas
 	\imprimirlistadesimbolos{elementos-pre-textuais/lista-de-simbolos}
 	\imprimirsumario

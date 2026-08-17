@@ -157,6 +157,19 @@ O processo iterativo é, ele próprio, um resultado metodológico: duas classes 
 
 O transpilador \textit{dsl\_to\_xml} expande a DSL para o XML BPMN 2.0 explícito, sem reinterpretar o processo: cada conexão gera um \texttt{sequenceFlow}; blocos de \textit{gateway} geram os nós de divisão e, quando há continuação, de convergência; escopos \texttt{@lane} materializam \texttt{laneSet}, \texttt{lane} e \texttt{flowNodeRef}; colaborações geram participantes e \texttt{messageFlow}. Um contexto global de alocação garante unicidade de identificadores em documentos com múltiplos processos. O XML resultante é validado com a biblioteca lxml contra o XSD oficial da OMG versionado no repositório; a validação por esquema é tratada como critério binário obrigatório de aceitação, e não como métrica.
 
+\subsection{Geração Determinística de Leiaute}
+\label{subsec:layout}
+
+O XML produzido pelo transpilador contém apenas a lógica do processo. Um documento BPMN sem a seção de \textit{diagram interchange} é válido perante o esquema e íntegro do ponto de vista semântico, mas abre como tela em branco na maioria das ferramentas de modelagem --- as coordenadas de cada forma são obrigatórias para a exibição, ainda que opcionais para a validação. Um pós-processador independente supre essa lacuna.
+
+O algoritmo segue a estrutura clássica de leiaute em camadas atribuída a \citeonline{sugiyama1981methods}. Arestas de retorno são descartadas por busca em profundidade, tornando acíclico o grafo de fluxo; os nós recebem então uma camada pela regra do caminho mais longo a partir dos eventos iniciais, o que preserva a ordem de precedência no eixo horizontal; dentro de cada camada, os nós são distribuídos verticalmente respeitando a raia a que pertencem, com altura de raia calculada a partir do maior empilhamento simultâneo observado. As arestas são roteadas ortogonalmente entre as bordas das formas. O espaçamento é fixo e as dimensões seguem as convenções usuais da notação.
+
+Duas propriedades desse componente merecem registro, e ambas são consequência de ele ser \textbf{determinístico}: a mesma entrada produz sempre as mesmas coordenadas.
+
+A primeira é de \textbf{escopo de medição}. O leiaute é gerado por pós-processamento e nenhuma das abordagens comparadas exige que o modelo o produza; incluí-lo em qualquer métrica atribuiria à representação um custo que ela não impõe. Por isso o numerador da taxa de compressão é o XML lógico (Seção~\ref{subsec:eixo4}), a projeção de equivalência topológica ignora coordenadas, e a validação por esquema é indiferente a elas. \textbf{Nenhum resultado deste trabalho depende do leiaute}, e essa independência é garantida por construção, não por convenção: a rotina que remove a seção de diagrama antes de medir é a mesma em todos os eixos.
+
+A segunda é de \textbf{comparabilidade visual}. Como referências e candidatos são posicionados pelo mesmo algoritmo, a partir do zero e sem intervenção manual, qualquer diferença observada entre dois diagramas é diferença de conteúdo, e não de estilo de desenho. É essa propriedade que sustenta a comparação qualitativa apresentada na Seção~\ref{subsec:res-limitacao-df}: ali, referência e candidato exibem estruturas visualmente próximas e rótulos distintos, e o leitor pode atribuir a divergência ao vocabulário porque o desenho não é variável livre.
+
 \section{Protocolo de Avaliação}
 \label{sec:avaliacao}
 

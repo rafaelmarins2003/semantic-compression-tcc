@@ -513,9 +513,12 @@
 
 % ---------------------------------------------------------------------------
 % Linhagem metodológica da métrica DF-F1 e representações de processo.
-% VERIFICAR ANTES DA ENTREGA: os campos de veículo/páginas das entradas
-% marcadas com [conferir] foram preenchidos por conhecimento bibliográfico e
-% não a partir do PDF original.
+% CONFERIDAS em 2026-08-17 contra registros de editora, DOI e — no caso das
+% representações comparadas pelo PMo — contra a bibliografia do próprio PDF do
+% PMo (arXiv:2507.11356), que é a fonte primária da atribuição. Uma entrada foi
+% corrigida na autoria (kopke2024efficient) e outra substituída por completo
+% (ver voelter2024multimodal). A verificação usou registros publicados, não a
+% leitura integral de cada PDF.
 % ---------------------------------------------------------------------------
 
 @inproceedings{brissard2025pmr,
@@ -524,7 +527,10 @@
     author    = {Brissard, Alexis and Cuppens, Fr{\'e}d{\'e}ric and Zouaq, Amal},
     booktitle = {Proceedings of the AI4BPM Workshop at BPM 2025},
     year      = {2025},
-    note      = {Accepted for publication}
+    eprint    = {2507.11356},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CL},
+    note      = {Aceito para publicação; pré-print em arXiv:2507.11356}
 }
 
 @article{vanderaalst2004alpha,
@@ -546,7 +552,7 @@
     year      = {2016}
 }
 
-% [conferir] volume/páginas
+% Verificado em 2026-08-17 contra registro de editora/DOI.
 @article{zha2010tar,
     title   = {A Workflow Net Similarity Measure Based on Transition Adjacency Relations},
     author  = {Zha, Haiping and Wang, Jianmin and Wen, Lijie and Wang, Chaokun
@@ -555,10 +561,11 @@
     volume  = {61},
     number  = {5},
     pages   = {463--471},
-    year    = {2010}
+    year    = {2010},
+    doi     = {10.1016/j.compind.2010.01.001}
 }
 
-% [conferir] volume/páginas
+% Verificado em 2026-08-17 contra registro de editora/DOI.
 @article{weidlich2011behavioral,
     title   = {Efficient Consistency Measurement Based on Behavioral Profiles
                of Process Models},
@@ -567,10 +574,11 @@
     volume  = {37},
     number  = {3},
     pages   = {410--429},
-    year    = {2011}
+    year    = {2011},
+    doi     = {10.1109/TSE.2010.96}
 }
 
-% [conferir] volume/páginas
+% Verificado em 2026-08-17 contra registro de editora/DOI.
 @article{dijkman2011similarity,
     title   = {Similarity of Business Process Models: Metrics and Evaluation},
     author  = {Dijkman, Remco and Dumas, Marlon and van Dongen, Boudewijn and
@@ -579,24 +587,51 @@
     volume  = {36},
     number  = {2},
     pages   = {498--516},
-    year    = {2011}
+    year    = {2011},
+    doi     = {10.1016/j.is.2010.09.006}
 }
 
-% [conferir] veículo — representação "JSON branches" do PMo
+% Verificado em 2026-08-17. Origem da representação "JSON branches", conforme
+% a própria referência [10] do PMo. Coautora corrigida: Aya Safan, não Mohamed.
 @inproceedings{kopke2024efficient,
     title     = {Efficient {LLM}-Based Conversational Process Modeling},
-    author    = {K{\"o}pke, Julius and Safan, Mohamed},
-    booktitle = {Business Process Management Workshops},
+    author    = {K{\"o}pke, Julius and Safan, Aya},
+    booktitle = {Business Process Management Workshops (BPM 2024)},
+    series    = {Lecture Notes in Business Information Processing},
+    volume    = {534},
     publisher = {Springer},
-    year      = {2024}
+    address   = {Cham},
+    year      = {2025},
+    doi       = {10.1007/978-3-031-78666-2_20}
 }
 
-% [conferir] veículo — representação "PME" do PMo
-@inproceedings{volter2024generative,
-    title     = {Generative {AI} for Business Process Management:
-                 Suitability of Modalities},
-    author    = {V{\"o}lter, Maximilian and Hake, Philip and Fettke, Peter},
-    booktitle = {Business Process Management Workshops},
-    publisher = {Springer},
-    year      = {2024}
+% CORRIGIDA em 2026-08-17. A entrada anterior (V\"olter, Hake e Fettke,
+% "Generative AI for Business Process Management: Suitability of Modalities",
+% Springer) NÃO existe como artigo: aquele título é a apresentação de defesa de
+% mestrado de Marvin V\"olter na Universität Ulm, e os demais autores estavam
+% incorretos. A origem real da representação "Process Model Elements" é a
+% referência [19] do PMo, reproduzida abaixo a partir do PDF do próprio PMo.
+@misc{voelter2024multimodal,
+    title  = {Leveraging Generative {AI} for Extracting Process Models from
+              Multimodal Documents},
+    author = {Voelter, Marvin and Hadian, Raheleh and Kampik, Timotheus and
+              Breitmayer, Marius and Reichert, Manfred},
+    year   = {2024},
+    eprint = {2406.04959},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.SE},
+    doi    = {10.48550/arXiv.2406.04959}
+}
+
+% Origem do leiaute em camadas usado pelo pós-processador de BPMNDI
+% (remoção de ciclos, atribuição de camadas, ordenação dentro da camada).
+@article{sugiyama1981methods,
+    title   = {Methods for Visual Understanding of Hierarchical System Structures},
+    author  = {Sugiyama, Kozo and Tagawa, Shojiro and Toda, Mitsuhiko},
+    journal = {IEEE Transactions on Systems, Man, and Cybernetics},
+    volume  = {11},
+    number  = {2},
+    pages   = {109--125},
+    year    = {1981},
+    doi     = {10.1109/TSMC.1981.4308636}
 }

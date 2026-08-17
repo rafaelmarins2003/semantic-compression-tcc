@@ -1,31 +1,38 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%   Atencao! A lista nao ordena automaticamente   %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Ordenada por tema, na sequência em que os símbolos aparecem no texto:
+% métrica de fidelidade, desenho experimental, análise estatística, função de
+% recompensa e, por fim, o símbolo grego. Contém apenas símbolos efetivamente
+% empregados — as siglas das métricas (DF-F1, MF-F1, TCR, XSD-Val) figuram na
+% Lista de Abreviaturas e Siglas, não aqui.
 
 \begin{simbolos} \itemsep -1pt
-	\item[$ Ae $] Área efetiva da antena
-	\item[$ B $] Largura de faixa em que o ruído é medido em Hertz
-	\item[$ d $] Distância em metros
-	\item[$ E $] Campo elétrico
-	\item[$ FA $] Fator da antena
-	\item[$ Gr $] Ganho de recepção
-	\item[$ h $] Altura efetiva ou comprimento efetivo de uma antena
-	\item[$ I $] Corrente elétrica
-	\item[$ k $] Constante de Boltzmann’s
-	\item[$ K $] Eficiência de irradiação
-	\item[$ M $] Variação do patamar de ruído em função da RBW
-	\item[$ N $] Condutor de neutro
-	\item[$ NF $] Figura de ruído
-	\item[$ Ni $] Potência do ruído na entrada
-	\item[$ No $] Potência do ruído na saída
-	\item[$ P $] Potência
-	\item[$ R $] Resistência
-	\item[$ Si $] Potência do sinal na entrada
-	\item[$ So $] Potência do sinal na saída
-	\item[$ t $] Tempo
-	\item[$ V $] Tensão
-	\item[$ ZL  $] Impedância da antena
-	\item[$ Zo $] Impedância de referência (50$\Omega$)
-	\item[$ \lambda $] Comprimento de onda 
-	\item[$ \Gamma $] Coeficiente de reflexão	
+	% Métrica de fidelidade topológica
+	\item[$ R $] Multiconjunto \textit{direct-follows} do modelo de referência
+	\item[$ C $] Multiconjunto \textit{direct-follows} do modelo candidato
+	\item[$ P $] Precisão sobre o multiconjunto \textit{direct-follows}
+	\item[$ R\!c $] Revocação sobre o multiconjunto \textit{direct-follows}
+	\item[$ (a,b) $] Par de atividades em que $a$ é diretamente seguida por $b$
+
+	% Desenho experimental
+	\item[$ n $] Número de itens do conjunto de avaliação
+	\item[$ k $] Número de repetições de geração por item
+
+	% Análise estatística
+	\item[$ p $] Valor-$p$ do teste de Wilcoxon pareado
+	\item[$ p_{Holm} $] Valor-$p$ após correção de Holm para múltiplas comparações
+	\item[$ r_{rb} $] Tamanho de efeito \textit{rank-biserial}
+
+	% Função de recompensa da etapa opcional de aprendizado por reforço
+	\item[$ r $] Recompensa composta
+	\item[$ r' $] Recompensa restrita a componentes verificáveis sem referência
+	\item[$ r_{\text{sint}} $] Componente de validade sintática da recompensa
+	\item[$ r_{\text{sem}} $] Componente de adequação semântica da recompensa
+	\item[$ r_{\text{topo}} $] Componente de coerência topológica da recompensa
+	\item[$ r_{\text{comp}} $] Componente de economia de \textit{tokens} da recompensa
+
+	% Símbolo grego
+	\item[$ \alpha $] Algoritmo $\alpha$ de descoberta de processos
 \end{simbolos}
