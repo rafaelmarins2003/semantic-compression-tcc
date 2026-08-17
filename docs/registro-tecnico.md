@@ -243,3 +243,89 @@ candidatos a virar script se forem para a monografia:
 - os 8 itens que zeram em todos os braços
 - ancoragem de rótulos no texto-fonte (60,4% a 62,1%)
 - comprimento de rótulo por braço (mediana 3,0 em todos)
+
+---
+
+## 2026-08-17 — Conclusão, pré-textuais e conferência bibliográfica
+
+### Escrito nesta sessão
+
+Conclusão (era `\lipsum`), Resumo, Abstract, Lista de Abreviaturas e Siglas,
+Lista de Símbolos, subseção sobre o gerador determinístico de leiaute, e revisão
+da Introdução. Monografia em 97 páginas, compilando sem erro nem referência
+indefinida.
+
+### Referência inexistente encontrada no `.bib` — LEIA ISTO
+
+A entrada `volter2024generative` afirmava:
+
+> V\"olter, Maximilian; Hake, Philip; Fettke, Peter. *Generative AI for Business
+> Process Management: Suitability of Modalities*. Business Process Management
+> Workshops, Springer, 2024.
+
+**Esse artigo não existe.** O título corresponde à **apresentação de defesa de
+mestrado de Marvin Völter na Universität Ulm** (abril de 2024). Hake e Fettke não
+têm relação com o trabalho, e não há publicação Springer com esse título.
+
+A fonte real da representação *Process Model Elements* é:
+
+> Voelter, M.; Hadian, R.; Kampik, T.; Breitmayer, M.; Reichert, M.
+> *Leveraging Generative AI for Extracting Process Models from Multimodal
+> Documents*. arXiv:2406.04959, 2024.
+
+Substituída por `voelter2024multimodal`, com a citação atualizada em
+`trabalhos-relacionados.tex`.
+
+**Origem do erro**: o cabeçalho do `.bib` já advertia que essas entradas foram
+"preenchidas por conhecimento bibliográfico e não a partir do PDF original".
+Preenchimento por memória produz entradas com aparência plausível — autores reais
+da área, veículo plausível, ano plausível — e conteúdo falso. É a mesma classe de
+risco das sondas descritas na seção anterior: **o resultado parece certo, e é
+por isso que passa**.
+
+**Regra que fica**: nenhuma entrada bibliográfica entra sem verificação contra
+registro publicado. Entrada preenchida de memória deve ser marcada como tal até
+ser conferida.
+
+### Correção de autoria
+
+`kopke2024efficient` trazia *Mohamed Safan*; a coautora é **Aya Safan**.
+Confirmado por duas vias independentes: registro Springer e bibliografia do PDF
+do PMo.
+
+### Método da conferência, e seu limite
+
+As atribuições das representações comparadas (*JSON branches* e *PME*) foram
+resolvidas baixando o **PDF do próprio PMo** (arXiv:2507.11356) e lendo sua
+bibliografia — fonte primária da atribuição, já que é o PMo quem compara essas
+representações. `JSON branches` é a referência [10] do PMo; `PME` é a [19].
+
+Demais entradas conferidas contra registro de editora e DOI. Acrescentados DOIs
+a `zha2010tar`, `weidlich2011behavioral` e `dijkman2011similarity`, todas com
+volume, número, páginas e autoria corretos.
+
+**Limite**: a verificação usou registros publicados e a bibliografia do PMo, e
+**não** a leitura integral de cada PDF. Não cobre errata, divergência de
+paginação entre versão online e impressa, nem mudança de veículo posterior.
+
+### Pendências de build
+
+O documento agora exige a sequência completa, sob pena de a lista de siglas sair
+vazia ou as referências desatualizadas:
+
+```
+pdflatex main && bibtex main && makeglossaries main && pdflatex main && pdflatex main
+```
+
+Vale automatizar com `latexmk` ou um alvo de Makefile.
+
+### Diagnóstico errado desta sessão
+
+Concluí que o arquivo de siglas nunca era carregado e acrescentei um `\input` no
+preâmbulo — gerando 18 erros de "entry already defined". O `lib/unifortex2.sty`
+**já o carrega** na linha 34. A causa real da lista vazia era outra: o texto usa
+as siglas em forma literal, nunca via `\gls`, e sigla não referenciada não é
+registrada como usada. A correção necessária era só `\glsaddall`.
+
+Mesmo padrão de sempre: sintoma com duas explicações compatíveis, e escolhi a
+errada antes de verificar qual delas o código sustentava.
