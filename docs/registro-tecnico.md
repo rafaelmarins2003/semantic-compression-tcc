@@ -329,3 +329,99 @@ registrada como usada. A correção necessária era só `\glsaddall`.
 
 Mesmo padrão de sempre: sintoma com duas explicações compatíveis, e escolhi a
 errada antes de verificar qual delas o código sustentava.
+
+---
+
+## 2026-08-23 — Declaração dos braços exploratórios (antes de executar)
+
+Escrito **antes** de rodar qualquer treino novo. O valor de um pré-registro é
+inteiramente a data: declarado depois de ver o resultado, não vale nada.
+
+### Contexto: o orçamento decide o calendário
+
+O pod da A40 ficou uma semana ligado sem uso e consumiu ~US$ 4 só de SSD
+(~US$ 0,57/dia). Restam US$ 5. O treino do A4 custou US$ 0,47 (3.675 s, 252
+passos, 14,6 s/passo). Como o saldo evapora em ~9 dias parado, a pergunta não é
+"vale gastar?" — é "gastar agora ou perder".
+
+Verificado antes de decidir: **o pod não guarda nada.** `experiments/sft/`
+local tem adapter, tokenizer, `train.jsonl`, `val.jsonl`, `manifest.json` e
+`treino.json`; a avaliação roda na 2080 Ti. O pod é aluguel de compute
+descartável, não workspace.
+
+### Dois braços exploratórios, declarados agora
+
+Não integram os sete pré-registrados da spec 003 §4 e não entram em nenhum
+contraste corrigido por Holm. Vivem no prefixo `X-` em `run_benchmark.ARMS`, e
+dois testes guardam a separação (`test_arms_cobrem_os_bracos_do_spec`,
+`test_exploratorios_ficam_fora_dos_contrastes_pre_registrados`).
+
+- **`X-lc25` / `X-lc50` — curva de aprendizado.** Mede sobre **XSD-Val**, não
+  DF-F1: a DF-F1 satura no ruído (teto humano 0,1449), então curva sobre ela
+  sairia plana e não proveria nada; a validade tem folga real (86,8% contra
+  100%). Os dois desfechos são publicáveis — saturou encerra a questão de
+  volume, ainda sobe vira trabalho futuro com número.
+- **`X-ds` — segunda família de modelo** (`deepseek-ai/deepseek-coder-6.7b-instruct`).
+  **Risco declarado antes:** se não replicar, a alegação "um 7B especializado
+  atinge X" enfraquece em vez de fortalecer. É por isso que vale medir.
+
+### O ponto de 100% da curva é o A4 existente — não retreinar
+
+Retreinar com 100% produziria outro adapter (o ADR 0003 já mostrou que
+temperatura 0 não garante determinismo, e treino menos ainda), e os números do
+A4 foram reportados sob protocolo congelado com o adapter atual. Trocá-lo
+invalida resultado publicado para ganhar uma curva de perda.
+
+Custo dessa escolha: o `treino.json` do A4 tem só 8 entradas de histórico,
+começando no passo 200 — resíduo do bug `[-8:]`, corrigido no script **depois**
+desse treino. Não há curva de perda do A4, e não haverá. Os runs novos gravam
+histórico completo, então a curva terá pontos com histórico e um sem.
+
+### Pré-voo local, para não depurar em GPU paga
+
+Cada minuto de depuração no pod é pago e quase toda ela cabe em CPU. Feito antes
+de subir:
+
+- `src/training/subsample.py` — subamostras **por grupo** (documento de origem),
+  não por exemplo: "mais dados" nesse corpus significa mais documentos, dado que
+  95,3% do treino vem de um handbook só. Frações **aninhadas** (prefixo da ordem
+  sha1), senão a curva mistura volume com composição. `val.jsonl` intocado.
+  Resultado: 690 exemplos/207 grupos → lc25 173/51, lc50 350/96. Aninhamento e
+  ausência de vazamento verificados por asserção no próprio script.
+- `src/training/check_template.py` — reusa o `montar()` do treino para checar,
+  **só com o tokenizador e sem pesos**, a invariante de prefixo exato em tokens
+  e a taxa de descarte acima de 4096. Quatro candidatos passaram na invariante:
+
+  | modelo | vocab | usados | descartados | mediana |
+  |---|---|---|---|---|
+  | Qwen2.5-Coder-7B-Instruct | 151.665 | 672 | 18 | 1.593 |
+  | deepseek-coder-6.7b-instruct | 32.022 | 657 | 33 | 1.916 |
+  | granite-8b-code-instruct-4k | 49.152 | 669 | 21 | 1.709 |
+  | Mistral-7B-Instruct-v0.3 | 32.768 | 664 | 26 | 1.802 |
+
+  DeepSeek escolhido por ser família de pré-treino distinta e code-instruct como
+  o Qwen — isola *família*, não *tipo* de modelo. Descarte 33 contra 18 (4,8% vs
+  2,6%): corpora comparáveis. Granite é reserva (Apache 2.0, descarte mais
+  próximo), mas contexto de 4k não deixa folga sobre `seq 4096`.
+
+### Estimativa da sessão do pod
+
+14,6 s/passo, lote efetivo 8, 3 épocas: lc25 ≈ 15 min, lc50 ≈ 31 min, DeepSeek
+≈ 72 min (sequências ~20% mais longas). ~2 h ≈ US$ 0,91, mais ~US$ 0,20 de
+download e setup. **~US$ 1,10 dos US$ 5.** Regra de corte: se o DeepSeek não
+estiver treinando em 45 min de pod, aborta — a curva já estará salva.
+
+### Não verificado ainda
+
+- Se `local_model.load` de fato roda o DeepSeek em 4-bit na 2080 Ti. A assinatura
+  é parametrizada (`load(model_id, adapter)`) e o template passou, mas nenhum
+  peso foi carregado. Falha aqui não custa dinheiro de GPU alugada — só refaz a
+  avaliação local.
+- **O bug do torch NÃO está corrigido no repo.** `pyproject.toml` mantém
+  `torch>=2.4` sem pin, então `uv sync --extra training` numa máquina nova pode
+  resolver de novo para `2.11+cu130` e não enxergar a GPU. O conserto de agosto
+  foi ad hoc no pod e se perdeu com ele. Não pinei aqui porque a resolução atual
+  funciona na 2080 Ti local e mexer nela arrisca o ambiente que avalia — o
+  contorno vai no roteiro: conferir `nvidia-smi`, sincronizar, e **verificar
+  `torch.cuda.is_available()` antes de treinar**, reinstalando do índice
+  correspondente se der `False`. São 2 min de pod contra ~1 h de depuração paga.

@@ -39,6 +39,10 @@ EVAL_SOURCE = "pmo"
 
 SMALL_MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
 SFT_ADAPTER = "experiments/sft/adapter"  # produzido na Fase 7; ausente até lá
+# Segunda família de modelo, para os braços exploratórios. Escolhido por passar
+# na invariante de prefixo do `montar()` com taxa de descarte comparável à do
+# Qwen (33 contra 18 de 690) — ver src/training/check_template.
+BASE2_MODEL = "deepseek-ai/deepseek-coder-6.7b-instruct"
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,25 @@ ARMS: dict[str, Arm] = {
     # enquanto A4 vs A3 mede a intervenção inteira (pesos + dispensa da gramática).
     "A3m": Arm("benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local"),
     "A4": Arm("benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local", SFT_ADAPTER),
+    # --- Exploratórios, declarados em 2026-08-23, antes de executar ---
+    # NÃO integram os sete braços pré-registrados nem qualquer contraste da spec
+    # 003 §4; entram no texto rotulados como exploratórios. Respondem a duas
+    # perguntas que os sete braços deixam em aberto:
+    #   X-lc25/X-lc50 — a validade ainda sobe com mais dados, ou saturou? Modelo,
+    #     prompt e protocolo idênticos aos do A4; só o volume de documentos de
+    #     treino muda (`src.training.subsample`). O ponto de 100% da curva é o
+    #     próprio A4: retreiná-lo produziria outro adapter e invalidaria os
+    #     números já reportados.
+    #   X-ds — o resultado do A4 é propriedade do método ou do Qwen? Outra
+    #     família de modelo, todo o resto constante. Se não replicar, a alegação
+    #     enfraquece; é por isso que vale medir.
+    "X-lc25": Arm(
+        "benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local", f"{SFT_ADAPTER}-lc25"
+    ),
+    "X-lc50": Arm(
+        "benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local", f"{SFT_ADAPTER}-lc50"
+    ),
+    "X-ds": Arm("benchmark/dsl_minimal.md", BASE2_MODEL, "dsl", 2048, "local", f"{SFT_ADAPTER}-ds"),
 }
 
 

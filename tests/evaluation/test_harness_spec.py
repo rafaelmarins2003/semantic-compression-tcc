@@ -261,8 +261,18 @@ def test_ac8_rerun_replaces_rows(banco):
 
 
 def test_arms_cobrem_os_bracos_do_spec():
-    """A3m é o controle de A4: mesmo modelo e mesmo prompt, sem o adapter."""
-    assert sorted(rb.ARMS) == ["A1", "A1g", "A2", "A2g", "A3", "A3m", "A4"]
+    """A3m é o controle de A4: mesmo modelo e mesmo prompt, sem o adapter.
+
+    Os sete braços da spec 003 §4 são conjunto fechado: nada entra nem sai deles
+    sem emenda registrada. Braços exploratórios, declarados depois de observados
+    os resultados, vivem no prefixo `X-`. Separá-los por namespace é o que
+    permite este teste continuar guardando o conjunto congelado sem proibir
+    análise adicional — e o contrário, deixar exploratório e pré-registrado no
+    mesmo saco, é justamente como um contraste escolhido a posteriori entraria
+    despercebido na conclusão.
+    """
+    pre_registrados = sorted(a for a in rb.ARMS if not a.startswith("X-"))
+    assert pre_registrados == ["A1", "A1g", "A2", "A2g", "A3", "A3m", "A4"]
     assert rb.ARMS["A3m"].prompt == rb.ARMS["A4"].prompt
     assert rb.ARMS["A3m"].model == rb.ARMS["A4"].model
     assert rb.ARMS["A3m"].adapter is None and rb.ARMS["A4"].adapter
@@ -351,3 +361,17 @@ def test_tcr_por_braco_sem_dados(banco):
     from src.evaluation.run_tcr import arm_report
 
     assert arm_report(banco, "A4", _tok_falso)["estado"] == "sem dados"
+
+
+def test_exploratorios_ficam_fora_dos_contrastes_pre_registrados():
+    """Nenhum braço `X-` pode entrar nos contrastes corrigidos por Holm.
+
+    A correção de Holm é calibrada para três comparações. Um braço exploratório
+    que vazasse para `CONTRASTES` mudaria a taxa de erro familiar sem que nada
+    acusasse, e transformaria análise pós-hoc em resultado pré-registrado.
+    """
+    from src.evaluation import run_analysis as ra
+
+    envolvidos = {a for par in ra.CONTRASTES for a in par}
+    assert not {a for a in envolvidos if a.startswith("X-")}
+    assert envolvidos <= set(rb.ARMS)
