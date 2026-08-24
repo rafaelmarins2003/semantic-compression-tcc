@@ -12,6 +12,7 @@ produz linhas idênticas, o que não valeria se a pontuação exigisse gerar de 
     uv run python -m src.evaluation.run_benchmark --arm A2 --dry-run
     uv run python -m src.evaluation.run_benchmark --arm A2 --execute
     uv run python -m src.evaluation.run_benchmark --arm A2 --rescore
+    uv run python -m src.evaluation.run_benchmark --arm A2 --retranspile
 """
 
 from __future__ import annotations
@@ -39,10 +40,17 @@ EVAL_SOURCE = "pmo"
 
 SMALL_MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
 SFT_ADAPTER = "experiments/sft/adapter"  # produzido na Fase 7; ausente até lá
-# Segunda família de modelo, para os braços exploratórios. Escolhido por passar
-# na invariante de prefixo do `montar()` com taxa de descarte comparável à do
-# Qwen (33 contra 18 de 690) — ver src/training/check_template.
-BASE2_MODEL = "deepseek-ai/deepseek-coder-6.7b-instruct"
+# Famílias adicionais dos braços de replicação. Todas aprovadas no pré-voo de
+# `src.training.check_template`, que desde 2026-08-23 testa **ida-e-volta do
+# tokenizador** antes de qualquer outra coisa.
+#
+# `deepseek-coder-6.7b-instruct` foi tentado e REPROVA: sob transformers 5.5 ele
+# carrega como LlamaTokenizer e apaga os espaços na codificação, o que zera a
+# fidelidade sem derrubar a validade. Mantido aqui como registro do que não usar.
+BASE_DEEPSEEK = "deepseek-ai/deepseek-coder-6.7b-instruct"  # REPROVADO, ver X-ds
+BASE_GRANITE = "ibm-granite/granite-4.1-8b"
+BASE_MIMO = "XiaomiMiMo/MiMo-7B-RL"
+BASE_MISTRAL = "mistralai/Mistral-7B-Instruct-v0.3"
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,10 @@ class Arm:
     max_tokens: int
     backend: str = "ollama_cloud"
     adapter: str | None = None
+    # Executar código do repositório do modelo. Declarado por braço porque é
+    # informação experimental: um braço que exige isso não está em pé de
+    # igualdade com um que não exige.
+    trust_remote_code: bool = False
 
 
 # Congelado na spec 003 §4/§6.2. Trocar aqui é emenda, não ajuste.
@@ -85,7 +97,34 @@ ARMS: dict[str, Arm] = {
     "X-lc50": Arm(
         "benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local", f"{SFT_ADAPTER}-lc50"
     ),
-    "X-ds": Arm("benchmark/dsl_minimal.md", BASE2_MODEL, "dsl", 2048, "local", f"{SFT_ADAPTER}-ds"),
+    # X-ds ficou INVÁLIDO: o tokenizador do DeepSeek apaga espaços na codificação,
+    # de modo que o braço mediu o tokenizador, não o método. As linhas seguem no
+    # banco como evidência; nenhum número dele vai para o texto.
+    "X-ds": Arm(
+        "benchmark/dsl_minimal.md", BASE_DEEPSEEK, "dsl", 2048, "local", f"{SFT_ADAPTER}-ds"
+    ),
+    # --- Replicação em outras famílias, declarada em 2026-08-23 antes de rodar ---
+    # Pergunta: os 86,8% de validade do A4 são propriedade do método ou do Qwen?
+    # Três linhagens de três organizações independentes (Alibaba, IBM, Xiaomi ou
+    # Mistral AI), com prompt, dados, hiperparâmetros e protocolo idênticos.
+    #
+    # COMPROMISSO REGISTRADO ANTES DA EXECUÇÃO: **todo braço que treinar entra no
+    # texto**, replique ou não. Rodar três e reportar o melhor seria escolha a
+    # posteriori — o vício que o pré-registro existe para impedir.
+    #
+    # X-mi passa por portão: exige `trust_remote_code` (arquitetura fora do
+    # transformers) e tem camadas de multi-token prediction, cuja interação com
+    # LoRA `all-linear` é desconhecida. Se o smoke falhar, treina-se X-ms no
+    # lugar, sem depurar arquitetura em GPU alugada.
+    "X-gr": Arm(
+        "benchmark/dsl_minimal.md", BASE_GRANITE, "dsl", 2048, "local", f"{SFT_ADAPTER}-gr"
+    ),
+    "X-mi": Arm(
+        "benchmark/dsl_minimal.md", BASE_MIMO, "dsl", 2048, "local", f"{SFT_ADAPTER}-mi", True
+    ),
+    "X-ms": Arm(
+        "benchmark/dsl_minimal.md", BASE_MISTRAL, "dsl", 2048, "local", f"{SFT_ADAPTER}-ms"
+    ),
 }
 
 
@@ -211,7 +250,11 @@ def generate(arm: Arm, prompt: str, descricao: str, api_key: str) -> tuple[str, 
 
         inicio = time.monotonic()
         texto, truncado = generate_local(
-            pedido, model_id=arm.model, adapter=arm.adapter, max_tokens=arm.max_tokens
+            pedido,
+            model_id=arm.model,
+            adapter=arm.adapter,
+            max_tokens=arm.max_tokens,
+            trust_remote_code=arm.trust_remote_code,
         )
         return texto, truncado, int((time.monotonic() - inicio) * 1000)
     inicio = time.monotonic()
@@ -280,6 +323,10 @@ def run(args: argparse.Namespace) -> None:
             })  # fmt: skip
             return
 
+        if args.retranspile:
+            retranspile(db, args.arm)
+            return rescore(db, args.arm)
+
         if args.rescore:
             return rescore(db, args.arm)
 
@@ -330,6 +377,39 @@ def run(args: argparse.Namespace) -> None:
                 estado = erro or parse_erro or f"F1={pontos['df_f1']:.3f}"
                 print(f"[{args.arm} rep{rep} {i}/{len(amostras)}] {amostra['id']}: {estado}")
         summarize(db, args.arm)
+
+
+def retranspile(db: Database, braco: str) -> int:
+    """Reconstrói `output_xml` a partir de `raw_output`, sem chamar o modelo.
+
+    `rescore` sozinho parte de `output_xml` e por isso não absorve conserto na
+    camada de parsing ou de transpilação — limitação registrada em
+    `docs/registro-tecnico.md` e efetivamente encontrada em 2026-08-23, quando
+    um `#id` redeclarado passou a gerar `xs:ID` duplicado. Regerar com o modelo
+    para incorporar um conserto determinístico seria trocar a saída avaliada;
+    re-transpilar mantém a geração intacta e refaz só a parte determinística.
+
+    Devolve quantas linhas mudaram de XML.
+    """
+    arm = ARMS[braco]
+    linhas = db.query(
+        "SELECT id, raw_output, output_xml FROM benchmark_eval"
+        " WHERE arm = ? AND raw_output IS NOT NULL",
+        (braco,),
+    )
+    mudadas = 0
+    for linha in linhas:
+        xml, parse_ok, parse_error = to_xml(arm, linha["raw_output"])
+        if (xml or "") == (linha["output_xml"] or ""):
+            continue
+        mudadas += 1
+        db._conn.execute(
+            "UPDATE benchmark_eval SET output_xml=?, parse_ok=?, parse_error=? WHERE id=?",
+            (xml, parse_ok, parse_error, linha["id"]),
+        )
+    db._conn.commit()
+    print(f"[retranspile] {len(linhas)} linhas relidas, {mudadas} com XML alterado")
+    return mudadas
 
 
 def rescore(db: Database, braco: str) -> None:
@@ -418,10 +498,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--execute", action="store_true", help="Sem isto, só planeja.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--rescore", action="store_true", help="Repontua sem gerar.")
+    p.add_argument(
+        "--retranspile",
+        action="store_true",
+        help="Refaz output_xml a partir de raw_output e repontua. Absorve conserto"
+        " determinístico (parsing/transpilação) sem chamar o modelo.",
+    )
     p.add_argument("--restart", action="store_true", help="Apaga o braço e recomeça.")
     p.add_argument("--limit", type=int, default=0)
     args = p.parse_args()
-    if not (args.execute or args.dry_run or args.rescore):
+    if not (args.execute or args.dry_run or args.rescore or args.retranspile):
         args.dry_run = True
     return args
 

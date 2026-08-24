@@ -21,11 +21,14 @@
 			legend style={font=\small, at={(0.5,1.04)}, anchor=south, draw=none, legend columns=3, column sep=1.2em},
 			legend cell align=left,
 		]
-			\addplot+[draw=none, fill=corXML] coordinates {(A1,0.1942) (A1g,0.1551)};
+			\addplot+[draw=none, fill=corXML]
+				table[x=braco, y=df_f1, col sep=comma] {figuras/dados/df_f1_xml.csv};
 			\addlegendentry{XML direto}
-			\addplot+[draw=none, fill=corDSL] coordinates {(A2,0.1375) (A2g,0.0773) (A3,0.0666) (A3m,0.0)};
+			\addplot+[draw=none, fill=corDSL]
+				table[x=braco, y=df_f1, col sep=comma] {figuras/dados/df_f1_dsl.csv};
 			\addlegendentry{DSL por \textit{prompting}}
-			\addplot+[draw=none, fill=corSFT] coordinates {(A4,0.1114)};
+			\addplot+[draw=none, fill=corSFT]
+				table[x=braco, y=df_f1, col sep=comma] {figuras/dados/df_f1_sft.csv};
 			\addlegendentry{DSL, 7B com ajuste fino}
 
 			\draw[corTeto, dashed, very thick] (axis cs:A1,0.1449) -- (axis cs:A3m,0.1449);

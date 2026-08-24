@@ -45,12 +45,18 @@ def _require():
 
 
 @lru_cache(maxsize=2)
-def load(model_id: str, adapter: str | None = None):
+def load(model_id: str, adapter: str | None = None, trust_remote_code: bool = False):
     """Carrega tokenizador e modelo quantizado, uma vez por processo.
 
     O cache é essencial, não otimização prematura: carregar 7B em 4 bits leva
     cerca de um minuto, e um braço faz 159 gerações. Sem ele, o custo de carga
     dominaria o experimento inteiro.
+
+    `trust_remote_code` fica **desligado por padrão** e é declarado por braço:
+    ligá-lo executa código do repositório do modelo. Arquiteturas fora do
+    `transformers` (MiMo, por exemplo) exigem isso, e a exigência é informação
+    experimental — um braço que precisa dela não é comparável em pé de igualdade
+    com um que não precisa, e o texto tem de dizê-lo.
     """
     torch, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig = _require()
 
@@ -60,9 +66,10 @@ def load(model_id: str, adapter: str | None = None):
         bnb_4bit_use_double_quant=True,
         bnb_4bit_compute_dtype=getattr(torch, COMPUTE_DTYPE),
     )
-    tok = AutoTokenizer.from_pretrained(model_id)
+    tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=trust_remote_code)
     modelo = AutoModelForCausalLM.from_pretrained(
         model_id,
+        trust_remote_code=trust_remote_code,
         quantization_config=quant,
         dtype=getattr(torch, COMPUTE_DTYPE),
         attn_implementation=ATTENTION,
@@ -101,10 +108,11 @@ def generate_local(
     adapter: str | None = None,
     max_tokens: int = MAX_NEW_TOKENS,
     seed: int = SEED,
+    trust_remote_code: bool = False,
 ) -> tuple[str, bool]:
     """(texto, truncado). Gulosa e sem retry — falha é resultado medido (AC-6)."""
     torch, *_ = _require()
-    tok, modelo = load(model_id, adapter)
+    tok, modelo = load(model_id, adapter, trust_remote_code)
 
     torch.manual_seed(seed)
     entradas = build_inputs(tok, prompt).to(modelo.device)

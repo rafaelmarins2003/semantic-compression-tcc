@@ -108,6 +108,7 @@ def construir_modelo(base: str, args):
 
     modelo = AutoModelForCausalLM.from_pretrained(
         base,
+        trust_remote_code=args.trust_remote_code,
         quantization_config=BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -145,6 +146,12 @@ def main() -> None:
     p.add_argument("--batch", type=int, default=1)
     p.add_argument("--acumulo", type=int, default=8)
     p.add_argument("--smoke", action="store_true", help="20 passos — valida memória e formato")
+    p.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Executa código do repositório do modelo. Necessário para arquiteturas fora"
+        " do transformers; registrar no braço, pois não é comparação em pé de igualdade.",
+    )
     args = p.parse_args()
 
     try:

@@ -179,3 +179,49 @@ def test_transpile_file_uses_v2_grammar(tmp_path):
     root = _xml(transpile_file(path))
 
     assert root.find(".//bpmn:userTask[@name='Review']", NS) is not None
+
+
+def test_transpile_redeclared_ref_emits_single_node():
+    """Redeclarar um `#id` refere-se ao mesmo nó — não emite um segundo.
+
+    Regressão de bug real (2026-08-23): um segundo elemento com o id já usado
+    produz `xs:ID` duplicado, isto é, DSL que parseia, transpila e **não valida**
+    — furando a garantia de validade por construção. O corpus não pegou porque
+    `json_to_dsl` só emite a forma `#ref` nua; modelos de linguagem repetem o
+    texto completo do nó ao fechar um laço, e foi assim que apareceu.
+    """
+    root = _xml(
+        transpile(
+            """
+            process "P" {
+              start ->
+              task "Conferir itens" #t1 ->
+              xor "Tudo conferido?" {
+                [sim] -> ()
+                [não] -> task "Selecionar mais" -> task "Conferir itens" #t1
+              } ->
+              end
+            }
+            """
+        )
+    )
+
+    ids = [el.get("id") for el in root.xpath("//*[@id]")]
+    assert len(ids) == len(set(ids)), "id repetido viola xs:ID"
+
+    alvos = root.findall(".//bpmn:task[@name='Conferir itens']", NS)
+    assert len(alvos) == 1, "a redeclaração criou um nó em vez de referenciar o existente"
+
+    # O laço tem de existir: a segunda ocorrência vira aresta de volta ao mesmo nó.
+    entradas = root.findall(f".//bpmn:sequenceFlow[@targetRef='{alvos[0].get('id')}']", NS)
+    assert len(entradas) >= 2, "sem aresta de retorno, o laço se perdeu"
+
+
+def test_transpile_redeclared_ref_is_xsd_valid():
+    """O caso mínimo que falhava, agora conferido contra o esquema oficial."""
+    from src.transpiler.xsd import validate_bpmn_xsd
+
+    xml = transpile(
+        'process "P" { start -> task "A" #a -> xor "Q" { [s] -> () [n] -> task "A" #a } -> end }'
+    )
+    assert validate_bpmn_xsd(xml) == []

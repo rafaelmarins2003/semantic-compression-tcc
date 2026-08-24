@@ -36,10 +36,48 @@ EMITE = {
     "A4": "dsl",
 }
 LIMIARES = [0.5, 0.4, 0.3, 0.2, 0.1, 0.01]
-# Perdas de validação do SFT (época 1, 2, 3). O treino rodou em nuvem e o
-# `log_history` completo se perdeu com o pod; estes três valores vêm dos
-# `trainer_state.json` dos checkpoints e são o critério de parada.
-EVAL_SFT = [(1, 0.4402), (2, 0.4160), (3, 0.4216)]
+# Série visual de cada braço nas figuras. É o que separa as três cores, e mora
+# aqui porque a figura não deve decidir sozinha a que grupo um braço pertence.
+SERIE = {
+    "A1": "xml", "A1g": "xml",
+    "A2": "dsl", "A2g": "dsl", "A3": "dsl", "A3m": "dsl",
+    "A4": "sft",
+}  # fmt: skip
+# Histórico do SFT. Antes eram três valores transcritos à mão, porque o
+# `log_history` fora dado como perdido junto com o pod; ele foi recuperado do
+# stdout do treino antes de a máquina ser terminada. Ler do arquivo mantém a
+# promessa do preâmbulo — nenhum número de figura é digitado a mão.
+ESTADO_SFT = Path("experiments/sft/trainer_state_a4.json")
+
+
+def escrever_por_serie(destino: Path, base: str, cabecalho: str, linhas: list[str]) -> None:
+    """Um CSV por série, além do CSV completo.
+
+    As figuras de barras usam coordenadas simbólicas no eixo x, e filtrar tabela
+    por valor de coluna sob coordenada simbólica é receita frágil em pgfplots.
+    Um arquivo por série deixa cada `\\addplot table` com uma cor e nenhum truque
+    — que é a condição para a figura ler o dado em vez de repeti-lo à mão.
+    """
+    porserie: dict[str, list[str]] = {}
+    for linha in linhas:
+        porserie.setdefault(SERIE[linha.split(",")[0]], []).append(linha)
+    for serie, ls in sorted(porserie.items()):
+        escrever(destino / f"{base}_{serie}.csv", cabecalho, ls)
+
+
+def historico_sft() -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    """Perdas de treino e de validação do braço A4, lidas do `trainer_state`.
+
+    As duas séries respondem a perguntas diferentes e por isso não compartilham
+    escala: a de treino mostra que a otimização convergiu; a de validação, qual
+    checkpoint virou o modelo entregue.
+    """
+    import json
+
+    hist = json.loads(ESTADO_SFT.read_text(encoding="utf-8"))["log_history"]
+    treino = [(e["epoch"], e["loss"]) for e in hist if "loss" in e and "eval_loss" not in e]
+    val = [(e["epoch"], e["eval_loss"]) for e in hist if "eval_loss" in e]
+    return treino, val
 
 
 def escrever(caminho: Path, cabecalho: str, linhas: list[str]) -> None:
@@ -157,18 +195,20 @@ def main() -> None:
                 porsample[r["sample_id"]].append(r["output_xml"])
             candidatos[a] = dict(porsample)
 
+    df_f1_linhas = [
+        f"{a},{st.mean(medianas[a].values()):.4f},{EMITE[a]}" for a in BRACOS if medianas[a]
+    ]
+    custo_linhas = [f"{a},{f1:.4f},{x:.1f},{toks[a]:.0f}" for a, f1, x in custo]
+
     escrever(destino / "validade.csv", "braco,parse,xsd,emite", validade)
-    escrever(
-        destino / "df_f1.csv",
-        "braco,df_f1,emite",
-        [f"{a},{st.mean(medianas[a].values()):.4f},{EMITE[a]}" for a in BRACOS if medianas[a]],
-    )
-    escrever(
-        destino / "custo.csv",
-        "braco,df_f1,xsd,tokens",
-        [f"{a},{f1:.4f},{x:.1f},{toks[a]:.0f}" for a, f1, x in custo],
-    )
-    escrever(destino / "sft_eval.csv", "epoca,eval_loss", [f"{e},{v:.4f}" for e, v in EVAL_SFT])
+    escrever(destino / "df_f1.csv", "braco,df_f1,emite", df_f1_linhas)
+    escrever(destino / "custo.csv", "braco,df_f1,xsd,tokens", custo_linhas)
+    escrever_por_serie(destino, "validade", "braco,parse,xsd,emite", validade)
+    escrever_por_serie(destino, "df_f1", "braco,df_f1,emite", df_f1_linhas)
+    escrever_por_serie(destino, "custo", "braco,df_f1,xsd,tokens", custo_linhas)
+    treino_sft, val_sft = historico_sft()
+    escrever(destino / "sft_eval.csv", "epoca,eval_loss", [f"{e:g},{v:.4f}" for e, v in val_sft])
+    escrever(destino / "sft_treino.csv", "epoca,loss", [f"{e:.4f},{v:.4f}" for e, v in treino_sft])
 
     print("  calculando sensibilidade ao limiar (pode levar ~1 min)…")
     linhas = []

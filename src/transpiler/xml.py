@@ -80,6 +80,9 @@ class ProcessEmitter:
     explicit_ids: dict[str, str] = field(default_factory=dict)
     slug_ids: dict[str, str] = field(default_factory=dict)
     declared_ids: set[str] = field(default_factory=set)
+    # Elemento já emitido para cada id XML. Existe para que a redeclaração de um
+    # `#id` não emita um segundo nó — ver add_node_element.
+    emitted: dict[str, etree._Element] = field(default_factory=dict)
     lane_members: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     current_lane: str | None = None
 
@@ -131,11 +134,27 @@ class ProcessEmitter:
     ) -> tuple[str, etree._Element]:
         prefix = tag[0].upper() + tag[1:]
         node_id = self._id_for(dsl_id, prefix)
+        # Redeclaração do mesmo `#id`: o identificador É a identidade do nó, de
+        # modo que a segunda ocorrência refere-se ao mesmo nó em vez de criar
+        # outro. Emitir um segundo elemento com o id já usado produz `xs:ID`
+        # duplicado — XML que parseia, transpila e **não valida**, furando a
+        # garantia de validade por construção.
+        #
+        # Não é forma exótica: modelos de linguagem repetem o texto completo do
+        # nó ao fechar um laço, em vez de emitir `#ref` nu. O corpus nunca
+        # exercitou o caminho porque `json_to_dsl` só emite a forma nua, e por
+        # isso a validação 1021/1021 passou sem tocá-lo.
+        #
+        # A primeira declaração vence: rótulo e tipo dela permanecem, e o que a
+        # segunda acrescentaria seria descartado de todo modo ao reusar o id.
+        if node_id in self.emitted:
+            return node_id, self.emitted[node_id]
         attrs = {"id": node_id}
         if name:
             attrs["name"] = name
             self.register_name(name, node_id)
         el = etree.SubElement(self.process_el, _q(tag), attrs)
+        self.emitted[node_id] = el
         self.track_node(node_id)
         return node_id, el
 

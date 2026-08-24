@@ -375,3 +375,16 @@ def test_exploratorios_ficam_fora_dos_contrastes_pre_registrados():
     envolvidos = {a for par in ra.CONTRASTES for a in par}
     assert not {a for a in envolvidos if a.startswith("X-")}
     assert envolvidos <= set(rb.ARMS)
+
+
+def test_trust_remote_code_e_desligado_salvo_declaracao_explicita():
+    """Só o braço que precisa executa código do repositório do modelo.
+
+    A flag é informação experimental, não detalhe de implementação: um braço que
+    exige arquitetura fora do `transformers` não está em pé de igualdade com um
+    que roda no caminho padrão, e ligá-la por descuido em todos apagaria essa
+    distinção do registro.
+    """
+    exigem = {a for a, arm in rb.ARMS.items() if arm.trust_remote_code}
+    assert exigem == {"X-mi"}, "mudou quem executa código remoto — declarar no registro"
+    assert all(not rb.ARMS[a].trust_remote_code for a in rb.ARMS if not a.startswith("X-"))

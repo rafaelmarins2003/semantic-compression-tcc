@@ -129,3 +129,8 @@ experiments/sft/adapter/
 # Versionar seria guardar cópia do que um comando regenera.
 experiments/sft/lc*/
 experiments/sft/adapter-*/
+
+# Exceção ao `*.log`: stdout dos treinos de SFT. O do A4 foi resgatado do pod
+# antes de terminá-lo e é a única fonte da curva de perda daquele braço — seu
+# `treino.json` foi gravado pela versão do script com o bug `[-8:]`.
+!experiments/sft/sft_*.log

@@ -425,3 +425,409 @@ estiver treinando em 45 min de pod, aborta — a curva já estará salva.
   contorno vai no roteiro: conferir `nvidia-smi`, sincronizar, e **verificar
   `torch.cuda.is_available()` antes de treinar**, reinstalando do índice
   correspondente se der `False`. São 2 min de pod contra ~1 h de depuração paga.
+
+### Resgate do pod antes de terminar (mesma data, sessão de CPU)
+
+O pod perdeu a alocação de GPU e o RunPod ofereceu migrar / subir em CPU / nada.
+Escolhida a CPU: é acesso barato ao disco. Migrar levaria junto o volume que
+custa os US$ 0,57/dia, e já estava verificado que nada ali era insubstituível.
+Rendeu mais do que se esperava.
+
+**1. A curva de perda do A4 NÃO estava perdida.** A nota de 2026-08-16 diz que o
+histórico foi "perdido junto com o pod". Está **errada**, e fica corrigida aqui
+por nota nova, não por edição: o stdout tinha ido para `/workspace/sft.log`.
+Resgatados para o repositório:
+
+- `experiments/sft/sft_a4.log` (40 KB) — stdout completo do treino
+- `experiments/sft/trainer_state_a4.json` (8 KB) — histórico estruturado, em
+  precisão cheia: **25 perdas de treino (passos 10 a 250) e as 3 avaliações**
+
+Perda de treino 1,1498 → 0,3347. `eval_loss` por época: **0,4402 → 0,4160 →
+0,4216**.
+
+**2. O modelo entregue é o da época 2, e agora está verificado.** O achado nº 5
+("split agrupado mudou o modelo entregue") era inferência; virou fato por
+checksum. O `adapter_model.safetensors` entregue tem md5 `93c43879...`, idêntico
+ao de `checkpoint-168` (época 2) e **diferente** do de `checkpoint-252`
+(`66d0f61f...`, época 3). Coerente com
+`load_best_model_at_end=True` + `metric_for_best_model="eval_loss"` e com
+`best_model_checkpoint: checkpoint-168` no `trainer_state`.
+
+Consequência: **treinou 3 épocas, entrega a época 2** — a validação agrupada de
+fato descartou a última época, que já estava piorando. Onde o texto disser "3
+épocas" sem qualificar, falta essa precisão.
+
+**3. Integridade do adapter local confirmada.** MD5 do `.safetensors` e do
+`adapter_config.json` batem entre pod e máquina local. A cópia local é a
+treinada, íntegra.
+
+### Divergência entre metodologia e código — a conferir
+
+`metodologia.tex` §"comprimento de sequência" afirma que os exemplos acima de
+4.096 tokens ficaram "**truncados** de forma explícita e registrada". O código
+faz o contrário: `montar()` os **descarta** (`continue  # descartar, não
+truncar: alvo cortado ensina DSL inválida`), e `treino.json` registra
+`n_treino: 672` = 690 − 18. Truncar e descartar não são a mesma decisão, e a que
+está no texto é justamente a que o código rejeita por escrito. Corrigir na
+revisão.
+
+### O contorno do torch, agora escrito (pod novo, A40, mesma data)
+
+O bug se repetiu exatamente como previsto e desta vez o conserto fica registrado.
+`uv sync --extra training` resolve para **`torch 2.11.0+cu130`**, o driver do pod
+é **CUDA 12.8**, e `torch.cuda.is_available()` devolve `False` com aviso de
+"driver too old". Treinar nesse estado cairia para CPU ou falharia.
+
+Não resolve: `UV_TORCH_BACKEND=cu128` (ignorado) nem `uv sync --torch-backend`
+(flag inexistente no uv 0.9.0). **Resolve:**
+
+```bash
+uv pip install --reinstall torch --index-url https://download.pytorch.org/whl/cu128
+```
+
+Resultado `torch 2.11.0+cu128`, `is_available() True`. Como só muda o build de
+CUDA e não a versão, `triton 3.6.0`, `transformers 5.5.0` e `trl 1.0.0` seguem
+compatíveis — evita o efeito colateral de rebaixar o torch.
+
+Conferido na mesma sessão: `subsample.py` reproduziu no pod exatamente os
+números da máquina local (lc25 173/51, lc50 350/96). O determinismo prometido no
+docstring vale entre máquinas, não só entre execuções.
+
+### Alterações no artigo decorrentes desta sessão
+
+1. **Metodologia §comprimento de sequência** — corrigido "18 restantes truncados"
+   para "**descartados**, e não truncados", com a razão explicitada: truncar
+   incorreria no defeito que o próprio parágrafo acabara de descrever. Acrescido
+   "Restam 672 exemplos de treino", que já era o número usado adiante.
+2. **Metodologia §Infraestrutura e Reprodutibilidade** — acrescido o parágrafo
+   sobre a compilação de PyTorch versus versão de CUDA do driver. Uma seção de
+   reprodutibilidade que omite a única dependência capaz de interromper o
+   treinamento em silêncio é boilerplate; com ela, é instrução.
+3. **Figura 2 refeita** (`figuras/sft_eval.tex`) — agora dois painéis: perda de
+   treino (25 pontos, recuperados hoje) e perda de validação (3 pontos). Escalas
+   separadas porque respondem a perguntas diferentes: a primeira mostra que a
+   otimização convergiu sem instabilidade, e portanto **não é ela que limita o
+   resultado**; a segunda decide qual checkpoint virou modelo entregue.
+4. **`export_figuras.py`** — a constante `EVAL_SFT`, com três valores digitados à
+   mão, foi substituída por `historico_sft()`, que lê de
+   `experiments/sft/trainer_state_a4.json`. O comentário do preâmbulo do artigo
+   afirma que nenhum número de figura é transcrito manualmente; até hoje havia
+   uma exceção, e ela existia só porque o histórico fora dado como perdido.
+
+Compilação conferida: 97 páginas, sem erro, e a figura foi inspecionada
+visualmente (página 66 do PDF) — compilar não prova que dois painéis não se
+sobrepõem.
+
+### Bug no transpilador: `#id` redeclarado gera `xs:ID` duplicado — ACHADO 2026-08-23
+
+Descoberto ao conferir uma anomalia no `X-lc25`: `parse_ok` 88,7% contra
+`xsd_valid` 86,8%. Três gerações **parseiam, transpilam e produzem XML que não
+valida** — o que contradiz a garantia de validade por construção.
+
+**Caso mínimo, determinístico:**
+
+```
+# OK   — declaração + referência nua
+process "P" { start -> task "A" #a -> xor "Q" { [s] -> () [n] -> #a } -> end }
+
+# FALHA — mesma #id em duas declarações completas
+process "P" { start -> task "A" #a -> xor "Q" { [s] -> () [n] -> task "A" #a } -> end }
+#   → Task_1 emitido duas vezes → 'Task_1' is not a valid value of the atomic type 'xs:ID'
+```
+
+O transpilador trata corretamente `declaração + #ref nu`, mas quando o mesmo
+`#id` aparece numa **segunda declaração completa** ele emite um segundo elemento
+com o mesmo identificador gerado.
+
+**Por que 1021/1021 nunca pegou.** O corpus é produzido por `json_to_dsl`, que
+sempre emite declaração-e-depois-referência-nua. 181 das 1021 DSLs têm `#ref`
+repetido e todas validam — o gatilho não é o `#ref` repetido, é a **redeclaração**.
+A garantia de XSD foi medida sobre a distribuição que o nosso próprio conversor
+produz, **não sobre a que um modelo escreve**. Repetir o texto completo do nó é
+mais natural para um LLM do que emitir referência nua.
+
+**Alcance medido** (`parse_ok=1 AND xsd_valid=0`, todos os braços):
+
+| braço | casos | itens |
+|---|---|---|
+| A2g | 3/159 (1,9%) | pmo_37 rep1, pmo_44 rep2 e rep3 |
+| X-lc25 | 3/159 (1,9%) | pmo_45, as três repetições (saída idêntica) |
+
+Nenhum outro braço. A4 tem `parse_ok == xsd_valid`, sem casos.
+
+**A direção do viés exige cuidado redobrado.** Hoje essas gerações pontuam zero
+em tudo, isto é, o defeito **penaliza os braços de DSL** — que são a hipótese
+deste trabalho. Corrigir melhora o nosso próprio lado, e portanto é uma emenda
+*favorável ao autor*, categoria que exige mais disciplina, não menos, do que a
+do conserto do `strip_fence` (que penalizava o baseline).
+
+Magnitude estimada: A2g sairia de 54,7% para ~56,6% de XSD-Val. **Nenhuma
+ordenação muda, nenhuma conclusão muda.** É justamente por ser pequeno que dá
+para corrigir e declarar sem constrangimento.
+
+**`--rescore` NÃO conserta isso**, exatamente como o item 4 de "Não verificado"
+antecipou: ele repontua a partir de `output_xml`, não de `raw_output`. Corrigir
+exige **re-transpilar a partir do `raw_output`**, que está gravado.
+
+**Decisão pendente** (do Rafael): consertar o transpilador + teste de regressão,
+re-transpilar de `raw_output` e reportar antes/depois com divulgação explícita
+da direção; ou manter como está e registrar a limitação. Não alterei nada.
+
+### Correção aplicada, e a verificação que a torna confiável
+
+**O conserto** (`src/transpiler/xml.py`): `add_node_element` passa a devolver o
+elemento já emitido quando o `node_id` reaparece, em vez de criar um segundo.
+`_id_for` já reusava o identificador; faltava não emitir o nó de novo. A primeira
+declaração vence — rótulo e tipo dela permanecem, e o que a segunda acrescentaria
+seria descartado de qualquer forma ao reusar o id.
+
+**Prova de que a correção é inerte sobre o corpus** — o que importa num
+componente que carrega a garantia da tese:
+
+| verificação | resultado |
+|---|---|
+| Suíte de testes | 294 passando |
+| Corpus re-transpilado | **1021/1021 byte-a-byte idênticos** ao materializado |
+| XSD do corpus | 1021/1021 |
+| Exceções | 0 |
+
+Ou seja: a mudança não altera *nenhuma* saída que o corpus já produzia. Só afeta
+a forma que ele nunca exercitou.
+
+**Testes de regressão** (`tests/transpiler/test_xml.py`):
+`test_transpile_redeclared_ref_emits_single_node` e
+`test_transpile_redeclared_ref_is_xsd_valid`. Conferido que **falham sem a
+correção** — teste de regressão que passa nos dois estados não testa nada.
+
+**Os seis casos reais** foram re-transpilados de `raw_output` e agora validam:
+A2g pmo_37 rep1, A2g pmo_44 rep2 e rep3, X-lc25 pmo_45 reps 1–3.
+
+**`--retranspile`, novo** (`run_benchmark`): reconstrói `output_xml` a partir de
+`raw_output` e repontua, sem chamar o modelo. Fecha o item 4 de "Não verificado":
+`--rescore` sozinho parte de `output_xml` e não absorve conserto determinístico.
+Regerar com o modelo para incorporar um conserto trocaria a saída avaliada;
+re-transpilar mantém a geração intacta e refaz só a parte determinística.
+
+**Ainda não executado** sobre o banco: a avaliação dos braços exploratórios está
+gravando em `benchmark_eval` e rodar em cima disso é pedir contenção de escrita.
+Aplicar quando a cadeia fechar, em **todos** os braços, e reportar antes/depois.
+
+### Figuras com números digitados à mão — ACHADO, e pior que o bug
+
+Ao mapear o que a correção do transpilador mexeria no artigo, descobri que
+**três das seis figuras tinham as coordenadas escritas à mão**, apesar de os
+CSVs existirem e de o preâmbulo (`lib/preambulo.tex`) afirmar: *"Nenhum número
+das figuras é transcrito à mão: reexecutar um braço e rodar o script regenera
+tudo."* A afirmação era falsa para `validade.tex`, `custo.tex` e
+`df_f1_teto.tex`. Só `limiar.tex` lia dados de fato.
+
+**A consequência já tinha se materializado.** O `validade.csv` gerado registrava
+`A2g parse=56.6, xsd=54.7` — isto é, **o dado já continha a prova de que o
+invariante estava quebrado**. E a nota da própria figura afirmava: *"Nos braços
+de DSL a validade XSD coincide com a taxa de parsing, pois a transpilação é
+determinística e sempre produz XML válido a partir de DSL aceita."* A evidência
+contrária estava no arquivo que a figura deveria estar lendo, e ninguém cruzou.
+
+**Conserto**: `export_figuras` passa a emitir também um CSV por série
+(`{base}_{xml,dsl,sft}.csv`), e as três figuras leem por `\addplot table`. Um
+arquivo por série em vez de filtro de tabela porque filtrar sob coordenada
+simbólica é receita frágil no pgfplots. Conferido visualmente que as três
+renderizam **valores idênticos** aos das versões escritas à mão.
+
+### Mapa de impacto no artigo (a aplicar junto com o `--retranspile`)
+
+Números afetados: apenas A2g (XSD 54,7% → 56,6%) e X-lc25 (86,8% → 88,7%).
+
+| local | o que muda |
+|---|---|
+| `figuras/dados/*.csv` | regenerados por `export_figuras` |
+| `figuras/{validade,custo,df_f1_teto}.tex` | nada — agora leem CSV |
+| `resultados.tex:142` | linha do A2g na tabela principal |
+| `introducao.tex:16` | "64,8\% e 54,7\%" |
+| `conclusao.tex:6` | "64,8\% e 54,7\%" |
+| Resumo / Abstract | **nada** — citam só A2 (64,8%) e A1 (98,1%) |
+| Nota da `validade.tex` | reconferir: só vale se parse == xsd em todos os braços de DSL |
+
+**Cuidado com a DF-F1 do A2g.** A prévia que rodei calculou média simples sobre
+as 159 linhas (0,0855 → 0,0858), mas a tabela principal usa **média das medianas
+por item** (0,0773). São estatísticas diferentes; não transcrever um número da
+prévia para a tabela. Recalcular com `per_item_medians`, que é o caminho de
+produção — exatamente o erro de "sonda ≠ produção" que este registro já
+documenta três vezes.
+
+### Investigação do "7/7/7": não é artefato, e o mecanismo é único
+
+O Rafael desconfiou de os três braços ajustados falharem em exatamente 7 itens
+cada, em itens diferentes. A desconfiança estava certa em exigir investigação, e
+errada quanto a haver artefato. O que a investigação achou vale mais que a
+resposta à pergunta original.
+
+**1. Decomposição por causa mostra que o ajuste fino muda a NATUREZA da falha,
+não só a quantidade.**
+
+| braço | falhas de parse | causa dominante |
+|---|---|---|
+| A3m (Qwen, sem ajuste, prompt mínimo) | 159 | `UnexpectedCharacters` **100%** |
+| A3 (Qwen, sem ajuste, gramática no prompt) | 66 | `UnexpectedCharacters` **100%** |
+| A2 (DeepSeek fronteira) | 56 | 50% caracteres, 50% ref pendente |
+| A2g (GLM fronteira) | 69 | 67% caracteres, 32% ref pendente |
+| A4 (ajustado, 100%) | 21 | **ref pendente 71%**, EOF 29% |
+| X-lc50 (ajustado, 50%) | 21 | **ref pendente 100%** |
+
+Sem ajuste, o modelo pequeno **não escreve a notação** — falha léxica pura, zero
+falhas de referência. Com ajuste, a sintaxe está correta e o que quebra é a
+**contabilidade de referência cruzada**.
+
+**2. As formas de referência pendente separam-se 100% por tipo de braço.**
+
+| braço | refs pendentes | alvo opaco `tNN` | alvo tipo rótulo |
+|---|---|---|---|
+| A2 | 28 | **0** | **28** (`#stockCheck`, `#review`, `#build`) |
+| A2g | 22 | **0** | **22** |
+| A4 | 15 | **15** | 0 |
+| X-lc25 | 9 | **9** | 0 |
+| X-lc50 | 21 | **21** | 0 |
+
+Modelos de fronteira instruídos por prompt **inventam nomes semânticos** de
+referência que não casam com rótulo nem com declaração. Modelos ajustados usam
+exclusivamente a convenção `tNN` do corpus — evidência direta de que o ajuste
+transferiu a notação — e falham só em declarar antes de referenciar.
+
+**3. O teste que refuta o artefato.** A hipótese natural era que só ~7 itens do
+holdout precisassem de referência, o que faria do 7 um teto e não um resultado:
+
+| braço | itens que emitem `#ref` | falhas | taxa condicional | falhas **sem** ref |
+|---|---|---|---|---|
+| A4 | 45 | 7 | 15,6% | **0** |
+| X-lc25 | 38 | 7 | 18,4% | **0** |
+| X-lc50 | 49 | 7 | 14,3% | **0** |
+
+Refutada: 38 a 49 itens usam referência, com folga para falhar mais. Os
+denominadores **diferem** entre braços; o 7 idêntico sai de taxas próximas
+(média 16,1%) sobre bases diferentes. Coincidência de contagem, não de causa.
+
+**4. O achado que importa: 100% das falhas dos braços ajustados são
+referenciais.** Nenhuma falha em item sem `#ref` — zero, nos três braços. E em
+39 dos 45 casos o id pendente aparece **uma única vez** na saída: é referenciado
+e nunca declarado em lugar nenhum.
+
+**Responde à pergunta do Rafael** — como o modelo de 100% erra o que o de 25%
+acerta: a falha não é déficit de conhecimento, é um deslize estocástico de ~16%
+por item sobre uma construção específica. Modelos diferentes deslizam em itens
+diferentes. Não há "itens impossíveis": só 1 item (`pmo_46`) falha nos três.
+
+**Explica a saturação da curva.** Mais dados não corrigem contabilidade de
+referência cruzada, que exige manter estado ao longo de uma saída longa. É
+limite de capacidade sob essa notação, não de volume de treino — coerente com a
+curva plana em 86,8% para 51, 96 e 207 documentos.
+
+**Implicação de projeto, para trabalho futuro.** A separação
+declaração-versus-referência é o que cria o modo de falha. O `resolve_ref` já
+resolve por **slug do rótulo** (`#nome_do_no`), caminho pelo qual 23 refs do
+corpus resolvem sem declaração alguma. Uma notação que referenciasse nós pelo
+rótulo já emitido eliminaria a contabilidade — e com ela, pela medição acima,
+**a totalidade das falhas residuais dos braços ajustados**.
+
+### O braço X-ds é INVÁLIDO — tokenizador do DeepSeek destrói espaços
+
+**Não reportar nenhum número do X-ds.** As 159 linhas ficam no banco como
+evidência, mas o braço não mede o que se propôs a medir.
+
+**Sintoma**: `X-ds` fechou com 75,5% de validade XSD e **DF-F1 exatamente
+0,0000 em 159 de 159**. Validade alta com fidelidade nula não é resultado
+plausível; é sintoma.
+
+**Causa**: sob `transformers` 5.5.0, `deepseek-ai/deepseek-coder-6.7b-instruct`
+carrega como `LlamaTokenizer` e **descarta os espaços na codificação**:
+
+```
+entrada : start "Collect relevant information"
+tokens  : ['start', '"', 'Collect', 're', 'levant', 'information', '"']
+decode  : start"Collectrelevantinformation"
+```
+
+A perda é no *encode*, não no decode — `clean_up_tokenization_spaces=False` não
+resolve, nem `use_fast=False`, nem `trust_remote_code=True`. A DSL resultante
+ainda parseia e ainda gera XML **válido** (daí os 75,5%), mas todo rótulo vira
+uma palavra concatenada, nenhum casa com a referência, e a DF-F1 zera.
+
+Consequência dupla: **o treino também foi corrompido**, porque `montar()` usa o
+mesmo tokenizador. O adaptador aprendeu DSL sem espaços. Não é conserto de
+avaliação — exige retreinar.
+
+**Round-trip dos candidatos** (`decode(encode(t)) == t`):
+
+| modelo | classe carregada | round-trip |
+|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | `Qwen2Tokenizer` | **OK** |
+| deepseek-coder-6.7b-instruct | `LlamaTokenizer` | **QUEBRA** |
+| granite-8b-code-instruct-4k | `GPT2Tokenizer` | **OK** |
+| Mistral-7B-Instruct-v0.3 | `TokenizersBackend` | **OK** |
+
+O DeepSeek é o único que quebra. Granite era a reserva declarada no pré-voo e
+segue viável (Apache 2.0).
+
+**Meu erro, e é o mais caro da sessão.** O `check_template.py` que escrevi
+verificava a invariante de **prefixo exato em ids** — que continua satisfeita
+quando prompt e alvo são igualmente destruídos, porque a destruição é uniforme.
+Nunca verifiquei que o tokenizador devolve o texto que recebeu. Passei confiança
+sobre a verificação errada, que é pior do que não verificar: escolhi o DeepSeek
+*justamente* por ele ter "passado no pré-voo".
+
+Custo: um treino de US$ 0,47, ~50 min de avaliação local, e quase um resultado
+falso publicado ("o método não replica em outra família").
+
+**Conserto aplicado**: `check_template.py` passa a testar ida-e-volta **antes**
+de qualquer outra checagem, e reprova o candidato de imediato. Conferido que o
+DeepSeek agora é rejeitado e os outros três passam.
+
+**Padrão que isto confirma** (já são sete ocorrências neste registro): sonda que
+verifica a invariante errada devolve verde e produz confiança. A regra do
+registro dizia "verificar a sonda contra o código de produção"; falta acrescentar
+— **verificar que a invariante testada é a que importa**.
+
+### Braços de replicação declarados — 2026-08-23, ANTES de rodar
+
+Substituem o `X-ds`, invalidado pelo tokenizador do DeepSeek. Pergunta: os 86,8%
+de validade do A4 são propriedade do método ou do Qwen?
+
+| braço | modelo | organização | arquitetura | contexto | vocab | descarte |
+|---|---|---|---|---|---|---|
+| A4 (base) | Qwen2.5-Coder-7B-Instruct | Alibaba | `Qwen2ForCausalLM` | 32.768 | 151.665 | 18/690 |
+| `X-gr` | granite-4.1-8b | IBM | `GraniteForCausalLM` | 131.072 | 100.352 | 20/690 |
+| `X-mi` | MiMo-7B-RL | Xiaomi | `MiMoForCausalLM` | 32.768 | 151.680 | — |
+| `X-ms` | Mistral-7B-Instruct-v0.3 | Mistral AI | `MistralForCausalLM` | 32.768 | 32.768 | 26/690 |
+
+**COMPROMISSO REGISTRADO ANTES DA EXECUÇÃO: todo braço que treinar entra no
+texto, replique ou não.** Treinar três e reportar o melhor seria escolha a
+posteriori — exatamente o vício que o pré-registro existe para impedir.
+
+**Ornith-1.5-9B foi avaliado e descartado**, por dois motivos independentes:
+
+1. **É derivado do Qwen.** O model card diz: *"Ornith-1.5 extends Ornith-1.0
+   (which was developed **on top of Qwen3.5** and Gemma4...)"*. Replicar num
+   modelo construído sobre Qwen não responde a pergunta do braço.
+2. **Não é a arquitetura que treinamos.** `Qwen3_5ForConditionalGeneration` com
+   `vision_config`, `image_token_id` e `video_token_id` — multimodal. O caminho
+   é `AutoModelForCausalLM`, e o LoRA `all-linear` alcançaria camadas de visão.
+
+Ser mais atual e mais forte em código é verdade e é irrelevante: o braço mede
+linhagem, não capacidade.
+
+**`X-mi` passa por portão.** MiMo tem `auto_map` (exige `trust_remote_code`) e
+`num_nextn_predict_layers` (multi-token prediction), cuja interação com LoRA
+`all-linear` é desconhecida. Regra fixada **antes**: se o `--smoke` falhar,
+treina-se `X-ms` no lugar e **não se depura arquitetura em GPU alugada**. Se o
+MiMo passar, `X-ms` não roda.
+
+A ambiguidade das duas escolhas é de naturezas diferentes, e por isso a regra:
+se o Mistral for mal, discute-se capacidade de um modelo geral de 2024 — uma
+limitação que se escreve. Se o MiMo for mal, não se separa "o método não
+transfere" de "o `all-linear` interagiu mal com as camadas de MTP" — isso não é
+achado, é defeito.
+
+**`trust_remote_code` virou campo do `Arm`**, desligado por padrão, com teste
+(`test_trust_remote_code_e_desligado_salvo_declaracao_explicita`) fixando que só
+`X-mi` o exige. É informação experimental: um braço que precisa executar código
+do repositório do modelo não está em pé de igualdade com um que não precisa, e o
+texto tem de dizê-lo.

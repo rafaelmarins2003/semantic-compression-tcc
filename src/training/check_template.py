@@ -8,7 +8,20 @@ família:
    modelo não produzir o prompt como prefixo em *tokens* do exemplo completo —
    é a condição de que a máscara de perda esteja alinhada.
 
-2. **Taxa de descarte acima de `--seq`.** Tokenizadores diferentes segmentam a
+2. **Fidelidade de ida-e-volta.** `decode(encode(t)) == t`. Parece redundante e
+   não é: o DeepSeek-Coder sob `transformers` 5.5 carrega como `LlamaTokenizer`
+   e **descarta todos os espaços na codificação** — `start "Collect relevant
+   information"` vira `start"Collectrelevantinformation"`. A DSL resultante
+   ainda parseia e ainda gera XML válido, mas nenhum rótulo casa com a
+   referência, e a fidelidade topológica zera em 100% dos itens.
+
+   Esta checagem existe porque a versão anterior deste script **não a fazia** e
+   deixou passar exatamente esse defeito: verificava só a invariante de prefixo
+   em ids, que continua satisfeita quando prompt e alvo são igualmente
+   destruídos. Custou um treino e uma avaliação inteira. Verificar a invariante
+   errada é pior que não verificar, porque produz confiança.
+
+3. **Taxa de descarte acima de `--seq`.** Tokenizadores diferentes segmentam a
    DSL de modo diferente. Se um candidato descartar muito mais exemplos que o
    Qwen, os dois braços treinam sobre corpora de tamanhos distintos e a
    replicação deixa de ser comparável — confunde efeito de modelo com efeito de
@@ -41,6 +54,13 @@ def avaliar(nome: str, exemplos: list[dict], seq: int) -> dict:
         tok = AutoTokenizer.from_pretrained(nome, trust_remote_code=False)
     except Exception as erro:  # rede, licença aceita, repo inexistente
         return {"modelo": nome, "erro": f"{type(erro).__name__}: {str(erro)[:120]}"}
+
+    # Ida-e-volta antes de qualquer outra coisa: um tokenizador que não devolve o
+    # texto que recebeu invalida treino e avaliação de uma vez só.
+    sonda = exemplos[0]["completion"] if exemplos else 'task "A b c"'
+    ida = tok(sonda, add_special_tokens=False)["input_ids"]
+    if tok.decode(ida, skip_special_tokens=True) != sonda:
+        return {"modelo": nome, "erro": "round-trip QUEBRA — decode(encode(t)) != t"}
 
     try:
         usados = montar(tok, exemplos, seq)

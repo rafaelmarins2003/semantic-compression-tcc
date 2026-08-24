@@ -21,13 +21,13 @@
 			legend cell align=left,
 		]
 			\addplot[only marks, mark=*, mark size=2.8pt, corXML]
-				coordinates {(631,98.1) (699,94.3)};
+				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_xml.csv};
 			\addlegendentry{XML direto}
 			\addplot[only marks, mark=square*, mark size=2.8pt, corDSL]
-				coordinates {(138,64.8) (149,54.7) (159,58.5) (2041,0.0)};
+				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_dsl.csv};
 			\addlegendentry{DSL por \textit{prompting}}
 			\addplot[only marks, mark=triangle*, mark size=4pt, corSFT]
-				coordinates {(200,86.8)};
+				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_sft.csv};
 			\addlegendentry{DSL, 7B com ajuste fino}
 
 			% Rótulos individuais, ancorados para evitar sobreposição
