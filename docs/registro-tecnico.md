@@ -831,3 +831,350 @@ achado, é defeito.
 `X-mi` o exige. É informação experimental: um braço que precisa executar código
 do repositório do modelo não está em pé de igualdade com um que não precisa, e o
 texto tem de dizê-lo.
+
+---
+
+## 2026-08-25 — Propagação do fix do `xs:ID` para o texto, e o que ela revelou
+
+Com o `--retranspile` já aplicado, restava propagar os números para a monografia.
+O trabalho foi maior do que "trocar 54,7 por 56,6", e o excedente é o achado.
+
+### O que de fato mudou
+
+Só o braço A2g. Nenhuma ordenação de tabela se altera, nenhuma conclusão se
+inverte, nenhum desfecho de hipótese muda. Mas o número aparecia em **sete**
+lugares, três deles derivados:
+
+| Onde | Antes | Depois |
+|---|---|---|
+| `tab:res-bracos`, XSD | 54,7% | **56,6%** |
+| `tab:res-bracos`, DF-F1 | 0,0773 | **0,0783** |
+| `tab:res-testes`, $r_{rb}$ | $-0{,}463$ | $-0{,}429$ |
+| `tab:res-testes`, $p_{Holm}$ | 0,0050 | **0,0062** |
+| `tab:res-condicional`, todos | $-0{,}0778$ | $-0{,}0768$ |
+| `tab:res-condicional`, condicional | 0,0999 / $-0{,}0421$ | 0,1012 / $-0{,}0408$ |
+| `tab:res-teto` | 0,0602 / 42% | 0,0624 / 43% |
+
+Mais introdução, conclusão e o quadro-resumo de hipóteses ($p_{Holm}$ 0,005 →
+0,006). A `tab:res-mf` foi recomputada e **não mudou** — os dois itens com
+`messageFlow` na referência primária não estavam entre as gerações afetadas.
+
+O contraste confirmatório saiu do `run_analysis`, não da minha mão. Ele continua
+significativo e H1g continua refutada; o efeito ficou marginalmente menor.
+
+### O achado: a nota da figura estava certa e o código é que estava errado
+
+A `\Nota` da figura de validade afirma que, nos braços de DSL, "a validade XSD
+coincide com a taxa de *parsing*, pois a transpilação é determinística e sempre
+produz XML válido a partir de DSL aceita".
+
+Antes do fix isso era **falso**: A2g tinha parse 56,6% e XSD 54,7%. Três gerações
+faziam *parse* e produziam XML inválido — que é exatamente o que a nota diz não
+poder acontecer. A nota não era um erro de redação: era a especificação correta
+do transpilador, e a divergência entre ela e os dados era a assinatura do bug do
+`xs:ID`, visível na tabela desde antes de eu procurá-lo.
+
+Depois do fix a igualdade vale em **todos** os braços de DSL, exploratórios
+inclusive: A2 64,8/64,8, A2g 56,6/56,6, A3 58,5/58,5, A3m 0/0, A4 86,8/86,8,
+X-lc25 88,7/88,7, X-lc50 86,8/86,8, X-ds 75,5/75,5.
+
+Fica a lição de auditoria: **uma nota de figura que afirma um invariante é um
+teste escrito em português.** Quando os números da própria tabela a contradizem,
+a hipótese barata é erro de redação e a hipótese certa era o bug.
+
+### `src/evaluation/run_tabelas.py` — três tabelas que eram digitadas à mão
+
+Ao propagar os números descobri que `tab:res-condicional`, `tab:res-mf` e
+`tab:res-teto` não saíam de script nenhum. Reconstruí os três métodos por
+tentativa e validei cada um contra os braços que **não** mudaram — critério de
+aceitação: reproduzir o valor publicado. Os três reproduzem exatamente, inclusive
+a convenção de subtrair valores já arredondados que produz $-0{,}0219$ em vez de
+$-0{,}0218$ (o leitor precisa conseguir refazer a conta com o que está impresso).
+
+Definições fixadas no módulo, que eram justamente o que se perdia:
+
+- **condicional**: média das medianas por item, restrita aos itens com ao menos
+  uma geração XSD-válida no braço de DSL;
+- **MF-F1**: itens cuja referência **primária** contém `messageFlow` — hoje dois
+  (`pmo_23`, `pmo_38`). Note que 17 itens têm `messageFlow` em *alguma*
+  referência; usar esse recorte daria outra tabela;
+- **teto**: itens com referência múltipla (24), porque o teto humano foi medido
+  nesses mesmos itens.
+
+A linha "Pipeline de augmentation" da `tab:res-teto` continua fora do script —
+não é braço do benchmark, vem do corpus.
+
+Comando: `uv run python -m src.evaluation.run_tabelas`.
+
+### Pendência honesta
+
+Os valores acima estão no texto, mas **o PDF ainda não foi recompilado** nesta
+sessão. Antes de considerar o capítulo fechado é preciso compilar e conferir as
+três figuras que passaram a ler CSV.
+
+### Achados exploratórios escritos no texto
+
+Nova `\subsection{Braços Exploratórios}` em `resultados.tex`, antes da Síntese,
+com abertura declarando que nada ali é confirmatório. Dois achados.
+
+**Curva de aprendizado — uma dissociação.** Treino com 51, 96 e 207 documentos
+(167, 339 e 672 exemplos), validação idêntica nos três, frações aninhadas
+verificadas por asserção:
+
+| | docs | ex. | *loss* val. | XSD-Val | DF-F1 |
+|---|---|---|---|---|---|
+| X-lc25 | 51 | 167 | 0,4945 | 88,7% | 0,1000 |
+| X-lc50 | 96 | 339 | 0,4488 | 86,8% | 0,1141 |
+| A4 | 207 | 672 | **0,4160** | 86,8% | 0,1114 |
+
+A *loss* de validação melhora **monotonicamente** com o volume; as métricas da
+tarefa **não acompanham**. Essa é a formulação certa, e é mais forte do que
+"a curva saturou": o dado adicional compra verossimilhança e não capacidade. A
+diferença de validade entre o menor e o maior ponto são 3 gerações em 159.
+
+Sinal de convergência coerente: os dois pontos reduzidos ainda melhoravam na 3ª
+época; o completo teve seu melhor na 2ª e piorou na 3ª. Menos dados, convergência
+mais tardia — os pontos reduzidos não foram prejudicados por treino insuficiente.
+
+Implicação que **não** deve ser generalizada: mais seções do mesmo handbook não
+compensam. Fontes distintas continuam não testadas.
+
+**Resíduo referencial — corrigi minha própria afirmação.** Eu havia anotado que
+"100% das falhas dos braços ajustados são referenciais". **Falso.** Ao recontar
+antes de publicar:
+
+| braço | itens que falham / emitem ref | taxa | decomposição |
+|---|---|---|---|
+| A4 | 7/45 | 15,6% | 5 referência, 2 `UnexpectedEOF` |
+| X-lc25 | 6/38 | 15,8% | 3 referência, 2 léxico, 1 EOF |
+| X-lc50 | 7/49 | 14,3% | 7 referência |
+
+O correto é **15 de 20 itens** (75%), não 100%. O `UnexpectedEOF` é chave não
+fechada, não referência. Também: o "7/7/7" que eu tinha anotado era pré-retranspile
+— hoje é 7/6/7, porque o fix do `xs:ID` recuperou um item do X-lc25.
+
+O que **sobrevive** à recontagem, e é o achado de fato:
+
+1. **O ajuste fino elimina a falha léxica.** A3 (mesmo modelo base, gramática no
+   *prompt*) falha 66/66 por caractere inesperado e **zero** por referência. Os
+   braços ajustados invertem isso. Aprender a notação é deixar de errar a
+   superfície.
+2. **A taxa condicional é estável em 14,3–15,8%** apesar de volumes de treino
+   muito diferentes — propriedade da notação, não do volume.
+3. Nos braços ajustados as falhas são **determinísticas por item**: as 3
+   repetições falham em conjunto (21 = 7×3, 18 = 6×3).
+
+A propriedade "falhas ⊂ itens que emitem ref" é verdadeira nos três, mas **não
+prova nada sozinha**: com 45 dos 53 itens emitindo referência, 7 falhas
+aleatórias cairiam todas dentro em ~28% das vezes. O sinal está no *tipo* do
+erro (`Unresolved DSL ref`), não na inclusão.
+
+**Implicação de projeto (verificada no código, não suposta).**
+`xml.py:114-126` resolve na ordem: identificador explícito → *slug* do rótulo →
+declaração adiante. Referenciar pelo rótulo já emitido **já funciona hoje**. O
+modelo falha por inventar `#t07` opaco que nunca declarou — ou seja, por ter de
+manter estado arbitrário ao longo da geração. Trocar a convenção removeria a
+classe dominante de falha, ao custo de mais *tokens*: tensão direta com o eixo
+econômico. Fica como trabalho futuro, não testado.
+
+### E-2 no texto, e um módulo a menos de números digitados
+
+A subseção de emendas virou plural, com E-1 (glosa do *prompt*, penalizava o
+autor) e E-2 (fix do `xs:ID`, **favorece** o autor). A assimetria é o ponto e
+está escrita como tal: três salvaguardas declaradas (correção aplicada a todos os
+braços ao mesmo tempo, por reprocessamento determinístico da saída bruta, sem
+nova chamada a modelo), efeito reportado por inteiro (6 linhas em 1.590), e o
+registro de que **o A4 não mudou** — o resultado central não foi tocado pela
+correção que o beneficiaria.
+
+Verificações: PDF recompilado três vezes sem erro; nenhum valor antigo sobrevive
+no PDF (`54,7`, `0,0773`, `0,0602`, `0,0778`, `0,463` → zero ocorrências); figura
+de validade inspecionada visualmente. 295 testes passando, ruff limpo.
+
+Nota sobre a figura de custo: A2g e A3 passaram a quase se sobrepor (56,6% vs
+58,5% de validade, 149 vs 159 *tokens*). Os rótulos não colidem e a proximidade é
+o que os dados dizem — não é defeito de figura.
+
+---
+
+## 2026-08-25 (noite) — Diagnóstico da falha referencial: é a notação, não o modelo
+
+O vigia da avaliação do X-gr despejou as falhas no log e elas eram todas do
+mesmo tipo. Isso puxou uma investigação que fechou o mecanismo.
+
+### O que a saída mostra
+
+Exemplo real (X-gr, `pmo_14`), reduzido ao essencial:
+
+```
+@lane "Department" {
+  -> user "Review Plan in Strategic Alignment Meeting"    <- alvo, sem #id
+  ...
+  -> xor "Adjustments Needed?" {
+  [adjustments needed] -> user "Document Adjustments" -> ... -> #t03   <- falha
+```
+
+É uma **aresta de retorno**. O modelo sabe para onde quer voltar; o que ele não
+fez foi marcar o alvo lá atrás, quando o emitiu.
+
+### A causa: a notação exige antecipação que um gerador esquerda-direita não tem
+
+Medições no `train.jsonl` (690 exemplos):
+
+- **690/690 declaram todas as referências que usam.** Zero contraexemplos. O
+  modelo não está copiando dado ruim.
+- Mas **151 das 200 referências apontam para trás**, mediana de 334 caracteres
+  de distância (máx. 1793).
+- A convenção `#tNN` domina o treino: **753 ocorrências** contra 398 de outras
+  formas.
+- Só **121 dos 690** exemplos (17,5%) contêm alguma referência.
+
+O treino é perfeito porque saiu de transpilação determinística, que conhece o
+grafo inteiro antes de escrevê-lo. O gerador autorregressivo, não. Para acertar
+uma referência para trás ele teria de saber, ao emitir um nó, que um ramo ainda
+não escrito voltaria a ele. **Isso não é aprendível com mais dados** — e explica
+por que a taxa de falha é estável em 14–16% entre volumes de treino muito
+diferentes, e por que replica entre famílias.
+
+### O modelo é sistemático, não alucinado
+
+`#tNN` é usado **posicionalmente**: `#t03` = terceira tarefa emitida. Aplicando
+essa regra e trocando pelo *slug* do rótulo correspondente:
+
+| braço | reparo posicional válido |
+|---|---|
+| A4 (Qwen) | 12/15 |
+| X-gr (Granite) | **24/24** |
+
+Para o X-gr a regra posicional é **cega e determinística** — sem oráculo — e
+recupera tudo. Para o A4 precisa de busca em 3 dos 15 casos.
+
+E, buscando entre todos os rótulos, **100% das falhas referenciais dos dois
+braços viram XSD-válidas** (15/15 e 24/24) trocando *só a forma da referência*.
+O corpo do documento está correto; falha apenas o endereçamento.
+
+### Onde a evidência para — o limite que tenho de escrever
+
+Testei se o reparo posicional é *semanticamente* melhor que um arbitrário:
+
+| braço | posicional | arbitrário | braço nas que já validam |
+|---|---|---|---|
+| A4 | 0,0989 | 0,0791 | 0,1283 |
+| X-gr | 0,1251 | 0,1247 | 0,1195 |
+
+No A4 o posicional é melhor; no X-gr é **indistinguível**. A razão é de poder
+estatístico: uma aresta de retorno é uma entre dezenas do multiconjunto, e
+realocá-la quase não move o DF-F1. **A evidência sustenta que o esquema é
+sistemático; não sustenta que seja correto.** Escrito assim no texto.
+
+O teto de 96,2% (A4) e 98,1% (X-gr) é **limite superior**, não desempenho.
+
+### O custo da solução foi medido, e derruba a objeção que eu mesmo levantei
+
+Eu havia escrito no artigo que referenciar por rótulo teria "custo em *tokens*
+maior, o que a coloca em tensão direta com o eixo econômico". **Errado.**
+Reescrevendo o corpus com `#slug` no lugar de `#tNN`, com o tokenizador do Qwen:
+
+```
+519 exemplos com referência
+tokens: 173.569 -> 177.573  (+2,31%)
+custo médio: +7,7 tokens por exemplo
+```
+
+TCR iria de ~7,0 para ~6,8. Contra 85% de economia, é gratuito. Corrigi o texto.
+
+`resolve_ref` (`xml.py:114-126`) **já** resolve por *slug* — a mudança é de
+convenção do gerador de dados, não do transpilador. Continua não testada:
+exigiria retreinar sobre o corpus reescrito. É o trabalho futuro mais bem
+fundamentado que esta avaliação produziu.
+
+### Por que isso não aparece nos braços não ajustados
+
+A3 (mesmo modelo base, gramática no *prompt*) falha 66/66 por caractere
+inesperado e **zero** por referência — ele emite referência em apenas 5 dos 53
+itens. A convenção `#tNN` é **aprendida no ajuste fino**. O ajuste ensina a
+superfície da notação e, junto, uma dívida que a notação cobra depois.
+
+### Predição do mecanismo: ciclo na referência (corroborada, não estabelecida)
+
+Se a falha vem de aresta de retorno, ela deve concentrar-se nos itens cuja
+referência tem **ciclo**. Direção confirmada:
+
+| braço | falhas referenciais em itens com ciclo | falhas em itens acíclicos |
+|---|---|---|
+| A4 | 5/5 | 0 de 13 itens |
+| X-gr | 8/8 | 0 de 13 itens |
+
+Mas **40 dos 53 itens têm ciclo**, então o denominador explica muito. Fisher
+exato unilateral: A4 p = 0,23; X-gr p = 0,09. **Nenhum atinge significância.**
+Agregar os dois dá p = 0,014 e **não é lícito** — os braços compartilham os
+mesmos 53 itens, não são amostras independentes (3 itens falham em ambos).
+
+Vale como corroboração do mecanismo — a predição foi feita **antes** da medição
+e nenhum item acíclico jamais falhou — e não como estabelecimento da associação.
+Escrito no texto com essa ressalva explícita.
+
+---
+
+## 2026-08-25 23:32 — Cadeia de replicação completa
+
+| braço | modelo base | tokenizador | XSD | itens | DF-F1 |
+|---|---|---|---|---|---|
+| A4 | Qwen2.5-Coder-7B | 151.665 `Qwen2Tokenizer` | **86,8%** | 46/53 | 0,1114 |
+| X-gr | Granite 4.1-8B | 100.352 `GPT2Tokenizer` | 83,0% | 44/53 | 0,0992 |
+| X-mi | MiMo-7B-RL | 151.665 `Qwen2Tokenizer` | 83,0% | 44/53 | 0,1009 |
+
+**O método replica.** Granite e MiMo caem no mesmo ponto exato — 132/159, 44/53.
+Diferença para o Qwen: 3,8 pontos, seis gerações. Nenhuma réplica supera o
+original, nenhuma fracassa. Compromisso pré-registrado cumprido: as duas
+treinadas entraram no texto.
+
+### O controle do tokenizador — não estava planejado e é o achado da noite
+
+Verifiquei antes de afirmar: **MiMo usa o tokenizador exato do Qwen** (mesma
+classe, mesmas 151.665 entradas); Granite usa outro, com 2/3 do vocabulário.
+
+| braço | itens em que usa `#ref` | falhas ref | taxa |
+|---|---|---|---|
+| A4 (Qwen) | 45 | 5 | **11,1%** |
+| X-gr (Granite) | 23 | 8 | 34,8% |
+| X-mi (MiMo) | 24 | 8 | 33,3% |
+
+**MiMo comporta-se como Granite, não como Qwen.** Logo a divergência no uso de
+referências **não é artefato de tokenização** — é do pré-treinamento. Só foi
+possível afirmar porque os dois braços rodaram; com um só, seria confundível.
+
+Duas estratégias diante da mesma dificuldade: Qwen usa a construção à vontade e
+erra pouco; os outros dois a evitam (metade dos itens) e erram 3× mais quando
+arriscam.
+
+### O diagnóstico replica em três famílias
+
+Reparo posicional (regra cega, sem oráculo): **24/24 no X-gr, 24/24 no X-mi**,
+12/15 no A4. Teto de validade 96,2% / 98,1% / 98,1%. Predição do ciclo: 5/5,
+8/8, 8/8 — e zero falhas nos 13 itens acíclicos em qualquer braço (Fisher
+p = 0,23 / 0,09 / 0,09; segue subdimensionado, escrito como corroboração).
+
+Em três famílias independentes, **toda** falha referencial é reparável trocando
+só a forma da referência. O gargalo é a exigência de antecipação da notação.
+
+### Escrito no texto
+
+Nova `\subsubsection*{Replicação em outras famílias de modelos}` com as duas
+tabelas, o controle do tokenizador, e — explicitamente — o **X-ds invalidado**
+(tokenizador que quebra ida-e-volta; 75,5% que não medem o método) e o **X-ms
+não executado** (portão do MiMo passou). A distinção entre "não replicou" e
+"não foi medido" está no texto, que é o que a omissão destruiria.
+
+Correções feitas ao incorporar as réplicas:
+- `\verb|#ref|` em cabeçalho de tabela → erro fatal (`#` é caractere de
+  parâmetro em modo horizontal restrito). Trocado por `\texttt{\#ref}`.
+- X-mi falha em **9** itens (8 referenciais + 1 léxico), não 8 — corrigido na
+  tabela do resíduo.
+- A prosa do resíduo falava em "três braços / 20 falhas / 15 referenciais";
+  com cinco braços é **38 falhas, 31 referenciais (82%)**. Reescrita.
+- A afirmação "taxa condicional estável" passou a distinguir dois regimes:
+  estável em 14–16% **dentro da família Qwen** (volumes variando 4×), e 37–39%
+  nas outras duas — sobre base menor de itens. O que não varia é a natureza.
+
+Estado: 295 testes, ruff limpo, PDF 103 páginas compilando sem erro.
