@@ -1,0 +1,55 @@
+# TODO: Na escrita do TCC, na problematização e motivação para a criação desse TCC, expor o problema da Autoregressive dynamics (aonde se a LLM prever um unico token errado, todo o fluxo lógico é quebrado) (podemos adicionar no artigo também um slide com o visual interativo do deeplearning.ai how llm works sobre isso), citar uma analogia a compiladores, etc...
+
+# TODO: Verificar a viabilidade (depois que a base estiver 100% populada e pronta, subir isso no huggingface e kaggle pois não existe nada assim).
+
+# TODO: Incluir a ideia de Constrained decoding 
+
+# TODO: Adicionar o problema dos custos que a SLM mata usando como exemplo o microsoft que deisistiu de usar claude e da uber que acabou com o dinheiro para isso de um ano em 5 meses.
+
+# TODO: Adicionar na introdução a ideia do artigo de SLMs da NVIDIA.
+
+O projeto passou pela fase inicial de ingestão de dados aonde foi-se identificado o primeiro problema grave do projeto, basicamente não existem casos de datasets seguros com inputs em formato de processos e outputs em xml ou derivados para bpmn, então eu criei uma estratégia, eu peguei dos datasets disponíveis, somente inputs textuais de processos (ami, mad, pet, pmo, zenodo), depois fiz um webscraping em cima de todo o manual de processos handbook público do gitlab, isso me deu 1047 dados de input, que já dei uma margem meramente mais realista para o nosso cenário (ainda pretendo aumentar isso, mas antes quero estabilizar o processo completo do pipeline de ingestão antes de ir atrás de mais dados) (mais dados podem ser pegos com a Vertere na plataforma da gomes de matos e de testers que usaram a plataforma de graça ou alguma base de manual como a do gitlab).
+
+Agora com nossos dados de input, eu copiei a mesma estratégia que fiz na Vertere.
+Criei um preprocessamento, aonde o input cru passar por uma LLM SOTA (foi utilizado kimi k2.6 com o Ollama Cloud) aonde ele retornava já a base estrutura lógica em linguagem natural do processo.
+Após deixar os dados de input estruturados com o preprocessamento, eu gerei um JSON de BPMN (sem layout) também com LLM SOTA (deepseek v4 pro com Ollama Cloud).
+
+Feito isso, cheguei na parte de transpiler.
+
+Eu ainda não tinha de forma definitiva uma DSL para o bpmn definida, por isso, tive que criar uma do 0, após diversos testes e correções, fiz uma que pode ser identificada em @src/dsl/dsl_documentation.txt e também fiz um grammar.lark dela no mesmo caminho.
+
+Após gerar o DSL BPMN, eu fiz um script para transpilar o JSON do BPMN para o DSL BPMN e depois fiz um script para gerar de DSL BPMN para XML BPMN.
+
+Mas eu ainda não tinha feito o XSD para validar o XML BPMN, então eu fiz um script para validar o XML BPMN gerado com o XSD do BPMN 2.0 criando assim uma nova versão do xml transpiler.
+
+Após isso, eu reparei que tinha alguns warnings no JSON to DSL transpiler: _linearize` quebra o invariante "cada nó emitido 1×" por causa do `visited.copy()` por branch + `find_join=None` em forks assimétricos. Não é corner case — 63/148 são grafos sem loop/`both`/multi-fork.
+
+Isso foi um desafio sério pois:
+O linearizador tem que garantir **um único invariante**:
+
+> Todo nó alcançável é emitido **exatamente uma vez**. Qualquer outro encontro com esse nó vira `#ref`.
+
+Hoje isso é violado em um ponto só: o **`visited.copy()` por branch** (`json_to_dsl.py:552`). Cada branch recebe uma cópia do conjunto de visitados, então um branch não enxerga o que o outro (ou o escopo externo) já emitiu → a cauda compartilhada sai duplicada; e em loops o back-edge não é reconhecido → explosão (o `6→107`).
+
+Se o `emitted` for **um só conjunto global, passado por referência** em toda a recursão:
+
+- **Duplicação morre na origem.** No caso `what_are_the_risks_4`: quando o sub-branch de `G03` emite `T05→…→E02`, esses nós entram no `emitted`. Quando o escopo externo do `G01` chega no "join" `T05`, ele já está emitido → vira `#ref`, e para. Uma vez só.
+- **Loops viram ref naturalmente.** A cabeça do loop é emitida no primeiro encontro; o back-edge encontra o nó já emitido → `#ref`. Sem explosão. (O `_assign_ids` já dá id a nós de in-degree≥2 e a alvos de back-edge, então o ref sempre tem declaração — essa peça já está pronta.)
+
+Ou seja: **trocar `visited.copy()` por um `emitted` global já mata os 124 casos de duplicação**, que são a maior parte.
+
+## Para as perdas (24 casos)
+
+Essas vêm do `current=None` cortando a travessia cedo (forks sem join limpo, gateways `both`), solução:
+
+**Rede de segurança (barata, garante zero perda):** ao fim do passe, computo `reachable_from_start − emitted`. Se sobrou algum nó alcançável não-emitido, emito-os num apêndice (com refs ligando), e **emito um `warning`**. Isso transforma "perda silenciosa" em "no pior caso, DSL feio + warning rastreável" — nunca mais perde lógica. Já me dá uma garantia dura para o eixo 2.
+
+Também removi os outros heurísticos de detecção de join (find_join, pós-dominador) e substituí por uma solução determinística (pós-dominador imediato).
+
+(continuar execução dessa thread do claude)
+
+# TODO
+Implementar a validação de eixo 2 no XML gerado (garantir que ele possuí equivalencia topológica com o JSON original) a partir de contagem de nós por tipo, arestas e gateways.
+Após isso, preciso pegar alguns códigos da Management na vertere, sendo eles:
+Gerador de layout para BPMN.
+transpiler de json para xml (para garantir alguns testes no olhometro)

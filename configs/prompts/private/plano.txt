@@ -1,0 +1,14 @@
+´Plano até 30/11
+
+Agosto–setembro · fechar o texto (crítico, nada disso é opcional)
+1. Conclusão — hoje é \lipsum ok!
+2. Introdução revisada: ela foi escrita antes dos resultados e provavelmente promete o que não se confirmou ok!
+3. Resumo e Abstract ok!
+4. Lista de siglas (ainda é a de exemplo do template) e o \imprimirglossario quebrado ok!
+5. As 5 entradas do .bib marcadas [conferir] contra os PDFs originais ok!
+6. As duas figuras qualitativas acima ok!
+
+Outubro · se o texto estiver fechado, em ordem de valor
+
+1. Curva de aprendizado (25/50/100% dos dados). Você já perguntou três vezes sobre volume de dados. Isso responde definitivamente: se a validade ainda sobe a 100%, mais dados ajudariam; se saturou, não. Três treinos, ~US$ 1,50, poucas horas, sem tocar no holdout. Vira uma figura e encerra a questão com número em vez de opinião.
+2. Segundo modelo base. É a mesma lógica da replicação A1/A1g, que já pagou: com dois modelos falhando na mesma direção, atribuímos ao formato e não ao modelo. Hoje a alegação "um 7B finetunado atinge X" repousa em um único modelo. Refazer o SFT com outra família (mantendo tudo mais constante) testaria se é propriedade do método ou do Qwen. Custo ~US$ 0,50 mais uma execução local. Entraria como braço exploratório declarado, não como troca do protocolo congelado.
