@@ -55,13 +55,9 @@ data/*.bak-*
 data/*.before_*
 
 # ─── Configs ─────────────────────────────────────────────────────────
-# Default: hide local experiment configs / hyperparameters.
-# Exception: prompt templates are part of the published methodology
-# and MUST be tracked for TCC reproducibility.
-# NOTE: use `configs/*` (not `configs/`) so that re-includes below work —
-# git refuses to un-ignore files inside an explicitly excluded directory.
-configs/*
-!configs/prompts/
+# Configs e prompt templates fazem parte da metodologia publicada e são
+# rastreados integralmente (reprodutibilidade do TCC).
+# Única exceção: notas de trabalho pessoais, ignoradas na seção Prompts.
 
 # ─── Logs & run artifacts ────────────────────────────────────────────
 *.log
@@ -120,9 +116,6 @@ configs/prompts/private/
 
 
 # ─── Others ───────────────────────────────────────────────────────────
-AGENTS.md
-CLAUDE.md
-fontes.txt
 experiments/sft/adapter/
 # Subamostras da curva de aprendizado: derivadas de experiments/sft/train.jsonl
 # por `uv run python -m src.training.subsample`, determinísticas e aninhadas.

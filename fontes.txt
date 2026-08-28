@@ -1,0 +1,142 @@
+
+• Pesquisei especificamente por bases que se aproximem de:
+
+  - áudios de reunião/entrevista sobre processo
+  - transcrições que descrevem fluxo/processo
+  - texto -> processo/BPMN
+  - diálogos ancorados em modelos de processo
+
+  A conclusão é: não encontrei uma base pública “perfeita” de áudio de mapeamento de processo + BPMN gold. O que existe aberto hoje é um conjunto de opções parciais, que você
+  pode combinar.
+
+  Mais próximos do que você quer
+
+  1. AMI Meeting Corpus
+     Tem 100 horas de reuniões com áudio, vídeo e transcrição ortográfica. Cerca de dois terços foram coletados em um cenário de time de design levando um projeto do kickoff até
+     a conclusão, o que é razoavelmente próximo de reuniões de elicitação/workshop. Licença CC BY 4.0.
+     Fonte: https://groups.inf.ed.ac.uk/ami/corpus/
+  2. ICSI Meeting Corpus
+     Tem cerca de 70 horas de reuniões reais, com áudio e transcrição ortográfica, também CC BY 4.0. É mais “reunião natural” geral, menos voltado a processo operacional.
+     Fonte: https://groups.inf.ed.ac.uk/ami/icsi/
+  3. ELITR Minuting Corpus
+     Tem transcrições de reuniões + minutes/summaries de reuniões técnicas em inglês e checo, cobrindo cerca de 180 horas. O paper diz explicitamente que o corpus é
+     disponibilizado sem as gravações, por privacidade. É útil se você quiser estudar transcrição -> resumo estruturado, mesmo sem áudio.
+     Fontes:
+     https://ufal.mff.cuni.cz/elitr-minuting-corpus
+     https://impact.ornl.gov/en/publications/elitr-minuting-corpus-a-novel-dataset-for-automatic-minuting-from/
+
+  Bases úteis de texto de processo, mas sem áudio
+
+  4. PET
+     É uma base de descrições textuais de processo anotadas com activities, gateways, actors e flow information. Não tem áudio, mas é uma das mais úteis para sua etapa
+     intermediária de extração estruturada.
+     Fontes:
+     https://pdi.fbk.eu/pet-dataset/
+     https://huggingface.co/datasets/patriziobellan/PET
+  5. PMo Dataset
+     Tem 55 modelos de processo com descrições textuais e várias representações do modelo. Importante: o PMo inclui uma representação BPMN padronizada com tasks, events,
+     gateways, sequence flows, swimlanes e message flows.
+     Fonte: https://zenodo.org/records/15857589
+  6. Textual Process Descriptions and Corresponding BPMN Models
+     Tem 24 descrições textuais e, para cada uma, 8–11 modelos BPMN possíveis, com score de especialista. Isso é muito bom para estudar ambiguidade de modelagem a partir de
+     texto.
+     Fonte: https://zenodo.org/records/7783492
+  7. BPMN diagram dataset: Comprehensive collection of functional requirements
+     Dataset com 67 processos/funcionalidades modelados em BPMN, vindo de atividades reais de elicitação de requisitos em três aplicações. O dataset é distribuído via Mendeley
+     Data e traz diagramas e XPDL.
+     Fonte: https://pmc.ncbi.nlm.nih.gov/articles/PMC11405905/
+     Dados: https://data.mendeley.com/datasets/9tgnvj9nsg/2
+
+  Bases de diálogo relacionadas
+
+  8. MISeD
+     Não é BPMN, mas é bem útil como ponte: são 432 diálogos sobre transcrições de reuniões, construídos sobre o QMSum, usando reuniões AMI, ICSI e comitês parlamentares. Serve
+     para estudar conversa sobre reunião -> recuperação/estruturação de informação.
+     Fonte: https://github.com/google-research-datasets/MISeD
+  9. ProcessChat
+     É bem alinhado conceitualmente: 316 diálogos ancorados em 73 especificações de processos. O problema é que eu encontrei a publicação, mas não encontrei um link público
+     claro de download do dataset.
+     Fonte: https://research.ibm.com/publications/processchat-a-dataset-for-business-process-grounded-dialogs
+
+  Recomendação prática
+
+  Se você quiser começar agora, eu faria assim:
+
+  1. AMI e ICSI para o lado de áudio/transcrição.
+  2. PET para aprender extração estruturada de atores, atividades e gateways.
+  3. PMo e o dataset de 24 textual descriptions + BPMN para supervisionar modelagem textual -> BPMN.
+  4. ELITR se você quiser experimentar a sua etapa de “limpar reunião e transformar em estrutura” sem depender de áudio.
+
+  Melhor combinação para seu caso
+  A combinação mais útil me parece:
+
+  - AMI/ICSI para obter reuniões reais ou semi-reais
+  - seu prompt de reestruturação para gerar o texto intermediário
+  - PET como referência de anotação textual de processo
+  - PMo como gold para BPMN mais fiel
+  - MaD apenas como bootstrap de escala
+
+  O que não encontrei
+
+  - áudio de reunião de mapeamento de processo
+  - transcrição
+  - texto estruturado de processo
+  Ou seja, o “dataset ideal” aparentemente não está pronto na internet. O caminho mais realista continua sendo montar um pipeline híbrido com bases complementares.
+
+  Se quiser, eu posso fazer o próximo passo e te entregar uma tabela objetiva com:
+
+  - dataset
+  - tem áudio?
+  - tem transcrição?
+  - tem atores?
+  - tem BPMN?
+  - serve para treino ou avaliação?
+  - como encaixa no seu pipeline
+
+
+› Eu não quero aprender nada exatamente, quero só boas fontes com coisas voltadas a mapeamento de processo, pode ser texto ou áudio tanto faz, só precisa ser direcionado pega
+  dessas fontes o melhor que você acha
+
+
+• Se o critério é boas fontes diretamente úteis para mapeamento de processo, eu ficaria com estas 5 e ignoraria o resto por enquanto:
+
+  1. PMo Dataset
+     Melhor fonte para você ter descrição textual + modelo de processo já no domínio certo. É pequeno, mas muito alinhado com o problema.
+     Link: https://zenodo.org/records/15857589
+  2. PET Dataset
+     Melhor fonte textual para extração de processo a partir de linguagem natural. Tem anotação de activities, gateways, actors e flow information, então é muito útil para sua
+     etapa intermediária.
+     Links:
+
+  - https://pdi.fbk.eu/pet-dataset/
+  - https://huggingface.co/datasets/patriziobellan/PET
+
+  3. BPMN functional requirements dataset
+     Boa fonte de requisitos reais transformados em BPMN/XPDL. Não é áudio, mas é material muito próximo de elicitação e documentação de processo.
+     Links:
+
+  - https://pmc.ncbi.nlm.nih.gov/articles/PMC11405905/
+  - https://data.mendeley.com/datasets/9tgnvj9nsg/2
+
+  4. Textual Process Descriptions and Corresponding BPMN Models
+     Boa para estudar ambiguidade de modelagem: o mesmo texto pode gerar múltiplos BPMNs plausíveis. Isso é valioso se você quiser robustez metodológica.
+     Link: https://zenodo.org/records/7783492
+  5. AMI Meeting Corpus
+     Se você quiser material bruto de reunião para transformar em processo, esta é a melhor fonte aberta que encontrei. Não é “mapeamento de processo” puro, mas é a melhor opção
+     pública de reunião com áudio e transcrição.
+     Link: https://groups.inf.ed.ac.uk/ami/corpus/
+
+  Minha seleção prática para o seu projeto seria:
+
+  - principal: PMo + PET
+  - complementar: BPMN functional requirements dataset
+  - para material bruto de reunião: AMI
+  - para análise de múltiplas modelagens possíveis: textual descriptions + BPMN models
+
+  O que eu faria no seu lugar:
+
+  - começar por PMo e PET
+  - usar o dataset do Mendeley como complemento mais “requisitos -> BPMN”
+  - só depois decidir se vale puxar AMI
+
+  Se quiser, eu posso agora montar uma pasta data_sources.md no projeto com esses links, objetivo de cada base e como cada uma entra no pipeline.
