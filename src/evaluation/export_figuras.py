@@ -177,7 +177,11 @@ def main() -> None:
         tok = _tokenizer(TOKENIZER)
         toks = {a: arm_report(db, a, tok).get("tokens_emitidos_mediana", 0) for a in BRACOS}
 
-        multi = {s: v for s, v in refs.items() if len(v) >= 3}
+        # Itens com referência múltipla — os 24 sobre os quais o teto humano é
+        # medido. Toda figura que exiba o teto tem de restringir-se a eles: barra
+        # de 53 itens contra linha de 24 compara coisas diferentes. Mesma regra
+        # da `tab:res-teto` (`run_tabelas.teto`): admitidas, ou seja nota ≥ 4.
+        multi = {s: v for s, v in refs.items() if len(v) >= 2}
         # Todos os 53 itens, saída inválida contando zero — idêntico ao critério
         # da métrica primária. Restringir aos válidos inflaria os braços de DSL
         # (A2 subiria de 0,1375 para 0,23) e a figura deixaria de ser comparável
@@ -195,8 +199,14 @@ def main() -> None:
                 porsample[r["sample_id"]].append(r["output_xml"])
             candidatos[a] = dict(porsample)
 
+    # A figura do teto humano usa **só os 24 itens com referência múltipla**, e
+    # não os 53 da tabela principal: é o único recorte em que a linha do teto e
+    # as barras medem a mesma coisa. Os valores de 53 itens seguem na
+    # `tab:res-bracos` e na figura de custo.
     df_f1_linhas = [
-        f"{a},{st.mean(medianas[a].values()):.4f},{EMITE[a]}" for a in BRACOS if medianas[a]
+        f"{a},{st.mean([v for s, v in medianas[a].items() if s in multi]):.4f},{EMITE[a]}"
+        for a in BRACOS
+        if medianas[a]
     ]
     custo_linhas = [f"{a},{f1:.4f},{x:.1f},{toks[a]:.0f}" for a, f1, x in custo]
 
@@ -220,7 +230,7 @@ def main() -> None:
                     [max(f1_no_limiar(limiar, g, x) for g in refs[s]) if x else 0.0 for x in reps]
                 )
                 for s, reps in candidatos[a].items()
-                if s in refs
+                if s in multi
             ]
             col.append(f"{st.mean(vs):.4f}" if vs else "0")
         col.append(f"{teto_humano(multi, limiar):.4f}")

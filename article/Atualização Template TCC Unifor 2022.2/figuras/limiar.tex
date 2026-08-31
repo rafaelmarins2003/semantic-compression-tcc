@@ -11,7 +11,7 @@
 			xmode=log, x dir=reverse, log basis x=10,
 			xlabel={Limiar de Jaccard para casamento de rótulos},
 			ylabel={DF-F1},
-			ymin=0, ymax=0.42,
+			ymin=0, ymax=0.36,
 			xtick={0.5,0.4,0.3,0.2,0.1,0.01}, xticklabels={0{,}5,0{,}4,0{,}3,0{,}2,0{,}1,0{,}01},
 			ymajorgrids, grid style={draw=black!12},
 			axis lines*=left, tick align=outside,
@@ -31,9 +31,11 @@
 		\end{axis}
 	\end{tikzpicture}
 	\Fonte{Elaborado pelo autor}
-	\Nota{O valor congelado no protocolo é 0{,}5; os demais pontos são análise de
-	sensibilidade e não substituem a métrica primária. Mesmo com o casamento
-	praticamente livre (0{,}01), nenhuma série passa de 0{,}38 — o resíduo é
-	divergência estrutural, não lexical. O teto humano não contém saídas
-	inválidas, por construção; os braços contam-nas como zero.}
+	\Nota{Séries calculadas sobre os \textbf{24 itens com referência múltipla}, o
+	recorte em que o teto humano é medido. O valor congelado no protocolo é 0{,}5;
+	os demais pontos são análise de sensibilidade e não substituem a métrica
+	primária. Mesmo com o casamento praticamente livre (0{,}01), nenhuma série
+	passa de 0{,}33 — o resíduo é divergência estrutural, não lexical. O teto
+	humano não contém saídas inválidas, por construção; os braços contam-nas
+	como zero.}
 \end{figure}

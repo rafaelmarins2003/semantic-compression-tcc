@@ -1178,3 +1178,589 @@ Correções feitas ao incorporar as réplicas:
   nas outras duas — sobre base menor de itens. O que não varia é a natureza.
 
 Estado: 295 testes, ruff limpo, PDF 103 páginas compilando sem erro.
+
+---
+
+## 2026-08-30 — A Conclusão contrariava os Resultados; ao corrigir, um número da tab:res-oraculo veio junto
+
+Gatilho: conferir se o artigo acompanhava as réplicas Granite/MiMo. A resposta
+é que **os Resultados acompanhavam; a Conclusão, não** — escrita em 17/08, antes
+das réplicas de 25/08, dizia que a replicação do ajuste fino "não foi realizada"
+e a listava como trabalho futuro, contradizendo a `tab:res-replicacao` do próprio
+documento. Ao corrigir isso, a passagem citava o oráculo como **0,1533**, valor
+que **não existia em tabela alguma** do artigo — e a investigação desse descompasso
+revelou o problema real, que está na tabela, não na Conclusão.
+
+### O número do oráculo: duas regras de pontuação numa tabela só
+
+A `tab:res-oraculo` dizia **0,1236**. Reproduzindo com `score_candidate` (a
+função do benchmark, regra congelada da spec 003 §4: máximo sobre referências
+admitidas):
+
+| medição | regra | valor |
+|---|---|---|
+| oráculo, 53 itens | máximo (regra dos braços) | **0,1533** |
+| oráculo, 53 itens | só referência primária | 0,1236 |
+| oráculo, 24 itens c/ ref múltipla | máximo | 0,1103 (= 76% do teto ✓) |
+
+A linha do pipeline na tabela foi gerada por sonda **primária-only**; as demais
+linhas (A1 0,1942, A2 0,1375) vêm da regra do máximo. Três evidências
+independentes confirmam que o 0,1533 é o número da regra congelada:
+
+1. **A prosa da própria seção só é verdadeira com 0,1533**: "acima de todos os
+   braços que emitem DSL" — com 0,1236 o oráculo ficaria **abaixo** do A2
+   (0,1375). A frase foi escrita para o valor máximo e publicada ao lado do
+   valor primário-only.
+2. O registro de 2026-08-16 declara "com a regra do máximo, dá 0,1533".
+3. A `tab:res-teto` (24 itens, via `run_tabelas.py`) já usava o máximo e bate:
+   0,1103 reproduzido hoje.
+
+**Corrigido**: célula do DF-F1 na `tab:res-oraculo` (0,1236 → 0,1533, linha
+reordenada entre A1 e A2 para manter ordem decrescente) e a frase "situa-se em
+0,1236" na prosa. A Conclusão já dizia 0,1533 — **não foi tocada nesse número**.
+
+**Direção do viés da correção**: o teto do oráculo **sobe**, o que **enfraquece**
+a desculpa do teto para o DF-F1 do A4 (0,1114) — o headroom passa de ~0,012
+para ~0,042. Correção desfavorável ao autor, que é a direção segura; registrada
+aqui por pertencer à mesma classe de rigor que as emendas E-1/E-2.
+
+**Coluna "Rótulos alinhados" — NÃO corrigida, e por quê.** A célula do pipeline
+(32,3%) reproduz exatamente como estatística primária-only (37,5% sob a regra do
+máximo). As células de A1 (40,5%) e A2 (48,6%) **não reproduziram** sob nenhuma
+convenção testada (máximo+zero-fill dá 44,4%/31,3%; só-válidas+máximo dá
+~45%/~48,3%). Sem recuperar a convenção das sondas originais, mudar a célula do
+pipeline para 37,5% criaria inconsistência nova na coluna. Ação remanescente:
+recalcular a coluna inteira sob a regra congelada (ou removê-la) quando houver
+tempo de auditoria; os valores de DF-F1 da tabela estão, todos, sob a regra
+congelada.
+
+### Conclusão — quatro passagens reescritas
+
+| passagem | antes (17/08) | depois |
+|---|---|---|
+| Limitações | "Um único modelo base... não foi realizada no eixo do ajuste fino" | "Replicação do ajuste fino apenas exploratória": feita (Granite/MiMo 83,0% vs 86,8%), mas sem força confirmatória; quarta família invalidada por tokenização; divergência de comportamento referencial (14–16% vs 37–39%) é do pré-treino |
+| Contribuições | sem menção à replicação do SFT | acrescentada uma oração na "Viabilidade econômica" |
+| Futuro: "Replicação com segundo modelo base" | descrita como pendente | **substituída** por "Convenção de referência por rótulo na notação" (151/200 refs para trás; custo medido 2,31%; o futuro mais bem fundamentado que a avaliação produziu) |
+| Futuro: "Curva de aprendizado" | descrita como pendente | **substituída** por "Ampliação do corpus por fontes distintas" (a curva rodou; o que resta é fonte nova) |
+
+Resumo e Abstract ganharam uma oração: o patamar de validade "replicou-se, em
+verificação exploratória, em duas famílias adicionais de modelos". Nota de
+trabalho no topo de `resultados.tex` ("Falta só o A4") atualizada.
+
+### Verificação
+
+- Recompilado com a sequência completa (pdflatex/bibtex/makeglossaries/2×pdflatex):
+  **103 páginas, zero erros, zero referências indefinidas**.
+- PDF conferido: "0,1236" não ocorre; "0,1533" ocorre 3× (tabela, prosa,
+  Conclusão); nenhuma passagem antiga sobrevive.
+- Reprodução do oráculo documentada acima via `score_candidate` — a sonda
+  primária-only também reproduz (0,1236), o que confirma a causa-raiz.
+
+### Lição, da mesma família das anteriores
+
+A `tab:res-oraculo` foi a única tabela de números derivados que **não** entrou
+no `run_tabelas.py` na sessão de 25/08 ("não é braço do benchmark, vem do
+corpus") — e foi justamente a que manteve valor de sonda com regra distinta da
+das demais linhas. **Tabela com números de origens distintas é tabela com duas
+regras**: se a linha não vem de script, ela precisa de um comando de reprodução
+documentado, ou o valor congela sem que ninguém saiba sob qual convenção.
+
+---
+
+## 2026-08-30 (noite) — As hipóteses estavam só no capítulo que as testa
+
+Auditoria de consistência artigo × projeto. Achado principal: **H1, H1g, H2, H3
+e H4 apareciam exclusivamente em `resultados.tex`** (30 ocorrências) — enunciadas
+pela primeira vez, para o leitor, dentro da tabela que já traz o desfecho de cada
+uma. A Metodologia nunca as declarava, embora a Introdução prometesse que o
+capítulo reproduz o protocolo "na íntegra, incluindo hipóteses" e a §pré-registro
+afirmasse que "hipóteses foram registradas com direção esperada".
+
+O pré-registro existia e estava correto (`specs/003-eval-harness/spec.md` §6.1);
+o que faltava era a transcrição para a monografia. Isso importa mais do que
+parece: o valor argumentativo do pré-registro depende de o leitor ver o enunciado
+**antes** do resultado, e quem lê só o PDF via o inverso.
+
+### O que foi escrito
+
+Nova `\subsection{Hipóteses}` (§4.7.7, `subsec:hipoteses`), entre o desenho dos
+braços e os parâmetros congelados, com `tab:hipoteses` (Tabela 3) e um parágrafo
+por hipótese. O texto é **transcrição** do spec §6.1, não redação nova — nenhum
+enunciado foi reformulado, e por isso a mudança **não é emenda** ao protocolo:
+é a documentação do que já estava congelado. A tabela distingue explicitamente
+as três hipóteses que entram no teste com correção de Holm (H1, H1g, H3) das
+duas reportadas descritivamente (H2, H4), distinção que o capítulo de resultados
+aplicava sem nunca ter enunciado.
+
+Três pontos que só existiam no spec e agora estão no texto:
+
+- **H2 supõe a etapa anterior.** O enunciado atribui a validade ao transpilador
+  e toma como cumprida a aceitação da DSL pela gramática. Escrito de forma
+  descritiva, sem antecipar o resultado — é o que torna legível, no capítulo 5,
+  a frase "o protocolo tratava o parsing como etapa dada, e é ele o gargalo".
+- **Regra de leitura de H3**, fixada antes dos dados: sendo `≥`, um empate
+  estatístico não a refuta nem a demonstra; quem responde não inferioridade é o
+  IC, não a ausência de significância.
+- **O limiar de H4 é piso, não expectativa** — a medição do corpus já dava ~6
+  quando o 2 foi fixado.
+
+### Defasagem menor corrigida junto
+
+A **lateralidade bilateral** estava em `resultados.tex` ("teste de Wilcoxon
+pareado bilateral") e no spec §6.3, mas **não** na Metodologia, que descrevia o
+teste sem dizer se era uni ou bilateral. Acrescentada com a justificativa
+registrada (hipóteses direcionais, alegação de não inferioridade respondida pelo
+IC, bilateral como escolha conservadora), mais o descarte de diferenças nulas
+(`zero_method="wilcox"`, conferido em `run_analysis.py:93`) e a nomeação
+explícita dos três contrastes. Referência cruzada acrescentada em §5.6.2.
+
+### Verificação
+
+- Sequência completa (pdflatex/bibtex/makeglossaries/2×pdflatex): **104 páginas,
+  zero erro, zero citação ou referência indefinida** (era 103).
+- PDF conferido: Tabela 3 renderiza; as remissões resolvem para 4.7.6, 4.7.8,
+  5.4 e 5.6.2; nenhuma tabela posterior perdeu numeração.
+- Os números da monografia foram reconferidos contra o banco nesta mesma
+  auditoria (`run_analysis` e `run_tabelas` reproduzem `tab:res-testes`,
+  `tab:res-condicional`, `tab:res-mf` e `tab:res-teto` dígito a dígito; eixo 2 e
+  composição do corpus idem). Nada além do texto acima mudou.
+
+### Pendências da mesma auditoria, ainda abertas
+
+1. `tab:bracos` lista **6 braços e não inclui o A3m**, enquanto §5.6 fala em
+   "7 braços × 53 × 3 = 1.113 gerações" e o spec §7 já traz o A3m.
+2. Coluna "Rótulos alinhados" da `tab:res-oraculo` — pendência herdada da sessão
+   anterior, com duas convenções na mesma coluna.
+3. `tab:res-teto` não tem linha do **A4** (medido nesta auditoria: **0,0782 nos
+   24 itens, 54% do teto**); `run_tabelas.py` também não o calcula. Incluir a
+   linha não move afirmação alguma — o pipeline (0,1103) segue acima.
+4. `fig:df-f1-teto` compara barras de 53 itens com linha de teto de 24 itens.
+5. Pós-textuais ainda são do template-exemplo (glossário de "Braile/Borboleta",
+   apêndices com *lorem ipsum* e "Termo de Fiel Depositário", anexos, errata de
+   tese de veterinária, agradecimentos/dedicatória/epígrafe de outra pessoa) —
+   ~10 páginas do PDF. Não estavam registradas em lugar nenhum.
+
+---
+
+## 2026-08-30 (noite, cont.) — O A3m entra na tabela de braços, e traz junto a dimensão do *prompt*
+
+Pendência 1 da auditoria anterior. A `tab:bracos` listava **6 braços**, enquanto
+a §5.6 abre com "1.113 gerações (7 braços × 53 × 3)" e o `run_benchmark.py` e o
+spec §7 já traziam o **A3m**. O leitor encontrava, no capítulo de resultados, um
+braço com "função de piso que lhe foi atribuída no desenho" — atribuição que o
+desenho não registrava.
+
+### Por que não era acrescentar uma linha
+
+A3m difere do A3 **apenas pelo \textit{prompt}**, e a Metodologia não descrevia
+os \textit{prompts} do benchmark em lugar nenhum — nem os três regimes, nem a
+garantia de equidade entre eles. Acrescentar a linha sem isso produziria duas
+linhas idênticas (mesmo modelo, mesma saída) com papéis diferentes e nenhuma
+explicação da diferença.
+
+A tabela ganhou, então, uma coluna **\textit{Prompt}** (notação XML · gramática ·
+mínimo), e o capítulo ganhou três parágrafos:
+
+1. **Os três regimes de instrução**, com o registro de que o \textit{prompt}
+   mínimo é *deliberadamente* o mesmo do treino do SFT — para que a inferência
+   do A4 ocorra na distribuição em que ele foi treinado. Custo de entrada: 756
+   \textit{tokens} contra 1.354 do que carrega a gramática (números que já
+   estavam na §4.8.1 e na §5.6.4; nenhum valor novo foi introduzido).
+2. **A equidade entre formatos**, que estava travada por
+   `tests/evaluation/test_benchmark_prompts.py` desde 15/08 e **nunca havia sido
+   afirmada na monografia**: blocos `role`, `language`, `modeling_rules` e
+   `output_contract` idênticos byte a byte nos três, e os exemplos de notação do
+   XML e da DSL provados como **o mesmo processo** (transpila e compara: DF-F1
+   = 1,0). É a garantia de que o contraste A2 vs A1 mede o formato e não a
+   redação — sem ela, H1 não se sustenta como enunciada.
+3. **A função do A3m**: sem ele, A4 vs A3 varia pesos *e* instrução ao mesmo
+   tempo. A4 vs A3m isola o adaptador; A4 vs A3 mede a intervenção inteira.
+   Ambos exploratórios, fora da correção de múltiplas comparações.
+
+### Defasagem menor corrigida junto
+
+"Os **dois** braços executados com o modelo pequeno (A3 e A4) usam configuração
+de inferência idêntica" → **três** (A3, A3m e A4). Conferido em `ARMS`: os três
+são `backend="local"`, mesmo modelo, mesmo teto de 2.048.
+
+### Verificação
+
+- **105 páginas** (era 104), zero erro, zero referência indefinida.
+- Tabela renderiza com as 7 linhas dentro da largura do texto; o único
+  \textit{overfull} relevante do documento (43,2\,pt) é **pré-existente** e está
+  na capa (`main.tex:168`, `\imprimircapa`), não na tabela nova.
+- Nenhuma outra contagem de braços no texto ficou defasada (`grep` por "seis/
+  cinco/quatro/dois braços": as ocorrências restantes são corretas — "cinco
+  braços ajustados" são A4 + X-gr + X-mi + X-lc25 + X-lc50).
+
+### Lição, repetida
+
+A tabela do desenho estava atrasada porque o braço foi acrescentado **no código
+e no spec**, e a tabela é prosa escrita à mão. Mesma família do problema da
+`tab:res-oraculo`: o que não vem de script diverge da fonte sem que ninguém
+perceba. Aqui não dá para gerar a tabela por script, mas dá para o teste do
+benchmark falhar quando `ARMS` e o texto divergirem — anotado como ideia, não
+implementado.
+
+### Pendências que seguem abertas
+
+2. Coluna "Rótulos alinhados" da `tab:res-oraculo` (duas convenções na mesma coluna).
+3. `tab:res-teto` sem a linha do A4 (**0,0782 nos 24 itens, 54% do teto**).
+4. `fig:df-f1-teto` compara barras de 53 itens com linha de teto de 24.
+5. Pós-textuais ainda são do template-exemplo (~10 páginas do PDF).
+
+---
+
+## 2026-08-30 (madrugada) — A coluna de rótulos, recalculada sob a regra congelada, e o que ela derrubou
+
+Pendência 2. A coluna "Rótulos alinhados" da `tab:res-oraculo` tinha duas
+convenções na mesma coluna e nenhuma reproduzia. Em vez de arqueologia, a
+definição foi **implementada** — `rotulos_alinhados` em `run_tabelas.py`, com
+`oraculo()`, `teto_rotulos()` e `ancoragem()` — e a tabela inteira foi refeita
+por script. Quatro testes novos (`tests/evaluation/test_tabelas.py`) fixam a
+convenção em código: 299 testes no total, ruff limpo.
+
+### Convenção declarada (agora impressa na nota da tabela)
+
+- **Unidade**: item. Mediana das k=3 repetições, depois média (taxas) ou mediana
+  (contagens) entre itens — a mesma agregação do DF-F1.
+- **Referência**: a que venceu pela regra do máximo, lida de `benchmark_eval.
+  ref_variant`; para o pipeline, recalculada com `compare_xml`. Empate resolvido
+  pela primeira referência, como em `score_candidate` — **o desempate vale
+  0,8 ponto percentual no teto humano** (0,313 contra 0,305), então não podia
+  ficar por conta da ordem de iteração.
+- **Denominador**: só as gerações **válidas**, com o `n` impresso. Documento
+  inválido não tem rótulo a comparar, e zerá-lo faria a coluna medir validade —
+  que é o que a coluna de DF-F1 já mede. É a única forma de as três colunas
+  conviverem sem virar duas convenções outra vez: cada uma declara a sua.
+- **Categorias anônimas fora**: `<start>`/`<end>` são tipo, não denominação.
+  Incluí-las dava 44,4% no A1 em vez de 40,1% — inflação pura.
+
+### Números novos
+
+| origem | DF-F1 | rótulos | arestas | n |
+|---|---|---|---|---|
+| gold | --- | --- | 18 | 53 |
+| A1 | 0,1942 | **40,1%** | 12 | 53 |
+| pipeline | 0,1533 | **41,3%** | 14 | 53 |
+| A2 | 0,1375 | **40,5%** | 13,5 | 40 |
+| A4 | 0,1114 | **38,2%** | 13 | 46 |
+
+Teto humano de rótulos: **30,5%** (era 31,0% — praticamente o mesmo, o que dá
+alguma confiança na sonda original *desse* número). Linha do **A4 acrescentada**:
+o braço proposto faltava na tabela que estima o teto dele.
+
+O efeito na tese é favorável e não foi procurado: o pipeline alinha **41,3%**
+contra 30,5% entre especialistas — antes o texto dizia 32,3% vs 31,0% ("dentro
+da faixa humana"), agora é **acima** dela, e *todas* as origens ficam em 38–41%.
+A conclusão "não há nomenclatura a corrigir" fica mais forte, não mais fraca.
+
+### O que a mesma varredura derrubou — e isto é desfavorável
+
+O parágrafo vizinho citava a **ancoragem no texto-fonte** (62,1% pipeline ·
+60,4% A1 · 60,8% gold) para descartar a hipótese de que os dois saltos de LLM
+afastariam o vocabulário da fonte, concluindo que "o pipeline é, dos três, o
+**mais** ancorado". Implementada a medição (`ancoragem()`), os valores são
+**69,6% pipeline · 69,9% gold · 76,1% A1**, e a **ordenação se inverte**: o
+pipeline não é o mais ancorado, é *tão* ancorado quanto o especialista humano
+(diferença de 0,3 pp), e o modelo de fronteira está acima dos dois.
+
+A hipótese segue descartada — empatar com o humano é o que a pergunta exigia —,
+mas o texto perdeu uma vantagem que reivindicava. Reescrito nesses termos.
+Direção da correção: **contra o autor**, como a do oráculo em 0,1533.
+
+### Propagação (o PDF não contém mais nenhum dos números antigos, conferido)
+
+- `tab:res-oraculo`: tabela, coluna `n`, linha do A4 e nota nova.
+- §5.6.9: ancoragem reescrita; parágrafo da escolha lexical com 41,3% vs 30,5%,
+  agora com a ressalva de que o teto humano vem dos 24 itens com referência
+  múltipla, e o resto dos 53 — comparáveis em ordem de grandeza, não célula a célula.
+- §5.6.8: teto de rótulos 31,0% → 30,5%, e a aritmética $0{,}31^2\\approx0{,}10$
+  → $0{,}305^2\\approx0{,}09$.
+- §5.6.7: "apenas 53% dos rótulos" → **40,5%** (a sonda antiga também não
+  reproduzia aqui), e "12 na referência contra 11 no candidato" → **12 contra 9,5**.
+- §4.9.2 (recompensa do GRPO): faixa de ancoragem 60,4–62,1% → **69,6–76,1%**.
+- Conclusão: 31,0% → 30,5% dos rótulos.
+- Compilação: **106 páginas**, zero erro, zero referência indefinida.
+
+### Lição
+
+Três das quatro sondas avulsas deste capítulo não reproduziram, e uma delas
+sustentava uma afirmação **invertida**. O que separou as que sobreviveram das
+que caíram não foi cuidado na hora de medir — foi haver, ou não, um comando que
+as refizesse. Nenhum número derivado deve entrar no texto sem função no
+`run_tabelas.py` (ou equivalente) e teste que fixe a convenção.
+
+### Pendências
+
+3. `tab:res-teto` sem a linha do A4 (**0,0782 nos 24 itens, 54% do teto**).
+4. `fig:df-f1-teto` compara barras de 53 itens com linha de teto de 24.
+5. Pós-textuais ainda são do template-exemplo (~10 páginas do PDF).
+
+---
+
+## 2026-08-30 (madrugada, cont.) — O teto humano passa a ser comparável, e a figura deixa de mentir por escala
+
+Pendências 3 e 4, que eram o mesmo problema visto de dois ângulos: a
+`tab:res-teto` restringia tudo aos 24 itens com referência múltipla, mas a
+`fig:df-f1-teto` desenhava **barras de 53 itens sob uma linha de teto de 24** —
+e a `fig:limiar` fazia o mesmo com suas quatro séries.
+
+### O que a escala misturada escondia
+
+Na figura antiga o A2 aparecia a 0,1375, encostado no teto de 0,1449, sugerindo
+que os braços de DSL chegavam perto da concordância humana. No recorte
+comparável o A2 vale **0,0498** — um terço do teto. A figura e a tabela do mesmo
+capítulo diziam coisas diferentes sobre o mesmo braço, e a nota da figura
+("apenas os dois braços de XML direto o ultrapassam") era falsa nesse recorte:
+**só o A1 ultrapassa**; o A1g fica em 89%, como a tabela já dizia.
+
+### Feito
+
+- `export_figuras`: `df_f1*.csv` e `limiar.csv` passam a ser calculados **só
+  sobre os 24 itens**, com o critério de admissão unificado com o da tabela
+  (nota ≥ 4, ≥ 2 referências — dá os mesmos 24 que a regra anterior, mas por
+  definição e não por acidente dos dados).
+- `run_tabelas.teto`: agora emite **todos os sete braços mais o pipeline**, em
+  ordem decrescente, e **calcula o teto** em vez de lê-lo de uma constante —
+  era o último número derivado do capítulo que vivia como literal no código.
+  Confirmou o valor publicado: **0,1449** exato.
+- `tab:res-teto`: acrescentadas as linhas do **A4 (0,0782, 54%)** e do A3m
+  (0,0000), e o teto passou de cabeçalho a **linha em posição ordenada** —
+  com um braço acima dele, cabeçalho induzia a ler o teto como máximo.
+- `fig:df-f1-teto` e `fig:limiar`: barras/séries no recorte de 24, ordem
+  refeita, escalas ajustadas (`ymax` 0,225 → 0,205 e 0,42 → 0,36) e notas
+  declarando o recorte.
+- Prosa: "nenhuma série ultrapassa 0,38" → **0,33** (máximo real do A1 a 0,01);
+  o teto agora é descrito como ficando entre o A1 e os braços de DSL em toda a
+  faixa; Conclusão corrigida de "os dois braços de geração direta a ultrapassam"
+  para **apenas um**.
+
+### O achado que a correção produziu, e como foi escrito
+
+No recorte comparável o **A4 (0,0782) fica acima do A2 (0,0498) e do A2g
+(0,0624)** — ordem invertida em relação aos 53 itens, onde o A2 lidera. É
+tentador vender isso como vitória do modelo especializado. Está escrito como o
+contrário: com n = 24 e diferenças dessa magnitude, a inversão é **evidência de
+fragilidade da ordenação**, e reforça a cautela que a Conclusão já registrava.
+
+### Refatoração de passagem
+
+`run_tabelas.py` chegou a 341 linhas. A definição da métrica (`label_alignment`,
+`activity_labels`) foi para `topology.py`, onde `align_labels` já mora: métrica
+é responsabilidade de topology, montagem de tabela é de run_tabelas. O módulo
+voltou a 313 linhas e o teste passou a importar do lugar certo. Números
+reconferidos após o movimento: idênticos.
+
+### Verificação
+
+- 299 testes, ruff limpo, `run_tabelas` reproduz tudo.
+- **106 páginas**, zero erro, zero referência indefinida.
+- Figura conferida em imagem, não só em log: barras na ordem nova, linha do teto
+  cruzando apenas o A1, rótulos sem colisão.
+
+### Pendência que sobra
+
+5. Pós-textuais ainda são do template-exemplo: glossário de "Braile/Borboleta",
+   apêndices com *lorem ipsum* e "Termo de Fiel Depositário", anexos de outro
+   TCC, errata de tese de veterinária, agradecimentos/dedicatória/epígrafe
+   escritos na voz de outra pessoa. ~10 páginas do PDF.
+
+---
+
+## 2026-08-30 (madrugada, cont.) — Saem 16 páginas de TCC alheio
+
+Pendência 5, a última da auditoria. O PDF de 106 páginas carregava, do template
+de exemplo, um glossário de "Braile/Borboleta", três apêndices (*lorem ipsum*,
+"Modelo de Capa" e um Termo de Fiel Depositário de uma Secretaria Municipal de
+Saúde), dois anexos de outra área, uma errata de tese de veterinária, e
+dedicatória, agradecimentos e epígrafe escritos na voz de outra pessoa
+("nestes anos como universitária", com um `\textcolor{red}{Recuo de parágrafo.}`
+literal). Nada disso estava registrado como pendência em lugar nenhum.
+
+### Base normativa da remoção
+
+NBR 14724: errata, dedicatória, agradecimentos, epígrafe, listas de ilustrações
+e afins, glossário, apêndices, anexos e índice são **opcionais**. Obrigatórios
+são folha de rosto, folha de aprovação, resumo, abstract, sumário, texto e
+referências — todos preservados. Decisão do Rafael quanto a dedicatória e
+agradecimentos: remover, por não serem relevantes ao trabalho.
+
+### Feito
+
+- `main.tex`: removidas as chamadas de errata, dedicatória, agradecimentos,
+  epígrafe, glossário, apêndices, anexos e índice — cada bloco substituído por
+  um comentário dizendo o que saiu, por que é opcional e como reativar.
+- Removidas também as **listas de quadros e de algoritmos**, que imprimiam
+  título com página em branco: o trabalho não usa nenhum dos dois. A de
+  códigos-fonte fica (tem o exemplo da DSL).
+- Índice: sairia vazio de qualquer forma. O único `\index{AAA}` do documento
+  estava dentro de um anexo do template.
+- Nove arquivos de exemplo apagados (`git rm`, histórico preservado).
+- `elementos-pos-textuais/glossario.tex` **esvaziado, não apagado**:
+  `lib/unifortex2.sty:33` o carrega no preâmbulo, então apagá-lo exigiria mexer
+  no `.sty` do template. Esvaziar desliga o glossário sem tocar no template.
+
+### Verificação
+
+Recompilado do zero (aux/toc/bbl/glo apagados antes, para que sumário e listas
+não herdassem entradas mortas): **90 páginas**, zero erro, zero referência
+indefinida. Varredura no texto do PDF por "braile/borboleta/lorem ipsum/fiel
+depositário/classes sociais/errata/glossário/apêndice/anexo/índice": a única
+ocorrência restante é a palavra "apêndice" na Metodologia, descrevendo o
+apêndice de nós não emitidos do linearizador. Documento termina em REFERÊNCIAS.
+
+### Dois placeholders que sobram, e que não são meus para preencher
+
+1. **Ficha catalográfica** (obrigatória): `ficha-catalografica.pdf` ainda é a
+   folha de instruções do template ("gere no site da biblioteca da Unifor").
+   Precisa ser gerada no formulário da Biblioteca Central e substituída.
+2. **Folha de aprovação**: imprime "Membro da Banca Dois/Três/Quatro". Ou se
+   preenchem os nomes em `main.tex`, ou, depois da defesa, troca-se pela
+   digitalização assinada — o fluxo já está documentado em comentário no
+   próprio `main.tex`.
+
+---
+
+## 2026-08-30 (madrugada, cont.) — O resumo era o único lugar do documento que exagerava
+
+Auditoria do `abstract.tex` (e do `resumo.tex`, que anda junto). Conformidade e
+números estavam certos: parágrafo único, ~330 palavras (NBR 6028 pede 150–500),
+tradução fiel sentença a sentença, e todos os valores conferidos contra o banco.
+
+O problema era **de omissão**. O resumo dizia que o modelo especializado atingiu
+86,8%, superou o modelo de fronteira instruído por *prompt*, emite um terço dos
+*tokens* e custou menos de um dólar — e parava aí. Quem lesse só o resumo
+fecharia achando que a proposta venceu. A Conclusão diz o contrário em duas
+frentes: 86,8% segue **abaixo dos 98,1%** da geração direta, e H3 ficou em
+**empate estatístico** com o A2 em fidelidade. Num documento que gasta um
+capítulo inteiro recusando-se a exagerar, o resumo era o único lugar que
+exagerava.
+
+Três reparos, aplicados nos dois idiomas:
+
+1. Acrescentada a ressalva "ainda que abaixo dos 98,1% da geração direta" e uma
+   frase nova: em fidelidade topológica o especializado **empata** com o de
+   fronteira e **não alcança** o XML direto.
+2. "64,8% contra 98,1% pelos mesmos modelos" citava **um** par e alegava
+   replicação em duas famílias. Agora cita os dois pares (64,8%/56,6% contra
+   98,1%/94,3%), como já fazia a Conclusão.
+3. "esse patamar de validade replicou-se" era generoso: as réplicas deram
+   **83,0%**, não 86,8%. Agora o número aparece.
+
+Menores, só no inglês: "more economically in tokens" → "at a lower token cost";
+"low-rank adaptation over quantized weights" → "on quantized weights".
+
+Verificação: 90 páginas, zero erro, zero referência indefinida; resumo em ~370
+palavras e abstract em ~350, ambos dentro da norma.
+
+**Regra que fica**: o resumo é escrito antes de o capítulo de resultados
+estabilizar e não é revisitado quando um desfecho muda. Toda vez que um número
+do capítulo 5 mudar, reler o resumo e o abstract **procurando o que eles deixam
+de dizer**, não só o que dizem errado.
+
+### Emenda de redação no resumo/abstract (mesma noite)
+
+Rafael levantou, corretamente, que os 64,8% do A2 podiam ser lidos como
+resultado *da proposta*, e não da condição por *prompt* — "então o teste dele
+ficou 30% pior que XML direto". O texto era preciso ("descrever a linguagem por
+prompt", "instruídos pela gramática"), mas o par de maior contorno numérico
+(64,8% contra 98,1%) chegava primeiro, e a proposta aparecia depois como "o
+modelo pequeno especializado", expressão que nunca a identificava **como** a
+proposta.
+
+Duas trocas, sem mover número algum:
+
+- a condição foi para o sujeito da frase da refutação: "fornecer a gramática no
+  \textit{prompt} reduziu a confiabilidade: modelos de fronteira **assim
+  instruídos**…";
+- a proposta passou a ser nomeada: "**A configuração que este trabalho propõe**
+  — um modelo pequeno com a notação internalizada por ajuste fino, e não
+  descrita no \textit{prompt} — atingiu 86,8%…".
+
+**O que foi recusado, e por quê**: abrir o resumo pelo 86,8%. H1 e H2, as
+hipóteses **primárias pré-registradas**, são sobre a condição por *prompt* e
+foram refutadas; a do modelo ajustado é a H3, que ficou em empate. Promover a
+exploratória a manchete e adiar a refutação da primária seria a única passagem
+do documento a fazer o que o pré-registro existe para impedir. A ressalva "ainda
+que abaixo dos 98,1%" também fica.
+
+Resumo em ~385 e abstract em ~365 palavras; 90 páginas, zero erro.
+
+---
+
+## 2026-08-31 — Revisão intensiva da Metodologia
+
+Pedido do Rafael: foco total no capítulo 4, revisão individual e remoção de
+**todos os travessões**. Eram 71 (50 unicode e 21 em `---`), cerca de um a cada
+96 palavras. Nenhum foi trocado mecanicamente por vírgula: cada construção foi
+reescrita como dois pontos, parênteses, vírgula ou frase separada, conforme o
+papel que o travessão cumpria. **Restam zero.**
+
+A varredura frase a frase encontrou mais do que pontuação.
+
+### Cinco erros factuais
+
+1. **Regra de admissão das referências contradizia o código.** O texto dizia que
+   "modelos sem nota atribuída são excluídos"; `run_benchmark.references` admite
+   `score IS NULL OR score >= 4`, e **as 53 referências primárias do PMo têm nota
+   nula** (conferido no banco). A regra correta, agora escrita: admite-se a
+   primária do PMo, que é o gabarito do conjunto, mais as alternativas do Zenodo
+   com nota ≥ 4; a exclusão por ausência de nota vale só entre as alternativas.
+2. **"dez versões, cada uma executada contra o corpus completo"** — a v1 rodou
+   sobre 756 amostras (`dsl_transpiler_runs`). Corrigido para "da segunda versão
+   em diante, toda execução cobriu o corpus inteiro".
+3. **O split de validação não existia no capítulo.** A conta impressa era
+   768 − 18 = 672, que não fecha (dá 750). Faltavam os **78 de validação**,
+   justamente o corte que a §5.6.4 diz ter mudado o modelo entregue. Escrito,
+   com a razão do agrupamento por documento e o papel de critério de parada.
+4. **Orçamento por época: 1,39 M → 1,17 M \textit{tokens}.** Recalculado sobre os
+   672 exemplos reais com o tokenizador do modelo base; o valor antigo vinha de
+   outro conjunto.
+5. **Estatísticas de comprimento de sequência**, todas remedidas e agora
+   reproduzíveis: mediana 1.586 → **1.615**, p90 2.725 → **2.753**, máximo
+   13.083 → **13.112**, truncados a 1.024 751 → **757**. A medição reproduz
+   exatamente o 690/18/672 do log de treino. Os \textit{prompts} fixos passaram
+   de 756/1.354 para **753/1.351** (propagado à §5.6.4).
+
+### Duas adições
+
+- **Hiperparâmetros do SFT**, que não constavam em lugar nenhum da monografia:
+  posto 16, escala 32, alvo `all-linear`, \textit{dropout} 0,05, LR $10^{-4}$
+  com cosseno e aquecimento de 3\%, AdamW 8 \textit{bits} paginado, três épocas,
+  lote efetivo 8, \textit{checkpointing} de gradiente, semente 42. Sem isso a
+  §4.10 prometia reprodução integral que o texto não permitia.
+- **Figura 1, diagrama do protocolo** (`figuras/pipeline.tex`), que era um
+  `% TODO` no arquivo desde o início. Mostra as duas fases compartilhando a
+  mesma cauda determinística, com borda tracejada para etapa probabilística e
+  sólida para determinística: é a afirmação central do capítulo em uma imagem.
+  Conferida em renderização, não só em log; a primeira versão estourava a margem.
+
+### Notação e forma
+
+- **Colisão dupla de símbolos**: $R$ era o multiconjunto de referência e $R\!c$
+  a revocação; $C$ era o candidato e também um nó no exemplo $A \to \{B,C\} \to D$
+  dois parágrafos adiante. Agora os multiconjuntos são $\mathcal{R}$ e
+  $\mathcal{C}$ e as medidas são $P$ e $R$, convenção padrão. Lista de símbolos
+  atualizada.
+- **Títulos numerados espúrios**: os três `\paragraph` da definição da métrica
+  rendiam "4.7.2.0.1 Definição." no texto e no sumário. Viraram subseções não
+  numeradas. O mesmo defeito existia uma vez no capítulo 5 e foi corrigido junto.
+- **"reduziu a folga de 41,5 para 13,2 pontos"** não dizia folga em relação a
+  quê. É a distância para a validade plena, entre A3 e A4; escrito assim.
+- Frases reescritas por clareza: os princípios de desenho da DSL ("nomes são
+  legibilidade e identificadores são referência"), a abertura da subseção de
+  leiaute, e a redundância entre "corpus inteiro a cada versão" e a ressalva da v1.
+
+### Verificação
+
+90 páginas, zero erro, zero referência indefinida. Varredura do capítulo por
+palavra duplicada, vírgula solta e minúscula após ponto: limpa. Figura conferida
+em imagem.
+
+### O que **não** foi feito
+
+Não reconferi as citações do capítulo contra os originais (a conferência de
+17/08 cobriu o `.bib`), não mexi na estrutura argumentativa, e a decomposição
+"cerca de 600 da descrição e 268 da DSL" foi **removida** em vez de remedida,
+por não ser reproduzível com o script atual.

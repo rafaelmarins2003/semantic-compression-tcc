@@ -1,0 +1,52 @@
+% Diagrama do protocolo: as duas fases compartilham a mesma cauda determinística,
+% que é a afirmação central do capítulo. Estágios probabilísticos com borda
+% tracejada, determinísticos com borda sólida — a distinção é o conteúdo da
+% figura, não decoração, e sobrevive à impressão em tons de cinza.
+%
+% `resizebox` porque a fileira de seis estágios é mais larga que o texto: sem
+% ela a caixa de validação sai da margem. Escalar preserva as proporções e a
+% legibilidade do rótulo mais longo.
+\begin{figure}[htb]
+	\Caption{\label{fig:pipeline} Protocolo de compressão semântica: construção do corpus e inferência}
+	\centering
+	\resizebox{\textwidth}{!}{%
+	\begin{tikzpicture}[
+		font=\small,
+		node distance=5mm and 6mm,
+		etapa/.style={draw, rounded corners=2pt, align=center, minimum height=10mm, inner xsep=3pt, text width=24mm},
+		prob/.style={etapa, dashed, draw=corDSL, thick},
+		det/.style={etapa, draw=corXML, thick},
+		art/.style={align=center, font=\scriptsize\itshape, text=black!65, text width=18mm},
+		fase/.style={font=\scriptsize\itshape, text=black!65, align=left},
+		seta/.style={-{Latex[length=2mm]}, thick, draw=black!55},
+	]
+		\node[prob] (pre) {Pré-\\processamento\\\scriptsize (LLM)};
+		\node[prob, right=of pre] (json) {Extração\\estruturada\\\scriptsize (LLM)};
+		\node[det, right=of json] (dsl) {\texttt{json\_to\_dsl}\\\scriptsize compressão};
+		\node[det, right=of dsl] (xml) {\texttt{dsl\_to\_xml}\\\scriptsize expansão};
+		\node[det, right=of xml] (val) {Validação\\\scriptsize XSD + topologia};
+		\node[art, left=4mm of pre] (txt) {texto bruto};
+
+		\foreach \a/\b in {txt/pre, pre/json, json/dsl, dsl/xml, xml/val} {\draw[seta] (\a) -- (\b);}
+
+		\node[art, above=1mm of json] {texto padronizado};
+		\node[art, above=1mm of dsl] {JSON canônico};
+		\node[art, above=1mm of xml] {BPMN-DSL};
+		\node[art, above=1mm of val] {XML lógico};
+
+		\node[prob, below=14mm of pre, draw=corSFT, fill=corSFT!8] (sft) {Modelo pequeno especializado};
+		\node[art, left=4mm of sft] (txt2) {texto bruto};
+		\draw[seta] (txt2) -- (sft);
+		\draw[seta] (sft) -| node[art, pos=0.28, above] {BPMN-DSL} (xml);
+
+		\node[fase, anchor=north west] at ([yshift=-3mm]txt.south west) {construção\\do corpus};
+		\node[fase, anchor=north west] at ([yshift=-3mm]txt2.south west) {inferência};
+	\end{tikzpicture}}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Borda tracejada indica etapa probabilística; borda sólida, etapa
+	determinística. Na construção do corpus, dois modelos de fronteira produzem o
+	JSON canônico do qual a DSL é derivada. Na inferência, o modelo especializado
+	emite a DSL em uma única passagem, e a expansão e a validação são as mesmas
+	nos dois fluxos: a sintaxe do documento final nunca depende do componente
+	probabilístico.}
+\end{figure}

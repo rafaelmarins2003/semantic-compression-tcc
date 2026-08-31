@@ -274,6 +274,33 @@ def align_labels(
     return mapa
 
 
+def activity_labels(xml_text: str) -> set[str]:
+    """Rótulos de atividade do documento, sem as categorias de evento anônimo.
+
+    `<start>` e `<end>` são categorias derivadas do tipo, não denominações — a
+    projeção os colapsa justamente para neutralizar o nome padrão que o
+    serializador atribui. Contá-los como rótulo mediria "ambos têm evento
+    inicial", que é outra pergunta.
+    """
+    df, _ = xml_direct_follows(xml_text)
+    return {x for par in df for x in par if not x.startswith("<")}
+
+
+def label_alignment(ref_xml: str, cand_xml: str) -> float:
+    """Proporção dos rótulos da referência que encontram par no candidato.
+
+    Mesmo alinhamento da métrica primária (Jaccard ≥ 0,5, guloso e
+    determinístico). Serve à coluna de diagnóstico da `tab:res-oraculo`: separa
+    "o candidato descreve outro processo" de "o candidato nomeia diferente".
+    """
+    try:
+        ref, cand = activity_labels(ref_xml), activity_labels(cand_xml)
+    except Exception:
+        return 0.0
+    casados = {r for r in align_labels(ref, cand).values() if not r.startswith("<")}
+    return len(casados) / len(ref) if ref else 0.0
+
+
 def _apply_alignment(df_ref: Counter, df_cand: Counter) -> Counter:
     """Reescreve as arestas do candidato nos rótulos da referência."""
     rot = lambda d: {x for aresta in d for x in aresta}  # noqa: E731
