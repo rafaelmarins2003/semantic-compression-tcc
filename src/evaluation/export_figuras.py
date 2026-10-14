@@ -26,6 +26,11 @@ from src.evaluation.topology import (
 )
 
 BRACOS = ["A1", "A1g", "A2", "A2g", "A3", "A3m", "A4"]
+# A2r (emenda E-3) entra só nas figuras de validade e de custo. A do teto
+# (`df_f1_teto.tex`) declara seus braços em `symbolic x coords`, e um braço não
+# declarado ali quebra a compilação. Na figura, o nome é o da prosa, não a chave.
+BRACOS_VALIDADE_CUSTO = [*BRACOS, "X-a2r"]
+ROTULO = {"X-a2r": "A2r"}
 EMITE = {
     "A1": "xml",
     "A1g": "xml",
@@ -34,6 +39,7 @@ EMITE = {
     "A3": "dsl",
     "A3m": "dsl",
     "A4": "dsl",
+    "X-a2r": "dsl",
 }
 LIMIARES = [0.5, 0.4, 0.3, 0.2, 0.1, 0.01]
 # Série visual de cada braço nas figuras. É o que separa as três cores, e mora
@@ -42,6 +48,7 @@ SERIE = {
     "A1": "xml", "A1g": "xml",
     "A2": "dsl", "A2g": "dsl", "A3": "dsl", "A3m": "dsl",
     "A4": "sft",
+    "A2r": "dsl",
 }  # fmt: skip
 # Histórico do SFT. Antes eram três valores transcritos à mão, porque o
 # `log_history` fora dado como perdido junto com o pod; ele foi recuperado do
@@ -143,7 +150,7 @@ def main() -> None:
     destino.mkdir(parents=True, exist_ok=True)
 
     with Database() as db:
-        medianas = {a: per_item_medians(db, a) for a in BRACOS}
+        medianas = {a: per_item_medians(db, a) for a in BRACOS_VALIDADE_CUSTO}
         # Mesma regra de admissão de `run_benchmark.references()`: primária do
         # PMo mais alternativas com nota ≥ MIN_REF_SCORE. Usar todas as linhas
         # de `gold_models` fazia a figura divergir da tabela.
@@ -156,7 +163,7 @@ def main() -> None:
             refs[r["sample_id"]].append(r["gold_xml"])
 
         validade, custo = [], []
-        for a in BRACOS:
+        for a in BRACOS_VALIDADE_CUSTO:
             linha = db.query(
                 """SELECT COUNT(*) n, SUM(COALESCE(parse_ok,1)) p, SUM(xsd_valid) x
                    FROM benchmark_eval WHERE arm = ?""",
@@ -166,7 +173,7 @@ def main() -> None:
             f1 = st.mean(medianas[a].values()) if medianas[a] else 0.0
             pct_parse = 100 * (linha["p"] or 0) / n
             pct_xsd = 100 * (linha["x"] or 0) / n
-            validade.append(f"{a},{pct_parse:.1f},{pct_xsd:.1f},{EMITE[a]}")
+            validade.append(f"{ROTULO.get(a, a)},{pct_parse:.1f},{pct_xsd:.1f},{EMITE[a]}")
             custo.append((a, f1, pct_xsd))
 
         # Tokens emitidos: mesma medição da TCR (§Eixo 4), com o tokenizador do
@@ -175,7 +182,16 @@ def main() -> None:
         from src.evaluation.run_tcr import TOKENIZER, _tokenizer, arm_report
 
         tok = _tokenizer(TOKENIZER)
-        toks = {a: arm_report(db, a, tok).get("tokens_emitidos_mediana", 0) for a in BRACOS}
+        toks = {
+            a: arm_report(db, a, tok).get("tokens_emitidos_mediana", 0)
+            for a in BRACOS_VALIDADE_CUSTO
+        }
+        # Custo por requisição (§Custo por Requisição): eixo x da figura de
+        # custo. Tokens de saída sozinhos escondiam a entrada, onde está a
+        # gramática do prompt — e o A2r aparecia "mais barato" que o A4.
+        from src.evaluation.run_custo import custo_figura, medir_braco
+
+        dolares = {a: custo_figura(a, medir_braco(db, a, tok)) for a in BRACOS_VALIDADE_CUSTO}
 
         # Itens com referência múltipla — os 24 sobre os quais o teto humano é
         # medido. Toda figura que exiba o teto tem de restringir-se a eles: barra
@@ -208,14 +224,16 @@ def main() -> None:
         for a in BRACOS
         if medianas[a]
     ]
-    custo_linhas = [f"{a},{f1:.4f},{x:.1f},{toks[a]:.0f}" for a, f1, x in custo]
+    custo_linhas = [
+        f"{ROTULO.get(a, a)},{f1:.4f},{x:.1f},{toks[a]:.0f},{dolares[a]:.0f}" for a, f1, x in custo
+    ]
 
     escrever(destino / "validade.csv", "braco,parse,xsd,emite", validade)
     escrever(destino / "df_f1.csv", "braco,df_f1,emite", df_f1_linhas)
-    escrever(destino / "custo.csv", "braco,df_f1,xsd,tokens", custo_linhas)
+    escrever(destino / "custo.csv", "braco,df_f1,xsd,tokens,custo", custo_linhas)
     escrever_por_serie(destino, "validade", "braco,parse,xsd,emite", validade)
     escrever_por_serie(destino, "df_f1", "braco,df_f1,emite", df_f1_linhas)
-    escrever_por_serie(destino, "custo", "braco,df_f1,xsd,tokens", custo_linhas)
+    escrever_por_serie(destino, "custo", "braco,df_f1,xsd,tokens,custo", custo_linhas)
     treino_sft, val_sft = historico_sft()
     escrever(destino / "sft_eval.csv", "epoca,eval_loss", [f"{e:g},{v:.4f}" for e, v in val_sft])
     escrever(destino / "sft_treino.csv", "epoca,loss", [f"{e:.4f},{v:.4f}" for e, v in treino_sft])

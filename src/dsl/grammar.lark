@@ -1,4 +1,4 @@
-// BPMN-DSL v2 — see src/data/manipulation/deterministic/dsl_documentation.txt
+// BPMN-DSL v2 — see src/dsl/dsl_documentation.txt
 //
 // Design goals over v1:
 //   - named events (start "Init", end "OK")
@@ -92,7 +92,7 @@ call_activity: "call"       NAME id_opt props?
 
 // ── Reference (back-edge or convergence) ──────────────────────────────────
 
-ref: "#" CNAME
+ref: "#" (CNAME | NAME)
 
 // ── Annotation ────────────────────────────────────────────────────────────
 

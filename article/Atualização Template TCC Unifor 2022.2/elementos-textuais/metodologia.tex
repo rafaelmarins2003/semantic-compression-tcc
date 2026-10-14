@@ -20,15 +20,6 @@ A BPMN 2.0 é adotada como \textbf{caso de estudo} por reunir as propriedades qu
 
 Essa delimitação distingue o trabalho de investigações sobre \textit{qual} representação de processo é a melhor para modelagem com LLMs, como a de \citeonline{brissard2025pmr}, discutida no Capítulo~\ref{cap:trabalhos-relacionados}. Aqui a pergunta não é qual notação produz o modelo de processo mais fiel, e sim se a estratégia de comprimir a saída e expandi-la deterministicamente torna a geração de marcação verbosa economicamente viável em modelos pequenos. Sobreposição de artefatos com esses trabalhos é esperada e desejável, inclusive porque permite reaproveitar seus conjuntos de referência.
 
-\section{Pré-registro do Protocolo Experimental}
-\label{sec:pre-registro}
-
-Uma decisão metodológica antecede as demais e condiciona a leitura de todo o capítulo. Métricas de comparação entre modelos de processo admitem muitos graus de liberdade: o que conta como nó equivalente, como tratar \textit{gateways}, qual referência usar quando há várias válidas. Escolher esses parâmetros \textit{depois} de observar os resultados permitiria, ainda que involuntariamente, selecionar a configuração que favorece a hipótese defendida.
-
-Para eliminar esse grau de liberdade, o protocolo de avaliação foi \textbf{integralmente especificado e congelado antes da primeira execução} dos braços experimentais, em documento versionado com \textit{hash} de \textit{commit} datado. O congelamento cobre: definição operacional de cada métrica, número de amostras por item, regra de agregação, testes estatísticos, contrastes planejados e critérios de aceitação do próprio \textit{harness}. Hipóteses foram registradas com direção esperada, e ficou consignado que \textbf{resultado contrário às hipóteses é resultado publicável} e deve ser reportado como tal.
-
-Qualquer alteração posterior é registrada como emenda datada, com o motivo e a indicação explícita de se ocorreu antes ou depois da observação dos resultados. Essa prática é incomum em trabalhos de conclusão de curso da área, e é adotada aqui por uma razão prática: as métricas propostas envolvem escolhas de projeto suficientes para que a ausência de pré-registro tornasse os resultados difíceis de defender.
-
 \section{Visão Geral do Protocolo}
 \label{sec:visao-geral}
 
@@ -113,7 +104,7 @@ As amostras são particionadas em \textit{sft} (772), \textit{grpo} (172) e \tex
 \section{A BPMN-DSL}
 \label{sec:dsl}
 
-A representação intermediária é uma DSL projetada neste trabalho, uma vez que não há linguagem consolidada para descrição textual compacta de BPMN. Seu desenho segue princípios explícitos: cada conceito BPMN tem exatamente uma forma sintática; o nome serve à legibilidade e o identificador, à referência, de modo que apenas elementos referenciados recebem o sufixo \texttt{\#id} estável; raias são escopos que envolvem o fluxo (bloco \texttt{@lane}), eliminando a dupla declaração de atividades; ramos vazios de decisão são explícitos (\texttt{()}); e propriedades adicionais usam sintaxe única de pares chave-valor. A gramática é formalizada em EBNF e implementada com o \textit{parser} Lark\footnote{\url{https://github.com/lark-parser/lark}}.
+A representação intermediária é uma DSL projetada neste trabalho, uma vez que não há linguagem consolidada para descrição textual compacta de BPMN. Seu desenho segue princípios explícitos: cada conceito BPMN tem exatamente uma forma sintática, com uma exceção deliberada, discutida adiante, para a referência a um nó já emitido; o nome serve à legibilidade e o identificador, à referência, de modo que apenas elementos referenciados recebem o sufixo \texttt{\#id} estável; raias são escopos que envolvem o fluxo (bloco \texttt{@lane}), eliminando a dupla declaração de atividades; ramos vazios de decisão são explícitos (\texttt{()}); e propriedades adicionais usam sintaxe única de pares chave-valor. A gramática é formalizada em EBNF e implementada com o \textit{parser} Lark\footnote{\url{https://github.com/lark-parser/lark}}.
 
 A DSL cobre os elementos essenciais da BPMN 2.0, a saber: eventos (com gatilhos de mensagem, temporizador, erro, sinal e escalonamento), oito tipos de tarefa, \textit{gateways} exclusivos, paralelos, inclusivos e baseados em eventos, subprocessos, raias, \textit{pools}, colaborações com fluxos de mensagem e anotações. A cada construção corresponde um elemento XML determinado. Conceitos avançados (eventos de borda, compensação, multi-instância) ficam explicitamente fora do escopo desta versão. O Código~\ref{lst:dsl-exemplo} ilustra um processo com decisão e repetição.
 
@@ -134,6 +125,8 @@ process "Order Processing with Retry" {
 
 O exemplo evidencia a propriedade que motiva a DSL: o laço de repetição, que em XML BPMN exigiria a declaração de dois \textit{gateways} com identificadores próprios e quatro elementos \texttt{sequenceFlow} referenciando-os cruzadamente, é expresso por uma única referência \texttt{\#fetch}. A razão de compressão obtida empiricamente sobre o corpus é reportada no Capítulo~\ref{chap:resultados}.
 
+A referência admite duas formas equivalentes para o transpilador. Na primeira, o nó recebe um identificador no momento em que é emitido (\verb|service "Fetch data" #fetch|) e é referenciado por ele (\verb|#fetch|). Na segunda, a referência repete o rótulo do nó (\verb|#"Fetch data"|), sem declaração prévia; a correspondência ignora caixa, espaçamento e pontuação, e só alcança nós já emitidos. A segunda forma foi acrescentada à notação por emenda ao protocolo (Seção~\ref{subsec:res-emenda}), depois que a análise das falhas da primeira versão mostrou que a primeira forma exige antecipação: para marcar o nó com identificador, o gerador precisa saber, ao emiti-lo, que um ramo ainda não escrito voltará a ele. Um modelo autorregressivo, que gera da esquerda para a direita sem revisar o que já emitiu, não dispõe dessa informação. As duas formas convivem: toda DSL válida na primeira versão continua válida, e o corpus de treino, gerado deterministicamente, permanece integralmente na primeira forma.
+
 \section{Transpilação Determinística}
 \label{sec:transpilacao}
 
@@ -145,6 +138,8 @@ O conversor \textit{json\_to\_dsl} lineariza o grafo do JSON canônico em texto 
 \begin{citacao}
 Todo nó alcançável do grafo é emitido exatamente uma vez; qualquer reencontro posterior com um nó já emitido é serializado como referência (\texttt{\#id}), nunca como nova emissão.
 \end{citacao}
+
+O conversor emite as referências exclusivamente na forma por identificador; o modelo especializado, treinado sobre esse corpus, nunca observou a forma por rótulo (Seção~\ref{sec:dsl}).
 
 Esse invariante é o que garante que estruturas não estritamente aninhadas (caudas compartilhadas entre ramos, laços com arestas de retorno e convergências múltiplas) sejam representáveis sem duplicação de nós nem perda de lógica. A implementação final sustenta o invariante com três mecanismos: (i) um conjunto único de nós emitidos, compartilhado por referência em toda a travessia recursiva, de modo que cada ramo enxerga o que os demais já emitiram; (ii) detecção determinística de pontos de convergência por pós-dominador imediato, em substituição a heurísticas de busca de junção; e (iii) uma rede de segurança que, ao final da travessia, compara o conjunto de nós alcançáveis a partir do início com o conjunto efetivamente emitido: qualquer diferença é emitida em um apêndice conectado por referências e sinalizada com um aviso rastreável, transformando qualquer perda silenciosa em falha visível.
 
@@ -174,6 +169,16 @@ A segunda é de \textbf{comparabilidade visual}. Como referências e candidatos 
 \label{sec:avaliacao}
 
 A avaliação é organizada em eixos independentes, para que se possa atribuir cada tipo de falha ao componente responsável.
+
+\subsection{Definição Prévia do Protocolo}
+\label{sec:pre-registro}
+
+Métricas de comparação entre modelos de processo admitem muitos graus de liberdade: o que conta como nó equivalente, como tratar \textit{gateways}, qual referência usar quando há várias válidas. Escolher esses parâmetros \textit{depois} de observar os resultados permitiria, ainda que involuntariamente, selecionar a configuração que favorece a hipótese defendida.
+
+Para eliminar esse grau de liberdade, o protocolo de avaliação foi especificado e congelado antes da primeira execução dos braços experimentais, em documento versionado com \textit{hash} de \textit{commit} datado. O congelamento cobre: definição operacional de cada métrica, número de amostras por item, regra de agregação, testes estatísticos, contrastes planejados e critérios de aceitação do próprio \textit{harness}. Hipóteses foram registradas com direção esperada, e ficou consignado que \textbf{resultado contrário às hipóteses é resultado publicável} e deve ser reportado como tal.
+
+Qualquer alteração posterior é registrada como emenda datada, com o motivo e a indicação explícita de se ocorreu antes ou depois da observação dos resultados.
+
 
 \subsection{Eixo 1: Validade Sintática}
 \label{subsec:eixo1}
@@ -225,6 +230,17 @@ A razão de compressão de \textit{tokens} (TCR) é definida como
 
 \noindent medida com o tokenizador do modelo pequeno especializado, fixado no protocolo. O numerador é o XML \textbf{lógico}, sem a seção de diagrama (BPMNDI), por definição normativa, e não por conveniência: a informação de leiaute é gerada deterministicamente por pós-processamento e nenhuma das abordagens comparadas exige que o modelo a produza. Incluí-la no numerador inflaria artificialmente o ganho atribuído à DSL, e por isso o XML com leiaute nunca é materializado na mesma coluna do XML lógico no banco de dados, eliminando a possibilidade de medição contra o artefato errado.
 
+\subsection{Custo por Requisição}
+\label{subsec:eixo-custo}
+
+A TCR mede compressão, mas o argumento econômico depende de custo. Define-se o custo por requisição como
+
+\begin{equation}
+	C = t_{\text{in}} \cdot p_{\text{in}} + t_{\text{out}} \cdot p_{\text{out}},
+\end{equation}
+
+\noindent com $t_{\text{in}}$ e $t_{\text{out}}$ o número de \textit{tokens} de entrada (instrução mais descrição) e de saída de cada geração, e $p_{\text{in}}$ e $p_{\text{out}}$ o preço público por \textit{token} do provedor, consultado em data registrada. Reporta-se também o custo por saída válida, $C$ dividido pela taxa de validade, que incorpora o desperdício das gerações inválidas. A métrica foi definida após a execução dos braços e não integra o protocolo congelado; é uma reexpressão monetária de grandezas já registradas, e não uma nova medição. O tempo de inferência é deliberadamente excluído: os modelos de fronteira foram executados em infraestrutura de provedor e o modelo pequeno em uma estação local, de modo que a latência mediria o hardware, e não o método.
+
 \subsection{Referências Múltiplas e Ambiguidade de Modelagem}
 \label{subsec:multi-referencia}
 
@@ -246,6 +262,7 @@ O desenho é fatorial, cruzando \textbf{modelo} e \textbf{formato de saída} sob
 			\midrule \midrule
 			A1  & LLM de fronteira independente & XML & notação XML & \textit{baseline} externo \\
 			A2  & LLM de fronteira independente & DSL & gramática   & isola o efeito da DSL \\
+			A2r & LLM de fronteira independente & DSL & gramática com rótulo & emenda E-3 \\
 			A1g & LLM gerador do corpus         & XML & notação XML & leitura de destilação \\
 			A2g & LLM gerador do corpus         & DSL & gramática   & teto do método \\
 			A3  & Modelo pequeno base           & DSL & gramática   & piso do modelo pequeno \\
@@ -255,17 +272,19 @@ O desenho é fatorial, cruzando \textbf{modelo} e \textbf{formato de saída} sob
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{A coluna \textit{Prompt} indica o que o contexto informa sobre a notação pedida: um exemplo em XML, a gramática completa da DSL, ou instrução mínima sem gramática. A3m e A4 recebem o mesmo \textit{prompt} e diferem apenas pela presença do adaptador treinado.}%
+	\Nota{A coluna \textit{Prompt} indica o que o contexto informa sobre a notação pedida: um exemplo em XML, a gramática completa da DSL, ou instrução mínima sem gramática. A3m e A4 recebem o mesmo \textit{prompt} e diferem apenas pela presença do adaptador treinado. A2r foi acrescentado após a observação dos resultados (emenda E-3) e não integra os contrastes planejados.}%
 }
 \end{table}
 
-A coluna \textit{Prompt} registra uma dimensão que não entra no cruzamento fatorial: o quanto o contexto informa sobre a notação a ser emitida. São três \textit{prompts} congelados: um para o formato XML, um para a DSL com a gramática completa e um \textbf{mínimo}, sem gramática nem exemplo de notação, que é deliberadamente o mesmo \textit{prompt} usado no treinamento do modelo especializado, para que a inferência do braço A4 ocorra na distribuição em que ele foi treinado. Medido com o tokenizador do modelo base, o \textit{prompt} mínimo ocupa 753 \textit{tokens}, contra 1.351 do que carrega a gramática.
+A coluna \textit{Prompt} registra uma dimensão que não entra no cruzamento fatorial: o quanto o contexto informa sobre a notação a ser emitida. São quatro \textit{prompts} congelados: um para o formato XML, um para a DSL com a gramática completa, sua versão com referência por rótulo (Seção~\ref{sec:dsl}) e um \textbf{mínimo}, sem gramática nem exemplo de notação, que é deliberadamente o mesmo \textit{prompt} usado no treinamento do modelo especializado, para que a inferência do braço A4 ocorra na distribuição em que ele foi treinado. Medido com o tokenizador do modelo base, o \textit{prompt} mínimo ocupa 753 \textit{tokens}, contra 1.351 do que carrega a gramática e 1.452 de sua versão com referência por rótulo.
 
-A equidade entre os formatos é condição para que o contraste A2 contra A1 meça a representação, e não a redação da instrução. Ela é garantida por construção e travada por teste automatizado: os blocos de papel, idioma, regras de modelagem e contrato de saída são \textbf{idênticos byte a byte} nos três \textit{prompts}, de modo que a única diferença admitida é o formato pedido. Os exemplos de notação que acompanham o \textit{prompt} de XML e o da DSL foram, ainda, verificados como descrições do \textbf{mesmo processo}: transpilado o exemplo da DSL, a comparação topológica com o exemplo em XML resulta em DF-F1 igual a 1. Nenhum braço recebe, assim, um padrão de modelagem que o outro não recebeu.
+A equidade entre os formatos é condição para que o contraste A2 contra A1 meça a representação, e não a redação da instrução. Ela é garantida por construção e travada por teste automatizado: os blocos de papel, idioma, regras de modelagem e contrato de saída são \textbf{idênticos byte a byte} em todos os \textit{prompts}, de modo que a única diferença admitida é o formato pedido. Os exemplos de notação que acompanham o \textit{prompt} de XML e o da DSL foram, ainda, verificados como descrições do \textbf{mesmo processo}: transpilado o exemplo da DSL, a comparação topológica com o exemplo em XML resulta em DF-F1 igual a 1. Nenhum braço recebe, assim, um padrão de modelagem que o outro não recebeu.
 
 O braço A3m existe por causa dessa assimetria de instrução, e foi acrescentado antes do congelamento do protocolo. Sem ele, o contraste entre o modelo especializado e o modelo pequeno sem especialização variaria duas coisas ao mesmo tempo: os pesos e a instrução recebida. A3m mantém o modelo e o \textit{prompt} do A4 e retira apenas o adaptador, de sorte que A4 contra A3m isola o efeito do ajuste supervisionado, ao passo que A4 contra A3 mede a intervenção inteira, isto é, os pesos somados à dispensa da gramática. Ambos os contrastes são exploratórios e nenhum deles integra o conjunto submetido a correção de múltiplas comparações (Seção~\ref{subsec:hipoteses}).
 
 Cabe explicitar um ponto de leitura: os braços A2 e A2g \textbf{não são abordagens concorrentes}, e sim o método proposto executado com um modelo de alto custo, o teto que A4 procura alcançar por muito menos. O único \textit{baseline} externo é A1/A1g, que representa a prática corrente de gerar o XML diretamente. Os contrastes planejados decorrem dessa estrutura: A2 contra A1 mantém o modelo fixo e varia apenas o formato, separando o efeito da representação do efeito da capacidade do modelo; A2g contra A1g replica o contraste com outro modelo, de modo que um efeito que apareça em um e não no outro seja atribuível ao modelo e não à DSL; e A4 contra A2 responde se a especialização de um modelo pequeno alcança o modelo de fronteira. Sem o par A2/A1, um bom resultado de A4 seria ambíguo entre o mérito da DSL e o do ajuste supervisionado.
+
+O braço A2r repete o A2 com o mesmo modelo, o mesmo teto de \textit{tokens} e o mesmo \textit{prompt}, exceto no bloco que descreve as referências, onde documenta a forma por rótulo (Seção~\ref{sec:dsl}); duas imprecisões da descrição original da gramática, sem nenhuma ocorrência nas saídas observadas, foram corrigidas na mesma ocasião. A diferença entre os dois \textit{prompts} é travada por teste automatizado, inclusive o cabeçalho. A2r não substitui A2 nos contrastes registrados: é o desenho do método que a primeira versão revelou necessário, e seus contrastes são reportados como exploratórios.
 
 O emprego de dois modelos de fronteira é deliberado. Como um deles gerou o corpus de treino, utilizá-lo como \textit{baseline} único tornaria A4 uma destilação sua, leitura legítima, porém que confunde "a DSL ajuda" com "o aluno imita o professor". O segundo modelo é independente do corpus e fornece o \textit{baseline} limpo, enquanto o primeiro permanece para que a leitura de destilação seja reportável.
 
@@ -275,7 +294,7 @@ O emprego de dois modelos de fronteira é deliberado. Como um deles gerou o corp
 As hipóteses foram registradas com direção esperada antes da primeira execução de qualquer braço, e são reproduzidas na Tabela~\ref{tab:hipoteses} na forma em que foram congeladas. Todas são enunciadas como contraste entre dois braços da Tabela~\ref{tab:bracos}, de modo que cada desfecho seja decidido por comparação pareada sobre os mesmos 53 itens, e não por apreciação do conjunto dos resultados.
 
 \begin{table}[h!]
-	\Caption{\label{tab:hipoteses} Hipóteses pré-registradas}%
+	\Caption{\label{tab:hipoteses} Hipóteses}%
 	\IBGEtab{}{%
 		\begin{tabular}{lll}
 			\toprule
@@ -302,7 +321,7 @@ As hipóteses foram registradas com direção esperada antes da primeira execuç
 
 \textbf{H4} é descritiva, e seu limiar foi fixado como piso, não como expectativa: a medição sobre o corpus de construção já indicava razão próxima de seis (Seção~\ref{sec:res-tcr}), de sorte que a hipótese verifica se a compressão se sustenta sobre as saídas efetivamente geradas pelos braços. Nos braços de XML direto não há representação intermediária e a razão não é definida, e reportá-la como 1,0 apresentaria uma tautologia como resultado.
 
-Os desfechos são reportados na Seção~\ref{subsec:res-hipoteses}. Nenhum dos enunciados acima foi alterado após a primeira execução.
+Os desfechos são reportados na Seção~\ref{subsec:res-hipoteses}. Nenhum dos enunciados acima foi alterado após a primeira execução. Os contrastes com o braço A2r no lugar de A2, acrescentado por emenda posterior à observação dos resultados, são reportados à parte, como exploratórios.
 
 \subsection{Parâmetros Congelados e Análise Estatística}
 \label{subsec:parametros}
@@ -315,7 +334,7 @@ Os três braços executados com o modelo pequeno (A3, A3m e A4) usam configuraç
 
 Registre-se que a quantização de \textbf{treino} e a de \textbf{inferência} são parâmetros independentes, e que a restrição de memória que motiva a primeira não se aplica à segunda no cenário adotado, uma vez que o ajuste supervisionado é executado em infraestrutura de nuvem e apenas a inferência ocorre na estação local.
 
-A comparação estatística usa teste de Wilcoxon pareado por postos com sinal, ao nível de 5\%, sobre a métrica primária, restrito aos três contrastes planejados (A2 contra A1, A2g contra A1g e A4 contra A2, correspondentes a H1, H1g e H3, conforme a Seção~\ref{subsec:hipoteses}) e com correção de Holm sobre eles; qualquer outro par é exploratório e reportado como tal. O teste é \textbf{bilateral}, ainda que as hipóteses sejam direcionais: a alegação a responder é de não inferioridade, e quem a responde é o intervalo de confiança, não a lateralidade do teste; bilateral é a escolha conservadora e afasta a suspeita de que a direção tenha sido decidida depois de vistos os dados. Diferenças exatamente nulas são descartadas do teste, e o número de empates é reportado junto de cada contraste. Intervalos de confiança de 95\% são obtidos por \textit{bootstrap} pareado com 10.000 reamostragens. Como o conjunto de avaliação tem 53 itens, reportam-se tamanho de efeito e intervalo de confiança, e não apenas o valor-$p$.
+A comparação estatística usa teste de Wilcoxon pareado por postos com sinal, ao nível de 5\%, sobre a métrica primária, restrito aos três contrastes planejados (A2 contra A1, A2g contra A1g e A4 contra A2, correspondentes a H1, H1g e H3, conforme a Seção~\ref{subsec:hipoteses}) e com correção de Holm sobre eles; qualquer outro par é exploratório e reportado como tal, inclusive os contrastes que envolvem o braço A2r, que não entram na família corrigida por Holm. O teste é \textbf{bilateral}, ainda que as hipóteses sejam direcionais: a alegação a responder é de não inferioridade, e quem a responde é o intervalo de confiança, não a lateralidade do teste; bilateral é a escolha conservadora e afasta a suspeita de que a direção tenha sido decidida depois de vistos os dados. Diferenças exatamente nulas são descartadas do teste, e o número de empates é reportado junto de cada contraste. Intervalos de confiança de 95\% são obtidos por \textit{bootstrap} pareado com 10.000 reamostragens. Como o conjunto de avaliação tem 53 itens, reportam-se tamanho de efeito e intervalo de confiança, e não apenas o valor-$p$.
 
 \section{Especialização do Modelo}
 \label{sec:treinamento}

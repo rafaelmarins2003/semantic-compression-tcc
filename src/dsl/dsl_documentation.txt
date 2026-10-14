@@ -6,6 +6,9 @@ Projeto: Semantic Compression TCC
 Autor:   Rafael Marins Florenzano
 Data:    2026-05-17
 Status:  Design proposal — pendente aprovação antes da implementação
+Norma:   src/dsl/grammar.lark é normativa; este arquivo é explicativo.
+         Em caso de divergência, vale a gramática (conferido em 2026-10-12:
+         ordem dos eventos e payload de event_spec corrigidos aqui).
 
 Esta especificação substitui a BPMN-DSL v1 atual (src/dsl/grammar.lark) após
 constatadas três limitações funcionais (bugs A/B/C documentados em
@@ -145,14 +148,14 @@ flow: step ("->" step)*
 
 ?event: start_event | end_event | catch_event | throw_event
 
-start_event: "start" name? event_spec? id_opt props?
-end_event:   "end"   name? event_spec? id_opt props?
-catch_event: "catch" name? event_spec  id_opt props?
-throw_event: "throw" name? event_spec  id_opt props?
+start_event: "start" event_spec? name? id_opt props?
+end_event:   "end"   event_spec? name? id_opt props?
+catch_event: "catch" event_spec  name? id_opt props?
+throw_event: "throw" event_spec  name? id_opt props?
 
 // event_spec encoda trigger (message/timer/error/signal/escalation) e
 // payload. Catch e throw exigem event_spec; start e end são opcionais.
-event_spec: ":" EVENT_KIND ("(" ESCAPED_STRING ")")?
+event_spec: ":" EVENT_KIND ("(" name ")")?
 
 EVENT_KIND.2: "none" | "message" | "timer" | "error" | "signal" | "escalation"
 
@@ -189,7 +192,7 @@ event_gw: "event" name? id_opt "{" event_branches "}"
 xor_branches: cond_branch+
 cond_branch:  "[" CONDITION_TEXT "]" "->" branch_target
 
-and_branches: flow (";" flow)*
+and_branches: branch_target (";" branch_target)*
 event_branches: event_branch+
 event_branch: "[" event_spec "]" "->" branch_target
 
@@ -221,8 +224,8 @@ empty_branch: "(" ")"
 //   }
 //
 //   event "Aguardar evento" {
-//     [:message "approval"]   -> task "Aprovar"
-//     [:timer "PT30M"]        -> end:error "Timeout"
+//     [:message("approval")]  -> task "Aprovar"
+//     [:timer("PT30M")]       -> end:error "Timeout"
 //   }
 
 // ── Subprocess / Call activity ────────────────────────────────────────────

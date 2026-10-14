@@ -195,9 +195,26 @@ def test_parse_file_uses_v2_grammar(tmp_path):
     assert len(find_all(parse_file(path), "process")) == 1
 
 
-def test_legacy_name_refs_are_rejected():
+@pytest.mark.parametrize(
+    "flow",
+    [
+        'start -> task "Test prototype" -> #"Test prototype"',
+        'start -> #"Test prototype" -> task "Test prototype" -> end',
+    ],
+    ids=["backward", "forward"],
+)
+def test_parse_label_refs(flow):
+    tree = parse(f'process "P" {{ {flow} }}')
+
+    refs = find_all(tree, "ref")
+    assert len(refs) == 1
+    assert str(refs[0].children[0]) == '"Test prototype"'
+    assert unquote(refs[0].children[0]) == "Test prototype"
+
+
+def test_quoted_labels_cannot_be_declared_as_ids():
     with pytest.raises(UnexpectedInput):
-        parse('process "P" { start -> task "A" -> #"A" }')
+        parse('process "P" { start -> task "A" #"A" -> end }')
 
 
 def test_v1_lane_declaration_is_rejected():

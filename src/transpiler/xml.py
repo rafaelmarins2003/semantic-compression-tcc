@@ -19,9 +19,6 @@ from src.dsl.parser import parse, parse_file, unquote
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 _CNAME_RE = re.compile(r"[^a-z0-9_]")
-# XML 1.0 NameChar set (sem ':'): ids precisam ser NCName/xs:ID validos.
-# str.isalnum() do Python aceita chars (ex.: U+00BA) que NAO sao NameChar,
-# entao restringimos ids a este conjunto para garantir validade XSD.
 _XML_NAME_CHAR = re.compile(
     "[A-Za-z0-9_.\\-"
     "\u00b7\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff"
@@ -292,6 +289,10 @@ def _emit_process(
         _emit_seq(emitter, body, [])
 
     if global_refs is not None:
+        # Rótulos também resolvem em `message ... from #"Rótulo"`; o primeiro
+        # pool que declara o slug vence, e um #id explícito vence qualquer slug.
+        for slug, node_id in emitter.slug_ids.items():
+            global_refs.setdefault(slug, node_id)
         global_refs.update(emitter.explicit_ids)
 
     return process_id
@@ -504,7 +505,12 @@ def _collect_declared_ids(tree: Tree) -> set[str]:
 
 
 def _ref_name(tree: Tree) -> str:
-    return str(tree.children[0]) if tree.children else ""
+    if not tree.children:
+        return ""
+    value = str(tree.children[0])
+    if value.startswith('"'):
+        return _slugify(unquote(value))
+    return value
 
 
 def _children(tree: Tree | None, data: str) -> list[Tree]:

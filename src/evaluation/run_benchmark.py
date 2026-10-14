@@ -73,6 +73,15 @@ ARMS: dict[str, Arm] = {
     "A1g": Arm("benchmark/xml_direct.md", "glm-5.2:cloud", "xml", 8192),
     "A2": Arm("benchmark/dsl_grammar.md", "deepseek-v4-pro:cloud", "dsl", 2048),
     "A2g": Arm("benchmark/dsl_grammar.md", "glm-5.2:cloud", "dsl", 2048),
+    # --- A2r (X-a2r): exploratório, PÓS-HOC, declarado em 2026-10-12 antes de rodar ---
+    # Pergunta: as falhas do A2 vêm da novidade da linguagem ou da antecipação
+    # que `#id` exige? 41 das 56 falhas sintáticas do A2 são de referência. O
+    # prompt é o do A2 com o bloco de referências trocado por `#"Rótulo"`
+    # (aponta para trás sem declaração) e duas imprecisões corrigidas; o resto
+    # é idêntico, travado por teste. Mesmo modelo e teto do A2. Entra no texto
+    # qualquer que seja o resultado, rotulado como pós-hoc. Ver registro-tecnico.
+    # Prefixo X-: exploratório não entra no conjunto congelado da spec 003 §4.
+    "X-a2r": Arm("benchmark/dsl_grammar_labelref.md", "deepseek-v4-pro:cloud", "dsl", 2048),
     "A3": Arm("benchmark/dsl_grammar.md", SMALL_MODEL, "dsl", 2048, "local"),
     # Controle de A4: mesmo modelo e MESMO prompt do A4, sem o adapter. Com ele,
     # A4 vs A3m isola o efeito do ajuste supervisionado (só os pesos mudam),

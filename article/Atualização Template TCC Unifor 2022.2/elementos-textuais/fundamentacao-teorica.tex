@@ -44,14 +44,14 @@ Essa verbosidade não é um problema grave quando o XML é gerado por uma ferram
 
 A arquitetura Transformer, proposta por \citeonline{vaswani2017attention}, marcou uma mudança importante na modelagem de sequências. Em vez de processar a entrada de forma recorrente, o Transformer usa mecanismos de \textit{self-attention} para relacionar diretamente diferentes posições da sequência. Esse desenho favoreceu paralelização em larga escala e abriu caminho para os modelos de linguagem atuais.
 
-Os LLMs mais utilizados seguem, em geral, uma formulação autorregressiva: a cada passo, o modelo estima o próximo \textit{token} a partir dos anteriores. Quando treinados sobre grandes coleções de texto, esses modelos passam a apresentar capacidade de generalização para tarefas variadas, inclusive tarefas que não aparecem explicitamente como objetivos de treinamento \cite{brown2020language}. Essa flexibilidade explica seu interesse para geração de código, consultas, marcações e outros formatos estruturados.
+Os LLMs mais utilizados seguem, em geral, uma formulação autorregressiva: a cada passo, o modelo estima o próximo \textit{token} a partir dos anteriores. Quando treinados sobre grandes coleções de texto, esses modelos passam a apresentar capacidade de generalização para tarefas variadas, inclusive tarefas que não aparecem explicitamente como objetivos de treinamento \cite{brown2020language}. Essa flexibilidade explica seu interesse para geração de código, consultas, marcações e outros formatos estruturados. Uma consequência dessa formulação é relevante para formatos estruturados: o modelo gera da esquerda para a direita e não revisa o que já emitiu. Cada \textit{token} é decidido apenas com base no que o precede, de modo que um formato que exija declarar, num ponto do texto, informação que só se determina adiante impõe ao gerador uma antecipação que a decodificação não oferece.
 
 \subsection{Tokenização e o Custo de Sequências Longas}
 \label{subsec:tokenizacao}
 
 LLMs não operam diretamente sobre palavras completas. A entrada e a saída são decompostas em \textit{tokens}, frequentemente obtidos por técnicas como \textit{Byte-Pair Encoding} \cite{sennrich2016neural}. Essa estratégia funciona bem para texto natural, mas pode ser pouco econômica para formatos como XML. Identificadores longos, nomes de atributos, símbolos de marcação e padrões repetidos tendem a ser fragmentados em vários \textit{tokens}.
 
-O aumento no número de \textit{tokens} tem consequências diretas. O mecanismo de atenção cresce em custo com o comprimento da sequência, o que afeta memória, tempo de treinamento e latência de inferência. Em um ambiente acadêmico com recursos limitados, gerar XML BPMN completo significa gastar parte relevante do orçamento computacional em trechos que são necessários para a conformidade do arquivo, mas não necessariamente para a descrição semântica do processo.
+O aumento no número de \textit{tokens} tem consequências diretas. O mecanismo de atenção cresce em custo com o comprimento da sequência, o que afeta memória, tempo de treinamento e latência de inferência. Quando o modelo é acessado por meio de uma API comercial, o efeito é também financeiro: os provedores cobram por \textit{token} de entrada e de saída, em geral com preço maior para a saída. Em um ambiente acadêmico com recursos limitados, gerar XML BPMN completo significa gastar parte relevante do orçamento computacional em trechos que são necessários para a conformidade do arquivo, mas não necessariamente para a descrição semântica do processo.
 
 \subsection{Geração de Saídas Estruturadas}
 \label{subsec:saidas-estruturadas}
@@ -94,7 +94,7 @@ A qualidade do SFT depende fortemente do corpus. Em tarefas muito específicas, 
 
 O ajuste completo de modelos com bilhões de parâmetros costuma ser inviável em computadores de uso acadêmico. \citeonline{hu2022lora} propuseram o método \textit{Low-Rank Adaptation} (LoRA) como uma alternativa mais econômica: em vez de atualizar todos os pesos do modelo, treinam-se matrizes de baixa dimensão acopladas a camadas específicas. Os pesos originais permanecem congelados, e apenas os parâmetros adicionais são ajustados.
 
-O método reduz a quantidade de parâmetros treináveis e, consequentemente, o consumo de memória. O QLoRA, apresentado por \citeonline{dettmers2023qlora}, amplia essa economia ao quantizar os pesos congelados do modelo base para 4 \textit{bits}, mantendo as adaptações em maior precisão. Essa combinação é especialmente relevante para o presente estudo, pois o projeto considera treinamento em uma estação local com 12 GB de memória dedicada de GPU.
+O método reduz a quantidade de parâmetros treináveis e, consequentemente, o consumo de memória. O QLoRA, apresentado por \citeonline{dettmers2023qlora}, amplia essa economia ao quantizar os pesos congelados do modelo base para 4 \textit{bits}, mantendo as adaptações em maior precisão. Essa combinação é especialmente relevante para o presente estudo, pois viabiliza a inferência do modelo especializado em uma estação local com 11 GB de memória de GPU, enquanto o treinamento é executado em infraestrutura de nuvem.
 
 \subsection{Aprendizado por Reforço com GRPO}
 \label{subsec:grpo}
@@ -103,7 +103,7 @@ Embora o SFT ensine o modelo a imitar exemplos, ele não otimiza diretamente mé
 
 \citeonline{shao2024deepseekmath} introduziram o \textit{Group Relative Policy Optimization} (GRPO) no contexto de modelos voltados a raciocínio matemático. O método deriva do PPO, mas evita manter um modelo crítico separado. Para cada \textit{prompt}, gera-se um grupo de respostas, e a vantagem de cada resposta é estimada em relação à média do próprio grupo. Essa simplificação reduz custo de memória, característica importante em cenários com restrição de hardware.
 
-Neste trabalho, o GRPO é previsto como uma segunda etapa após o SFT. A função de recompensa combina dimensões diferentes da qualidade esperada: sintaxe, semântica, topologia e eficiência da DSL gerada. A composição ponderada dessas dimensões permite transformar critérios de avaliação em um sinal de treinamento, sem reduzir a qualidade do processo a uma única métrica isolada.
+Neste trabalho, o GRPO foi considerado como possível segunda etapa após o SFT e permanece como trabalho futuro (Seção~\ref{subsec:grpo-metodo}). A função de recompensa combina dimensões diferentes da qualidade esperada: sintaxe, semântica, topologia e eficiência da DSL gerada. A composição ponderada dessas dimensões permite transformar critérios de avaliação em um sinal de treinamento, sem reduzir a qualidade do processo a uma única métrica isolada.
 
 \section{Extração de Processos a partir de Texto Natural}
 \label{sec:nl-bpmn}

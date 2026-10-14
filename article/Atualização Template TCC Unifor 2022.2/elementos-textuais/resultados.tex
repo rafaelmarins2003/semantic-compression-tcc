@@ -2,12 +2,16 @@
 % Contém APENAS resultados já medidos e reproduzíveis a partir do banco.
 % Fonte de todos os valores: data/dataset.db, base json_to_dsl_v10_en + dsl_to_xml_v5_en.
 %
-% Braços executados: 7 pré-registrados (2026-08-16) + 5 exploratórios
-% (X-lc25/X-lc50, X-ds, X-gr, X-mi — 2026-08-23/25). 12 × 159 gerações em
-% benchmark_eval. Reprodução dos números:
+% Braços executados: 7 pré-registrados (2026-08-16) + 6 exploratórios
+% (X-lc25/X-lc50, X-ds, X-gr, X-mi — 2026-08-23/25; X-a2r = A2r, emenda E-3,
+% 2026-10-12). 13 × 159 gerações em benchmark_eval. Reprodução dos números:
 %   uv run python -m src.evaluation.run_analysis
 %   uv run python -m src.evaluation.run_tabelas
 %   uv run --with transformers python -m src.evaluation.run_tcr --all-arms
+%   uv run --with transformers python -m src.evaluation.run_custo   (tab:res-custo)
+%   uv run --with transformers python -m src.evaluation.export_figuras
+% Contrastes do A2r (tab:res-testes-a2r) e tab:res-e3: registro-tecnico,
+% entradas de 2026-10-12 (mesma função `comparar` de run_analysis).
 % Ao reexecutar qualquer braço, reconferir TODOS os números desta seção: eles
 % vêm de per_item_medians sobre benchmark_eval, não de valores fixos.
 %
@@ -119,13 +123,11 @@ A curadoria descartou referências por dois motivos declarados: um modelo sem no
 \section{Avaliação Comparativa dos Braços}
 \label{sec:res-bracos}
 
-Esta seção reporta a execução completa dos braços experimentais definidos na Seção~\ref{subsec:bracos}: \textbf{1.113 gerações} (7 braços $\times$ 53 itens $\times$ 3 repetições), sem qualquer erro de geração.
+Esta seção reporta a execução completa dos braços experimentais definidos na Seção~\ref{subsec:bracos}: \textbf{1.113 gerações} (7 braços $\times$ 53 itens $\times$ 3 repetições), sem qualquer erro de geração, e as 159 gerações do braço A2r, acrescentado pela emenda E-3 (Seção~\ref{subsec:res-emenda}).
 
 Antecipa-se o desfecho, para que a leitura das subseções seguintes seja feita com ele em mente. \textbf{As hipóteses H1, H1g e H2 foram refutadas} com significância estatística nas duas famílias de modelos: gerar XML diretamente superou gerar a DSL por \textit{prompting}. \textbf{A hipótese H3 não foi refutada nem demonstrada} --- o modelo especializado empata estatisticamente com o modelo de fronteira que recebe a gramática no \textit{prompt}. \textbf{A hipótese H4 foi confirmada com folga.}
 
-O achado de maior magnitude, contudo, não corresponde a nenhuma hipótese pré-registrada e emerge do eixo de validade sintática: o modelo de 7 bilhões de parâmetros com ajuste fino produz DSL válida em \textbf{86,8\%} das gerações, contra \textbf{64,8\%} do modelo de fronteira instruído pela gramática. Esse resultado é examinado na Seção~\ref{subsec:res-sft}.
-
-O pré-registro (Seção~\ref{sec:pre-registro}) existe precisamente para que o parágrafo acima pudesse ser escrito na ordem em que foi escrito.
+O achado de maior magnitude não corresponde a hipótese registrada alguma e emerge do eixo de validade sintática: a maior parte das falhas do modelo de fronteira instruído pela gramática decorria da forma de referência da notação, e não de sua novidade. Acrescentada a referência por rótulo (emenda E-3, Seção~\ref{subsec:res-emenda}), o mesmo modelo passa de 64,8\% a \textbf{86,8\%} de validade, sem perda de qualidade nas saídas válidas e com fidelidade estatisticamente indistinguível da geração direta de XML. O modelo de 7 bilhões de parâmetros com ajuste fino atinge a mesma validade, 86,8\%, a uma fração do custo (Seção~\ref{subsec:res-economico}).
 
 \subsection{Resultados Descritivos por Braço}
 \label{subsec:res-descritivo}
@@ -141,6 +143,7 @@ A Tabela~\ref{tab:res-bracos} apresenta o panorama. Duas convenções de leitura
 			\midrule \midrule
 			A1  (DeepSeek)  & XML & \textbf{98,1\%} & 53/53 & \textbf{0,1942} & 0,571 & 631 \\
 			A1g (GLM)       & XML & 94,3\% & 53/53 & 0,1551 & 0,593 & 699 \\
+			A2r (DeepSeek)  & DSL & \textbf{86,8\%} & \textbf{50/53} & 0,1804 & 0,667 & 141 \\
 			\textbf{A4} (Qwen 7B + SFT) & DSL & \textbf{86,8\%} & \textbf{46/53} & 0,1114 & 0,395 & 200 \\
 			A2  (DeepSeek)  & DSL & 64,8\% & 40/53 & 0,1375 & 0,714 & \textbf{138} \\
 			A3  (Qwen 7B)   & DSL & 58,5\% & 31/53 & 0,0666 & 0,333 & 159 \\
@@ -150,13 +153,13 @@ A Tabela~\ref{tab:res-bracos} apresenta o panorama. Duas convenções de leitura
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{XSD por geração (N = 159 por braço). "Itens" conta itens com ao menos uma geração válida. DF-F1 é a média das medianas por item. "Máx." é o melhor item do braço. \textit{Tokens} é a mediana de \textit{tokens} emitidos. Nenhum braço registrou erro de geração.}%
+	\Nota{XSD por geração (N = 159 por braço). "Itens" conta itens com ao menos uma geração válida. DF-F1 é a média das medianas por item. "Máx." é o melhor item do braço. \textit{Tokens} é a mediana de \textit{tokens} emitidos. Nenhum braço registrou erro de geração. A2r: braço da emenda E-3, exploratório.}%
 }
 \end{table}
 
 Quatro leituras imediatas. A primeira é que \textbf{os braços de XML dominam a coluna de DF-F1}. A segunda é que \textbf{os braços de DSL dominam a coluna de \textit{tokens}} por margem de quatro a cinco vezes. A terceira é que o melhor item isolado pertence ao A2 (0,714), acima do melhor item do A1 (0,571) --- indício, explorado adiante, de que a DSL não é inferior \textit{quando funciona}.
 
-A quarta é a que reorganiza a tabela: \textbf{o braço A4 ocupa a terceira posição em validade}, à frente de todos os demais braços de DSL, inclusive dos dois conduzidos por modelos de fronteira. A Figura~\ref{fig:validade} apresenta esse eixo isoladamente.
+A quarta é a que reorganiza a tabela: \textbf{o braço A4 ocupa, empatado com o A2r, a terceira posição em validade}, à frente de todos os braços de DSL conduzidos por \textit{prompt} com a primeira versão da notação, inclusive os de modelos de fronteira. O A2r, que repete o A2 com a referência por rótulo (emenda E-3), alcança a mesma taxa por outro caminho, sem ajuste fino. A Figura~\ref{fig:validade} apresenta esse eixo isoladamente.
 
 \input{figuras/validade}
 
@@ -195,7 +198,30 @@ O contraste A4 vs.\ A2 exige leitura cuidadosa e é reportado sem atenuação. O
 
 A hipótese H2 foi a refutada de forma mais acentuada, e por isso mesmo a mais instrutiva. Ela afirmava que a transpilação determinística garantiria validade que a geração direta não garante. O raciocínio estava correto quanto ao transpilador — este produz XML válido em 100\% dos casos, conforme a Seção~\ref{sec:res-eixo1} — mas \textbf{condicionado a que a DSL seja aceita pela gramática}. O protocolo tratava o \textit{parsing} como etapa dada, e é ele o gargalo: apenas 64,8\% das gerações do A2 produziram DSL sintaticamente aceita. Enquanto isso, o DeepSeek redigiu BPMN XML válido contra o esquema oficial em 98,1\% das gerações, sem qualquer garantia estrutural — apenas por competência adquirida no pré-treinamento.
 
-Esse resultado contradiz uma premissa implícita e raramente examinada do trabalho: a de que uma notação compacta seria \textit{mais fácil} de emitir do que XML verboso. Para um modelo que processou milhões de documentos XML durante o pré-treinamento, a verbosidade não constitui dificuldade. A \textbf{novidade} da notação, sim.
+Esse resultado pareceu, de início, contradizer uma premissa implícita do trabalho: a de que uma notação compacta seria \textit{mais fácil} de emitir do que XML verboso. A análise das falhas (emenda E-3) localiza a causa com mais precisão: não na novidade da notação em si, e sim num traço específico de seu desenho, a exigência de declarar identificadores antes de saber que serão usados. Removida essa exigência, o mesmo modelo, com a mesma gramática no contexto, produz DSL válida em 86,8\% das gerações. A validade do XML (98,1\%) permanece superior, e H2 permanece refutada; mas a distância deixa de ser explicável pela familiaridade do modelo com o formato.
+
+\subsubsection*{Os mesmos contrastes com o braço A2r (exploratório)}
+
+Os contrastes acima são decididos sobre o A2, como registrado. Repetidos com o A2r no lugar do A2 (emenda E-3), sem correção de múltiplas comparações e sem valor confirmatório, eles mudam de sentido nos dois casos (Tabela~\ref{tab:res-testes-a2r}).
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-testes-a2r} Contrastes com o braço A2r (exploratório)}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrrl}
+			\toprule
+			Contraste & Dif. mediana & IC95\% & $r_{rb}$ & $p$ & Leitura \\
+			\midrule \midrule
+			A2r vs A1  & $0{,}0$      & $[-0{,}0184;\ 0{,}0]$ & $-0{,}122$ & 0,40  & sem diferença detectável \\
+			A4 vs A2r  & $-0{,}0219$  & $[-0{,}1176;\ 0{,}0]$ & $-0{,}349$ & 0,001 & A4 inferior \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{N = 53 pares; 12 e 10 empates, respectivamente. Valor-$p$ sem correção de Holm: os pares não integram os contrastes planejados. Demais convenções como na Tabela~\ref{tab:res-testes}.}%
+}
+\end{table}
+
+Com a referência por rótulo, a DSL deixa de perder fidelidade para o XML gerado pelo mesmo modelo: as medianas por item são praticamente iguais (0,160 e 0,162), e o teste não distingue os braços. A refutação de H1 decorria, em sua maior parte, das saídas inválidas do A2, que pontuam zero. Em sentido oposto, e reportado sem atenuação: a não refutação de H3 também dependia da fragilidade do A2. Contra o A2r, o modelo especializado é \textbf{inferior em fidelidade}, com efeito moderado. O modelo pequeno alcança o de fronteira em validade sintática (Seção~\ref{subsec:res-sft}), mas não em fidelidade topológica.
 
 \subsection{Análise do Mecanismo: Validade e Não Qualidade}
 \label{subsec:res-mecanismo}
@@ -216,6 +242,9 @@ Para separá-las, repetiu-se o contraste \textbf{restrito aos itens em que o bra
 			\midrule
 			Todos os itens (A2g vs A1g)    & 53 & 0,0783 & 0,1551 & $-0{,}0768$ \\
 			Só onde A2g valida             & 41 & 0,1012 & 0,1420 & $-0{,}0408$ \\
+			\midrule
+			Todos os itens (A2r vs A1)     & 53 & 0,1804 & 0,1942 & $-0{,}0138$ \\
+			Só onde A2r valida             & 50 & 0,1912 & 0,1884 & $+0{,}0028$ \\
 			\bottomrule
 		\end{tabular}%
 	}{%
@@ -224,9 +253,9 @@ Para separá-las, repetiu-se o contraste \textbf{restrito aos itens em que o bra
 }
 \end{table}
 
-A distância cai a menos da metade quando se descartam as falhas de validade: de $-0{,}0567$ para $-0{,}0219$ no DeepSeek, e de $-0{,}0768$ para $-0{,}0408$ no GLM. \textbf{A maior parte da desvantagem da DSL é perda de validade, não perda de qualidade de modelagem} — porém a diferença não se anula, e portanto a explicação não é exclusivamente de validade. Some-se a isso que o melhor item do A2 (0,714) supera o melhor do A1 (0,571).
+A distância cai a menos da metade quando se descartam as falhas de validade: de $-0{,}0567$ para $-0{,}0219$ no DeepSeek, e de $-0{,}0768$ para $-0{,}0408$ no GLM. \textbf{A maior parte da desvantagem da DSL é perda de validade, não perda de qualidade de modelagem} — porém a diferença não se anula, e portanto a explicação não é exclusivamente de validade. Some-se a isso que o melhor item do A2 (0,714) supera o melhor do A1 (0,571). Com a referência por rótulo, a leitura se completa: nos 50 itens em que o A2r produz saída válida, a DSL iguala o XML gerado pelo mesmo modelo (0,1912 contra 0,1884). O resíduo que a primeira versão da notação deixava era, portanto, também de forma.
 
-A consequência para o trabalho é direta e delimita o que resta a investigar: se a desvantagem se concentra na taxa de aceitação sintática, então a intervenção adequada é \textbf{internalizar a notação nos pesos}, que é precisamente o que o ajuste fino do braço A4 se propõe a fazer. A cadeia de evidências A3m ($0/53$, sem gramática no contexto) $\rightarrow$ A3 ($31/53$, com gramática no contexto) $\rightarrow$ A2 ($40/53$, com gramática e modelo grande) mostra a aceitação sintática crescendo com a informação disponível sobre a notação, o que torna a hipótese plausível — sem, evidentemente, demonstrá-la.
+A consequência para o trabalho é direta e delimita o que resta a investigar: se a desvantagem se concentra na taxa de aceitação sintática, então há duas intervenções possíveis: \textbf{corrigir a notação}, removendo a exigência que causa as falhas, o que a emenda E-3 fez; ou \textbf{internalizar a notação nos pesos}, que é o que o ajuste fino do braço A4 se propõe a fazer. A primeira mantém o modelo de fronteira; a segunda troca-o por um modelo pequeno, e se justifica pelo custo (Seção~\ref{subsec:res-economico}). A cadeia de evidências A3m ($0/53$, sem gramática no contexto) $\rightarrow$ A3 ($31/53$, com gramática no contexto) $\rightarrow$ A2 ($40/53$, com gramática e modelo grande) mostra a aceitação sintática crescendo com a informação disponível sobre a notação, o que torna a hipótese plausível — sem, evidentemente, demonstrá-la.
 
 \subsection{O Modelo Especializado}
 \label{subsec:res-sft}
@@ -249,7 +278,11 @@ O resultado de maior magnitude do trabalho está neste eixo. Os três braços qu
 
 A comparação A4 vs.\ A3m é a que isola melhor o efeito, por manter constante o \textit{prompt} e variar apenas os pesos. A comparação A4 vs.\ A3 é mais informativa em termos práticos: o modelo especializado supera em 28 pontos percentuais o mesmo modelo instruído pela gramática, e o faz consumindo \textbf{753 \textit{tokens} de entrada em vez de 1.351} --- a especialização reduz simultaneamente o custo de entrada e a taxa de falha.
 
-Mais relevante para a tese: \textbf{o A4 supera em 22 pontos percentuais o braço A2}, conduzido por um modelo de fronteira com a gramática completa no contexto. Um modelo de 7 bilhões de parâmetros executando em placa de consumidor produz notação válida com mais confiabilidade do que um modelo de fronteira instruído por \textit{prompt}.
+O A4 supera em 22 pontos percentuais o braço A2, conduzido por um modelo de fronteira com a primeira versão da gramática no contexto. Contra o A2r, que documenta a referência por rótulo, o A4 \textbf{iguala} a validade: 86,8\% nos dois. O modelo de 7 bilhões de parâmetros alcança, portanto, a confiabilidade sintática de um modelo de fronteira instruído por \textit{prompt} sem precisar da gramática no contexto: consome 753 \textit{tokens} de entrada, contra 1.452 do A2r.
+
+\subsubsection*{A igualdade em 86,8\% é coincidência}
+
+A taxa idêntica não indica um teto da notação. Se houvesse construção que a DSL não expressa, os dois braços falhariam nos mesmos itens; falham em itens quase disjuntos: 7 no A4, 10 no A2r, apenas 2 em comum. Falham também por motivos distintos. O A4 erra de modo sistemático, sempre nos mesmos itens nas três repetições, e quase só por referência a identificador não declarado (15 das 21 falhas), o que é coerente com um treino que só contém essa forma (Seção~\ref{subsec:json-to-dsl}). O A2r erra de modo disperso, por deslizes variados de sintaxe e por referências por rótulo a nós ainda não escritos (7 das 21). A parte que pertence à notação é a referência, presente nos dois, e algumas irregularidades de superfície, como o separador exclusivo do \textit{gateway} paralelo.
 
 \subsubsection*{Contrastes exploratórios}
 
@@ -259,9 +292,9 @@ Os contrastes envolvendo A4 que não constam do plano confirmatório são report
 
 \input{figuras/custo}
 
-A Figura~\ref{fig:custo} posiciona os sete braços no plano custo--validade, que é a forma mais direta de expor o argumento central do trabalho. O braço A4 emite \textbf{200 \textit{tokens} medianos contra 631 do A1}, mantendo 86,8\% de validade, e dispensa modelo de fronteira: executa localmente sobre \textit{hardware} de consumidor, com custo marginal por inferência essencialmente nulo após um treinamento de menos de um dólar.
+A Figura~\ref{fig:custo} posiciona os braços no plano entre custo por requisição e validade, que é a forma mais direta de expor o argumento central do trabalho. Sem cache e fora do horário de pico, o A4 custa cerca de US\$ 506 por milhão de requisições no cenário mais caro, contra US\$ 1.380 do A2r e US\$ 2.626 do A1, com 86,8\% de validade; o treinamento custou menos de um dólar. O cenário com cache e as ressalvas sobre o preço do modelo pequeno estão na Seção~\ref{subsec:res-economico}.
 
-O A1 permanece à frente em validade (98,1\%) e em fidelidade (0,1942). A afirmação que os dados sustentam não é de superioridade absoluta, e sim de \textbf{posição favorável na fronteira entre custo e qualidade} --- que é precisamente o enunciado delimitado na Seção~\ref{sec:delimitacao}.
+O A1 permanece à frente em validade (98,1\%) e em fidelidade (0,1942), e o A2r, em fidelidade. A afirmação que os dados sustentam não é de superioridade absoluta, e sim de \textbf{posição favorável na fronteira entre custo e qualidade} --- que é precisamente o enunciado delimitado na Seção~\ref{sec:delimitacao}.
 
 \subsection{Verificações de Validade do Resultado Adverso}
 \label{subsec:res-verificacoes}
@@ -279,7 +312,7 @@ Um resultado contrário às hipóteses do autor exige o mesmo escrutínio que um
 \subsection{Emendas ao Protocolo Congelado}
 \label{subsec:res-emenda}
 
-O pré-registro admite emendas mediante declaração explícita de data, motivo e de sua anterioridade ou posterioridade à observação dos resultados. Duas emendas foram registradas, e sua divulgação integral é aqui cumprida. Elas diferem no ponto que mais importa: a primeira só podia prejudicar as hipóteses do autor, a segunda só podia favorecê-las.
+O pré-registro admite emendas mediante declaração explícita de data, motivo e de sua anterioridade ou posterioridade à observação dos resultados. Três emendas foram registradas, e sua divulgação integral é aqui cumprida. Elas diferem no ponto que mais importa: a primeira só podia prejudicar as hipóteses do autor; a segunda e a terceira só podiam favorecê-las.
 
 \subsubsection*{E-1: glosa das palavras-chave no \textit{prompt} de DSL}
 
@@ -322,6 +355,36 @@ Nenhuma ordenação de tabela se alterou e nenhum desfecho de hipótese mudou. A
 
 Registre-se, por fim, que o defeito estava visível na própria tabela de resultados antes de ser procurado: o braço A2g exibia 56,6\% de \textit{parsing} contra 54,7\% de validade XSD, ao passo que a nota da Figura~\ref{fig:validade} afirma --- corretamente, como especificação do transpilador --- que as duas taxas coincidem nos braços de DSL, pois a transpilação é determinística. A discrepância entre a nota e a tabela era a assinatura do defeito. Após a correção, a igualdade vale em todos os braços de DSL.
 
+\subsubsection*{E-3: referência por rótulo na notação}
+
+Em 12 de outubro de 2026, já observados todos os resultados, a análise das 56 falhas de \textit{parsing} do braço A2 mostrou que 41 delas (73\%) eram de referência: 28 identificadores nunca declarados e 13 declarações tentadas depois do uso, fora do fluxo. É o mesmo mecanismo diagnosticado nos braços ajustados (Seção~\ref{subsec:res-exploratorios}): marcar um nó com identificador exige saber, ao emiti-lo, que um ramo posterior voltará a ele. Em 21 das 28 referências não resolvidas, o nó-alvo já havia sido escrito sem identificador; nenhuma apontava para nó ainda não escrito.
+
+A emenda acrescenta à notação uma segunda forma de referência, pelo rótulo, restrita a nós já emitidos (Seção~\ref{sec:dsl}), e um braço, A2r, que repete o A2 alterando o \textit{prompt} apenas no bloco de referências. Antes da execução foram fixados a regra de correspondência (rótulo normalizado, igualdade exata), os desfechos (validade, DF-F1 e TCR, contra o A2) e o compromisso de reportar o braço qualquer que fosse o resultado. A forma por rótulo não altera resultado anterior algum: as 1.021 amostras do corpus produzem XML idêntico byte a byte, e as saídas já gravadas de todos os braços mantêm o mesmo desfecho.
+
+Como a E-2, esta emenda só podia favorecer as hipóteses do autor, e por isso não substitui nada: H1 e H3 continuam decididas sobre o A2, e os contrastes com o A2r são reportados como exploratórios, sem correção de Holm (Seção~\ref{subsec:res-hipoteses}). Uma decisão tomada antes da execução operou contra o braço novo: referências por rótulo a nós ainda não escritos não foram suportadas, porque nenhuma ocorria no A2; no A2r, 7 das 21 falhas são exatamente desse tipo.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-e3} Braço A2 contra A2r}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrr}
+			\toprule
+			Métrica & A2 & A2r \\
+			\midrule \midrule
+			XSD válido (por geração)               & 64,8\% & \textbf{86,8\%} \\
+			Itens com ao menos uma saída válida    & 40/53  & \textbf{50/53} \\
+			DF-F1 (média das medianas por item)    & 0,1375 & \textbf{0,1804} \\
+			DF-F1 médio das saídas válidas         & 0,217  & 0,214 \\
+			TCR                                    & 7,03   & 6,91 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Mesmo modelo (DeepSeek V4 Pro), mesmo teto de \textit{tokens} e mesmo \textit{prompt}, exceto o bloco que descreve as referências. Análise exploratória.}%
+}
+\end{table}
+
+O efeito é grande e localizado. O modelo adotou a forma nova em 94 das 159 saídas, e a validade sobe 22 pontos percentuais: 20 itens melhoram e 3 pioram (Wilcoxon $p = 0{,}0045$, exploratório). A qualidade das saídas válidas não se altera (DF-F1 médio de 0,217 e 0,214), de modo que o ganho é de forma, e não de modelagem. A troca custa 1,7\% de compressão.
+
 \subsection{Eixo Econômico}
 \label{subsec:res-economico}
 
@@ -337,6 +400,7 @@ A hipótese H4 estipulava TCR $\geq 2$ nos braços com representação intermedi
 			A1  & XML & 631   & --- & --- \\
 			A1g & XML & 699   & --- & --- \\
 			A2  & DSL & 138   & \textbf{7,03} & 85,8\% \\
+			A2r & DSL & 141   & 6,91 & 85,5\% \\
 			A2g & DSL & 149   & 6,70 & 85,1\% \\
 			A3  & DSL & 159   & 6,70 & 85,1\% \\
 			\textbf{A4} & DSL & \textbf{200} & \textbf{6,50} & \textbf{84,6\%} \\
@@ -344,13 +408,41 @@ A hipótese H4 estipulava TCR $\geq 2$ nos braços com representação intermedi
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{IC95\% da TCR: A2 $[6{,}88;\ 7{,}17]$, A2g $[6{,}57;\ 6{,}83]$, A3 $[6{,}44;\ 6{,}94]$, A4 $[6{,}38;\ 6{,}62]$. Nos braços de XML direto não há representação intermediária e a razão não é definida; reportá-la como 1,0 apresentaria uma tautologia como resultado. O A4 emite mais \textit{tokens} que os demais braços de DSL por produzir saída válida com mais frequência --- as falhas de \textit{parsing} dos outros braços são frequentemente truncadas ou degeneradas, e portanto curtas.}%
+	\Nota{IC95\% da TCR: A2 $[6{,}88;\ 7{,}17]$, A2r $[6{,}78;\ 7{,}04]$, A2g $[6{,}57;\ 6{,}83]$, A3 $[6{,}44;\ 6{,}94]$, A4 $[6{,}38;\ 6{,}62]$. Nos braços de XML direto não há representação intermediária e a razão não é definida; reportá-la como 1,0 apresentaria uma tautologia como resultado. O A4 emite mais \textit{tokens} que os demais braços de DSL por produzir saída válida com mais frequência --- as falhas de \textit{parsing} dos outros braços são frequentemente truncadas ou degeneradas, e portanto curtas.}%
 }
 \end{table}
 
-\textbf{H4 é confirmada com folga}: a razão observada situa-se em torno de 7, contra o limiar de 2. O braço A2 emite \textbf{138 \textit{tokens} medianos contra 631 do A1} — uma redução de 4,6 vezes no custo de saída para a mesma tarefa. Registra-se que a TCR medida sobre as saídas dos braços (7,03) supera a medida sobre o corpus de treino (6,01, Seção~\ref{sec:res-tcr}), o que é coerente com a medição prévia sobre o conjunto de referência, que indicava razão de 8,84 para os itens do PMo especificamente.
+\textbf{H4 é confirmada com folga}: a razão observada situa-se em torno de 7, contra o limiar de 2. O braço A2 emite \textbf{138 \textit{tokens} medianos contra 631 do A1} — uma redução de 4,6 vezes no custo de saída para a mesma tarefa. Registra-se que a TCR medida sobre as saídas dos braços (7,03) supera a medida sobre o corpus de treino (6,01, Seção~\ref{sec:res-tcr}), o que é coerente com a medição prévia sobre o conjunto de referência, que indicava razão de 8,84 para os itens do PMo especificamente. O A2r, com a referência por rótulo, emite 141 \textit{tokens} medianos (TCR de 6,91): a forma nova custa 1,7\% de compressão.
 
-Este é o eixo em que a abordagem permanece integralmente sustentada, e é ele que confere sentido à continuidade: o trabalho não se propôs a demonstrar superioridade absoluta de qualidade, mas \textbf{viabilidade econômica na geração de linguagens de marcação hierárquicas}. A pergunta que resta, formalizada em H3 e ainda não respondida, é se um modelo pequeno com a notação internalizada nos pesos recupera a qualidade perdida operando a um quinto do custo de saída.
+\subsubsection*{Custo por requisição}
+
+A TCR mede só a saída. O custo de uma requisição inclui a entrada, e nela está a principal diferença entre os braços de DSL: o A2r carrega a gramática no \textit{prompt}, o A4 não. A Tabela~\ref{tab:res-custo} aplica a definição da Seção~\ref{subsec:eixo-custo} aos três braços que sustentam o argumento.
+
+\begin{table}[h!]
+	\Caption{\label{tab:res-custo} Custo por requisição}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrrr}
+			\toprule
+			Braço & Entrada & Saída & Sem cache & Com cache & XSD \\
+			\midrule \midrule
+			A1 (DeepSeek, XML)   & 1.306 & 891 & 2.626      & 1.896      & 98,1\% \\
+			A2r (DeepSeek, DSL)  & 1.611 & 160 & 1.380      & 455        & 86,8\% \\
+			\textbf{A4} (7B, DSL) & 912  & 212 & 337--506   & 120--179   & 86,8\% \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Custo em US\$ por milhão de requisições. Entrada e saída: \textit{tokens} médios por geração, com o tokenizador do modelo pequeno. Preços públicos consultados em 12/10/2026, fora do horário de pico (no pico, o modelo de fronteira custa o dobro): US\$ 0,66 e 1,98 por milhão de \textit{tokens} de entrada e de saída, e US\$ 0,022 em cache. A4: preço de mercado de um modelo de 7 bilhões de parâmetros, US\$ 0,30 por milhão, ou 0,45 com acréscimo de 50\% pelo adaptador; em cache, a mesma proporção do modelo de fronteira (hipótese). Por saída válida, sem cache: A1 2.677, A2r 1.589, A4 388--583.}%
+}
+\end{table}
+
+Três leituras. Primeira: no mesmo modelo, emitir DSL em vez de XML reduz o custo por requisição em 47\% (US\$ 1.380 contra 2.626 por milhão de requisições), porque a saída cai de 891 para 160 \textit{tokens}. Segunda: no braço A2r a \textbf{entrada} domina o custo, pois o trecho fixo do \textit{prompt}, que contém a gramática, ocupa 1.449 dos 1.611 \textit{tokens} de entrada; o modelo especializado dispensa a gramática, e o ajuste fino economiza, assim, também na entrada. Terceira: o A4 sai de 2,7 a 4,1 vezes mais barato que o A2r sem cache, e de 2,5 a 3,8 vezes com cache.
+
+O cenário com cache exige cuidado, porque muda a escala da comparação. O provedor do modelo de fronteira cobra o trecho repetido do \textit{prompt} a um trigésimo do preço, e com isso o custo do A2r cai de US\$ 1.380 para 455. Comparar esse valor com o A4 sem cache favoreceria o modelo de fronteira por construção, já que o \textit{prompt} do A4 também se repete (750 de seus 912 \textit{tokens} de entrada). Aplica-se, por isso, ao modelo pequeno a mesma proporção de desconto.
+
+Duas ressalvas acompanham os valores do A4. Não foi encontrado provedor que sirva adaptador LoRA próprio sobre o modelo base cobrando por \textit{token}: os principais oferecem adaptadores apenas em implantação dedicada, cobrada por hora. Os valores do A4 são, portanto, o preço de mercado de um modelo de 7 bilhões de parâmetros, com e sem acréscimo de 50\% pelo adaptador, e não uma oferta verificada; no cenário com cache, a proporção de desconto é ela própria hipótese. Além disso, a contagem de \textit{tokens} usa o tokenizador do modelo pequeno para todos os braços, o que aproxima os valores do modelo de fronteira.
+
+A conclusão que os números sustentam é delimitada: a notação compacta reduz o custo de qualquer modelo que a emita, e o modelo pequeno especializado a emite com a validade do modelo de fronteira a um custo de duas a quatro vezes menor, sob a condição de ser servido a preço de mercado. Em fidelidade topológica ele é inferior ao A2r (Seção~\ref{subsec:res-hipoteses}), e é essa a troca que o modelo pequeno oferece.
 
 \subsection{Limitação Relevante da Métrica de Fidelidade}
 \label{subsec:res-limitacao-df}
@@ -505,7 +597,7 @@ A conclusão metodológica generaliza para além deste trabalho: \textbf{validar
 \subsection{Braços Exploratórios}
 \label{subsec:res-exploratorios}
 
-Os braços descritos nesta seção \textbf{não integram o conjunto pré-registrado}. Foram definidos após a observação dos resultados confirmatórios, vivem em espaço de nomes próprio (prefixo \texttt{X-}) e nenhum deles entra nos contrastes submetidos à correção de Holm. A separação é sustentada por teste automatizado. Seus resultados são indicativos e orientam trabalho futuro; não sustentam afirmação confirmatória alguma.
+Os braços descritos nesta seção \textbf{não integram o conjunto pré-registrado}. Foram definidos após a observação dos resultados confirmatórios, vivem em espaço de nomes próprio (prefixo \texttt{X-}) e nenhum deles entra nos contrastes submetidos à correção de Holm. A separação é sustentada por teste automatizado. Seus resultados são indicativos e orientam trabalho futuro; não sustentam afirmação confirmatória alguma. O braço A2r, embora pertença ao mesmo espaço de nomes, é reportado no corpo do capítulo, junto à emenda que o introduziu (Seção~\ref{subsec:res-emenda}).
 
 \subsubsection*{Curva de aprendizado: mais dados ajudariam?}
 
@@ -633,7 +725,7 @@ O que o modelo faz, diante disso, é notavelmente sistemático. Ele adota a conv
 
 Três observações delimitam o alcance dessa análise. Primeira, \textbf{a totalidade das falhas referenciais é reparável alterando apenas a forma da referência} --- o corpo do documento está correto, e é só o endereçamento que falha. Segunda, o reparo eleva a validade a um teto de 96,2\% no A4 e 98,1\% no X-gr e no X-mi, mas esse número é um \textbf{limite superior} obtido com conhecimento do alvo, e não uma medição de desempenho. Terceira, e mais importante para a honestidade do argumento, o DF-F1 \textbf{não tem poder} para confirmar que a referência reparada aponta para o nó semanticamente pretendido: uma aresta de retorno é uma entre dezenas do multiconjunto, e sua realocação quase não move a métrica. De fato, no X-gr o reparo posicional (0,1251) e um reparo arbitrário (0,1247) são indistinguíveis. A evidência sustenta que o esquema do modelo é \textit{sistemático}; não sustenta que seja \textit{correto}.
 
-A consequência de projeto é direta e o custo foi medido. O transpilador já resolve referências \textbf{por rótulo}: a resolução tenta o identificador declarado, depois o \textit{slug} do rótulo, depois a declaração adiante. Referenciar os nós pelo rótulo que o próprio modelo acabou de emitir elimina inteiramente a exigência de antecipação, pois o rótulo é conteúdo que já está no contexto do gerador e não precisa ter sido planejado. Reescrevendo o corpus de treino nessa forma, o custo é de \textbf{2,31\% em \textit{tokens}} --- 7,7 \textit{tokens} por exemplo, o que levaria a TCR de aproximadamente 7,0 para 6,8. Contra os 85\% de economia que a notação entrega, a troca é praticamente gratuita, e a tensão com o eixo econômico que se poderia supor não se materializa. A hipótese permanece \textbf{não testada} --- exigiria retreinar sobre o corpus reescrito --- e é o trabalho futuro mais bem fundamentado que esta avaliação produziu.
+A consequência de projeto é direta e o custo foi medido. O transpilador já resolve referências \textbf{por rótulo}: a resolução tenta o identificador declarado, depois o \textit{slug} do rótulo, depois a declaração adiante. Referenciar os nós pelo rótulo que o próprio modelo acabou de emitir elimina inteiramente a exigência de antecipação, pois o rótulo é conteúdo que já está no contexto do gerador e não precisa ter sido planejado. Reescrevendo o corpus de treino nessa forma, o custo é de \textbf{2,31\% em \textit{tokens}} --- 7,7 \textit{tokens} por exemplo, o que levaria a TCR de aproximadamente 7,0 para 6,8. Contra os 85\% de economia que a notação entrega, a troca é praticamente gratuita, e a tensão com o eixo econômico que se poderia supor não se materializa. A forma por rótulo foi depois incorporada à notação e testada no modelo de fronteira (emenda E-3, Seção~\ref{subsec:res-emenda}): a validade do mesmo modelo subiu de 64,8\% para 86,8\%, ao custo de 1,7\% de compressão nas saídas. No modelo especializado ela permanece \textbf{não testada} --- exigiria retreinar sobre o corpus reescrito --- e é o trabalho futuro mais bem fundamentado que esta avaliação produziu.
 
 \subsection{Síntese}
 \label{subsec:res-sintese}
@@ -641,7 +733,7 @@ A consequência de projeto é direta e o custo foi medido. O transpilador já re
 A Tabela~\ref{tab:res-sintese} consolida o estado das hipóteses.
 
 \begin{table}[h!]
-	\Caption{\label{tab:res-sintese} Estado das hipóteses pré-registradas}%
+	\Caption{\label{tab:res-sintese} Estado das hipóteses registradas}%
 	\IBGEtab{}{%
 		\begin{tabular}{lll}
 			\toprule
@@ -662,16 +754,16 @@ A Tabela~\ref{tab:res-sintese} consolida o estado das hipóteses.
 O conjunto de evidências sustenta uma cadeia argumentativa distinta daquela originalmente antecipada, e mais informativa que ela:
 
 \begin{enumerate}
-	\item Fornecer a notação \textbf{no contexto} é inferior a permitir que o modelo emita o formato que já domina --- H1, H1g e H2 refutadas, com replicação em duas famílias de modelos.
-	\item A notação precisa estar \textbf{nos pesos}. A progressão 0\% $\rightarrow$ 58,5\% $\rightarrow$ 86,8\%, sobre o mesmo modelo base, mede o quanto se ganha ao mover a especificação do \textit{prompt} para os parâmetros.
-	\item A desvantagem da DSL concentra-se em \textbf{validade sintática}, não em qualidade de modelagem --- e é exatamente essa a barreira que o ajuste fino remove, elevando o modelo de 7 bilhões acima do modelo de fronteira instruído por \textit{prompt}.
-	\item Em \textbf{fidelidade topológica} o modelo especializado empata com o modelo de fronteira prompted e não alcança a geração direta de XML. A hipótese H3 não é refutada, mas tampouco demonstrada.
+	\item Fornecer a notação \textbf{no contexto}, em sua primeira versão, foi inferior a permitir que o modelo emitisse o formato que já domina --- H1, H1g e H2 refutadas, com replicação em duas famílias de modelos.
+	\item A causa \textbf{não era a novidade} da notação, e sim a forma de referência, que exige antecipação. Com a referência por rótulo (emenda E-3, exploratória), o mesmo modelo de fronteira passa de 64,8\% a 86,8\% de validade e empata com a geração direta de XML em fidelidade.
+	\item O ajuste fino remove a mesma barreira por outro caminho. A progressão 0\% $\rightarrow$ 58,5\% $\rightarrow$ 86,8\%, sobre o mesmo modelo base, mede o ganho de mover a especificação do \textit{prompt} para os pesos, e o modelo de 7 bilhões alcança a validade do modelo de fronteira sem gramática no contexto.
+	\item Em \textbf{fidelidade topológica} o modelo especializado empata com o A2 (H3 não refutada, nem demonstrada), mas é inferior ao A2r e não alcança a geração direta de XML.
 	\item A métrica de fidelidade \textbf{satura próximo ao ruído}: dois especialistas humanos concordam a 0,1449, e todos os braços operam nessa vizinhança. Comparações de fidelidade acima desse patamar não discriminam qualidade.
-	\item O ganho econômico é \textbf{substancial e não contestado}: 200 \textit{tokens} contra 631, TCR de 6,5, e execução local dispensando modelo de fronteira.
+	\item O ganho econômico é \textbf{substancial}: a notação reduz em cerca de 85\% os \textit{tokens} emitidos e em 47\% o custo por requisição no mesmo modelo, e o modelo especializado custa de duas a quatro vezes menos que o de fronteira com a DSL, sob a hipótese de ser servido a preço de mercado.
 \end{enumerate}
 
-A afirmação que o conjunto sustenta é, portanto, delimitada e verificável: \textbf{um modelo de 7 bilhões de parâmetros, especializado ao custo de menos de um dólar e executado em \textit{hardware} de consumidor, produz notação válida com mais confiabilidade do que um modelo de fronteira instruído por \textit{prompt}, com fidelidade estatisticamente indistinguível deste e a um terço do custo de saída da geração direta de XML.} Não se afirma superioridade sobre a geração direta de XML por modelo de fronteira --- os dados não a sustentam, e a Seção~\ref{subsec:res-teto} indica que a métrica disponível dificilmente sustentaria tal afirmação para método algum.
+A afirmação que o conjunto sustenta é, portanto, delimitada e verificável: \textbf{uma notação compacta, desenhada para geração da esquerda para a direita, reduz em cerca de 85\% os \textit{tokens} emitidos sem perda de fidelidade frente à geração direta de XML pelo mesmo modelo; e um modelo de 7 bilhões de parâmetros, especializado ao custo de menos de um dólar, emite essa notação com a mesma validade de um modelo de fronteira, com fidelidade menor, a uma fração do custo por requisição.} Não se afirma superioridade sobre a geração direta de XML por modelo de fronteira, nem que o modelo pequeno alcance a fidelidade deste --- os dados não a sustentam, e a Seção~\ref{subsec:res-teto} indica que a métrica disponível dificilmente sustentaria tal afirmação para método algum.
 
-Reitera-se o compromisso registrado no pré-registro e agora exercido em ambas as direções: das cinco hipóteses, três foram refutadas, uma ficou indeterminada e uma foi confirmada. Todas são reportadas como tais.
+Das cinco hipóteses registradas, três foram refutadas, uma ficou indeterminada e uma foi confirmada, e todas são reportadas como tais.
 
-Fora do conjunto pré-registrado, e portanto sem força confirmatória, dois achados exploratórios orientam o que vem depois. A curva de aprendizado (Seção~\ref{subsec:res-exploratorios}) indica que \textbf{mais dados da mesma fonte não elevam as métricas da tarefa}, ainda que reduzam a \textit{loss} de validação --- o que desloca o esforço de coleta para fontes distintas, e não para mais volume. E o resíduo de falhas do modelo especializado é \textbf{predominantemente referencial}, concentrando-se num traço de projeto da notação que o transpilador já sabe dispensar. Nenhum dos dois é resultado deste trabalho no sentido confirmatório; ambos são hipóteses agora fundamentadas em medição.
+Fora do conjunto pré-registrado, e portanto sem força confirmatória, três achados exploratórios orientam o que vem depois. O primeiro, e de maior alcance, é o da emenda E-3: a forma de referência explicava a maior parte das falhas da notação, e corrigi-la elevou o modelo de fronteira à validade do modelo especializado. A curva de aprendizado (Seção~\ref{subsec:res-exploratorios}) indica que \textbf{mais dados da mesma fonte não elevam as métricas da tarefa}, ainda que reduzam a \textit{loss} de validação --- o que desloca o esforço de coleta para fontes distintas, e não para mais volume. E o resíduo de falhas do modelo especializado é \textbf{predominantemente referencial}, o mesmo traço que a E-3 corrigiu no modelo de fronteira; retreiná-lo com a referência por rótulo é o passo seguinte. Nenhum dos três é resultado deste trabalho no sentido confirmatório; todos são hipóteses agora fundamentadas em medição.

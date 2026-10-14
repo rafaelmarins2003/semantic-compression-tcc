@@ -1,49 +1,55 @@
-% Custo de saída contra validade — o argumento econômico da tese em um plano.
-% Rótulos posicionados um a um: `nodes near coords` colidia nos aglomerados
-% (A1/A1g à direita, A2/A2g/A3 à esquerda). Eixo x logarítmico porque os
-% tokens variam de 138 a 2.041.
+% Custo por requisição contra validade — o argumento econômico da tese em um
+% plano. Eixo x em US$ por milhão de requisições (entrada + saída, preço público
+% de 2026-10-12, sem cache, fora de pico; A4 no cenário mais caro, +50% de
+% adapter). Tokens de saída sozinhos escondiam a entrada, onde está a gramática
+% do prompt. Dados: `run_custo.custo_figura`, via `export_figuras`.
+% Rótulos posicionados um a um: `nodes near coords` colidia nos aglomerados.
 \begin{figure}[htb]
-	\Caption{\label{fig:custo} Custo de saída contra validade sintática, por braço}
+	\Caption{\label{fig:custo} Custo por requisição contra validade sintática, por braço}
 	\centering
 	\begin{tikzpicture}
 		\begin{axis}[
 			width=0.86\textwidth, height=6.8cm,
 			xmode=log, log basis x=10,
-			xlabel={\textit{Tokens} emitidos por item (mediana, escala log)},
+			xlabel={US\$ por milhão de requisições (escala log)},
 			ylabel={Saídas válidas no XSD (\%)},
-			xmin=105, xmax=3200, ymin=-8, ymax=115,
-			xtick={125,250,500,1000,2000}, xticklabels={125,250,500,1000,2000},
+			xmin=350, xmax=8000, ymin=-8, ymax=115,
+			xtick={500,1000,2000,5000}, xticklabels={500,1.000,2.000,5.000},
 			ytick={0,25,50,75,100},
 			ymajorgrids, xmajorgrids, grid style={draw=black!12},
 			axis lines*=left, tick align=outside,
 			tick label style={font=\small}, label style={font=\small},
-			legend style={font=\small, at={(0.97,0.52)}, anchor=east, draw=none, fill=white, fill opacity=0.9, text opacity=1},
+			legend style={font=\small, at={(0.97,0.06)}, anchor=south east, draw=none, fill=white, fill opacity=0.9, text opacity=1},
 			legend cell align=left,
 		]
 			\addplot[only marks, mark=*, mark size=2.8pt, corXML]
-				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_xml.csv};
+				table[x=custo, y=xsd, col sep=comma] {figuras/dados/custo_xml.csv};
 			\addlegendentry{XML direto}
 			\addplot[only marks, mark=square*, mark size=2.8pt, corDSL]
-				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_dsl.csv};
+				table[x=custo, y=xsd, col sep=comma] {figuras/dados/custo_dsl.csv};
 			\addlegendentry{DSL por \textit{prompting}}
 			\addplot[only marks, mark=triangle*, mark size=4pt, corSFT]
-				table[x=tokens, y=xsd, col sep=comma] {figuras/dados/custo_sft.csv};
+				table[x=custo, y=xsd, col sep=comma] {figuras/dados/custo_sft.csv};
 			\addlegendentry{DSL, 7B com ajuste fino}
 
 			% Rótulos individuais, ancorados para evitar sobreposição
-			\node[font=\scriptsize, anchor=south]      at (axis cs:631,99.5)  {A1};
-			\node[font=\scriptsize, anchor=north west] at (axis cs:699,92.5)  {A1g};
-			\node[font=\scriptsize, anchor=south east] at (axis cs:200,88.5)  {\textbf{A4}};
-			\node[font=\scriptsize, anchor=south]      at (axis cs:138,66.5)  {A2};
-			\node[font=\scriptsize, anchor=west]       at (axis cs:159,58.5)  {\ A3};
-			\node[font=\scriptsize, anchor=north]      at (axis cs:149,52.5)  {A2g};
-			\node[font=\scriptsize, anchor=south east] at (axis cs:2041,2.5)  {A3m};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:2626,99.5) {A1};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:5713,92.0) {A1g};
+			\node[font=\scriptsize, anchor=east]       at (axis cs:470,86.8)  {\textbf{A4}};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:1380,88.5) {A2r};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:1313,62.0) {A2};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:2867,54.0) {A2g};
+			\node[font=\scriptsize, anchor=east]       at (axis cs:470,58.5)  {A3};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:769,2.5)   {A3m};
 		\end{axis}
 	\end{tikzpicture}
 	\Fonte{Elaborado pelo autor}
-	\Nota{Canto superior esquerdo é o desejável: alta validade a baixo custo. O
-	braço A4 emite 200 \textit{tokens} medianos contra 631 do A1, mantendo 86{,}8\%
-	de validade, e executa em placa de consumidor. O A3m aparece isolado à direita
-	por gerar XML sob teto dimensionado para DSL, truncando em metade das
-	execuções.}
+	\Nota{Canto superior esquerdo é o desejável: alta validade a baixo custo.
+	Custo = \textit{tokens} médios de entrada e de saída $\times$ preço público por
+	\textit{token}, consultado em 12/10/2026, sem cache de \textit{prompt} e fora
+	do horário de pico. Os braços do modelo pequeno usam preço de mercado de um
+	modelo de 7 bilhões de parâmetros, e o A4, o cenário mais caro (adaptador com
+	acréscimo de 50\%); nenhum provedor confirmado oferece hoje esse adaptador por
+	\textit{token}. O cenário com cache é discutido na
+	Seção~\ref{subsec:res-economico}.}
 \end{figure}

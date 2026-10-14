@@ -73,6 +73,349 @@ A3m (`33e716e`) e A3 (`1eb061f`). Ambos verificados como não afetados:
 | `uv sync` instala torch incompatível | primeiro setup no RunPod | `torch 2.11+cu130` contra driver CUDA 12.8; travaria qualquer máquina nova |
 | Emenda E-1: bloco GATEWAYS sem glosa | análise das falhas do A3 | penalizava só os braços de DSL (handicap específico de formato) |
 
+### 2026-10-12 — A2r: declaração pré-execução
+
+- **O que:** A2r é um braço exploratório, pós-hoc, motivado pela análise de
+  falhas de A2: 41 das 56 falhas são de referência. Esta declaração é feita
+  antes da execução de A2r, não como hipótese confirmatória original.
+- **Hipótese:** o mecanismo de referências, e não a novidade da linguagem,
+  explica a maior parte das falhas sintáticas de A2.
+- **Regra de correspondência fixada agora:** a referência por rótulo deve
+  coincidir exatamente com o slug do rótulo produzido por `_slugify`
+  (`src/transpiler/xml.py:39`). A função converte para minúsculas e substitui
+  qualquer caractere fora de `[a-z0-9_]` por `_`; também apara espaços,
+  colapsa e apara `_` e prefixa `n_` quando o slug começa por dígito.
+  Depois dessa normalização, a correspondência é exata, sem aproximação.
+- **Desfechos:** taxa de parsing, validade XSD, DF-F1 e TCR, todos comparados
+  contra A2.
+- **Compromisso:** A2r entrará na monografia qualquer que seja o resultado,
+  identificado como análise exploratória pós-hoc.
+
+### 2026-10-12 — Prompt do A2 contra `grammar.lark`: o que diverge e o que não
+
+Objeção levantada em revisão: a especificação contradiz a gramática, e um modelo
+que seguisse a documentação seria rejeitado pelo parser. **Procede para
+`src/dsl/dsl_documentation.txt`, não para o prompt do A2.** São três textos
+distintos, e só um deles foi ao modelo:
+
+| texto | papel | foi ao modelo? |
+|---|---|---|
+| `src/dsl/grammar.lark` | normativo (o parser) | não |
+| `src/dsl/dsl_documentation.txt` | proposta de design v2, explicativa | **não** — citado só em docstring |
+| `configs/prompts/benchmark/dsl_grammar.md` | gramática em prosa, à mão | **sim** (A2, A2g, A3; sha `c6bb757ea9b1`) |
+
+**Na especificação (corrigido hoje):** a EBNF dos eventos punha o nome antes do
+tipo (`start "Pedido":message`) e o exemplo do gateway de evento usava
+`[:message "approval"]`. Ambos falham no parser. A própria especificação já
+trazia exemplos na ordem certa (`start:message "Pedido recebido"`), ou seja, a
+EBNF contradizia também os exemplos dela. Corrigidos a ordem dos eventos, o
+payload (`[:message("approval")]`), `and_branches` (aceita ramo vazio, como a
+gramática) e o caminho no cabeçalho de `grammar.lark`. O cabeçalho da
+especificação agora declara `grammar.lark` normativa.
+
+**No prompt do A2:** toda construção que ele documenta parseia, e o que ele
+declara inválido falha. Isso agora é teste, não afirmação:
+`test_construcao_documentada_no_prompt_parseia` e
+`test_construcao_proibida_pelo_prompt_falha`
+(`tests/evaluation/test_benchmark_prompts.py`). Cada caso confere também que o
+trecho citado continua literalmente no prompt. Varredura das 477 saídas de
+A2/A2g/A3 por formas exclusivas da especificação: 0 no A2, 1 no A2g, 0 no A3.
+**Nenhuma parte dos 64,8% do A2 vem desse defeito.** O caso do A2g (`pmo_46`,
+rep 3) falhou justamente por essa forma: `[:timer "More than 10 days"]`, com o
+parser parando nas aspas. Como a especificação nunca chegou ao modelo, isso não
+é o defeito da especificação vazando; é o modelo inventando, por conta própria,
+a mesma sintaxe intuitiva que o autor da especificação escreveu. Vale como
+indício de que rotular o ramo de evento com texto livre é a forma "natural", e
+a gramática não a aceita. Peso: 1 de 159 no A2g.
+
+**Duas imprecisões conhecidas no prompt do A2, mantidas de propósito:**
+
+1. "PROPERTIES — optional, on any named element": a gramática só aceita
+   propriedades em eventos, tarefas, `call` e `message`. Em `xor`, `or`, `and`,
+   `event`, `subprocess`, `process`, `pool`, `@lane` e `note`, falha.
+2. "Ids are bare words (letters, digits, underscore)": `CNAME` não aceita
+   dígito inicial; `#1a` falha.
+
+Efeito observado: **zero**. Nenhuma das 477 saídas de A2/A2g/A3 usa propriedade
+em elemento que não a aceita nem id iniciado por dígito (varredura por regex
+sobre `raw_output`, 2026-10-12). O arquivo **não foi editado**: o sha
+`c6bb757ea9b1` está gravado em cada linha desses braços, e editá-lo desligaria
+as linhas do texto que as produziu. As correções vão para o prompt do A2r. Para
+travar isso, `test_prompt_congelado_nao_mudou` confere os três shas.
+
+**Não verificado:** só conferi contra o parser os exemplos das seções de
+eventos, tarefas e gateways da especificação; os das seções de processo, raia
+e colaboração não. A especificação segue sendo documento de design, não
+referência; quem precisar da sintaxe exata deve ler `grammar.lark`.
+
+### 2026-10-12 — A2r pronto para rodar: decisões, um bug e uma descoberta
+
+**Nome no código: `X-a2r`.** `test_arms_cobrem_os_bracos_do_spec` guarda os sete
+braços da spec 003 §4 como conjunto fechado e reserva o prefixo `X-` para
+exploratórios declarados depois de ver resultados. Chamar a chave de `A2r`
+quebraria o teste e, pior, misturaria exploratório e pré-registrado. "A2r"
+segue como nome na prosa; a chave em `ARMS` é `X-a2r`. Prompt:
+`configs/prompts/benchmark/dsl_grammar_labelref.md`, sha `b49d66cbcc41`,
+travado em `test_prompt_congelado_nao_mudou`.
+
+**4c — só rótulos já emitidos resolvem.** Medido antes de decidir: das 28
+referências não resolvidas do A2, o rótulo-alvo aparece **antes** da referência
+em 21, antes e depois em 6 (rótulo repetido) e **só depois em 0**. No A2g: 16
+para trás, 1 para frente, 1 ambíguo, 4 sem rótulo correspondente. (Casamento por
+tokens do id contra palavras do rótulo, só para esta medição; não é a regra do
+A2r.) O problema observado é o laço de volta, não a convergência futura.
+Suportar rótulo futuro exigiria reservar ids por rótulo antes da emissão, sem
+caso que o justifique. Para frente, o prompt mantém `#id`, que já resolvia em
+qualquer direção. Travado em `test_forward_label_ref_is_not_supported`.
+
+**Bug encontrado e corrigido: referência por rótulo em `message`.**
+`message "m" from #"Send order" to ...` gerava `sourceRef="send_order"`, um id
+que não existe no documento, **e o XSD aceitava**. Causa: a colaboração só
+recebia os `#id` explícitos de cada pool (`global_refs`). Agora recebe também os
+slugs de rótulo; o primeiro pool que declara um slug vence, e `#id` explícito
+vence qualquer slug. Se não corrigido, o A2r perderia toda mensagem escrita por
+rótulo sem nenhum erro visível, o que **subestimaria** o braço novo. Testes em
+`tests/transpiler/test_label_refs.py`. Fica aberta a mesma classe de defeito
+para `#id` inexistente em `message`, que também sai como referência solta
+aceita pelo XSD; é anterior a esta mudança e não a mexi.
+
+**Descoberta: os comentários HTML dos prompts chegam ao modelo.** `load_prompt`
+só faz `.strip()`, e `generate` envia o arquivo inteiro. Ou seja, todo braço
+recebeu, antes de `<role>`, o cabeçalho de desenvolvimento em português do seu
+próprio prompt (no A2, "Carrega a gramática porque a linguagem é INÉDITA...").
+Consequências:
+- Para o A2r, o cabeçalho foi mantido **idêntico ao do A2** byte a byte. A
+  primeira versão trazia uma explicação nova ("antecipação", "73% das falhas")
+  que o A2 nunca viu: seria um confundidor. A justificativa ficou no comentário
+  de `ARMS` e aqui. `test_a2r_difere_do_a2_so_nas_referencias_e_nas_duas_correcoes`
+  compara o arquivo inteiro, cabeçalho incluído.
+- Para os braços já rodados: os cabeçalhos de `xml_direct.md` e
+  `dsl_grammar.md` **diferem** em conteúdo, então o contraste A2 × A1 também
+  carrega essa diferença de texto meta. Não tenho evidência de efeito (o texto é
+  sobre o desenho do estudo, não instrução de modelagem), mas é uma diferença
+  entre braços que a afirmação "a única diferença é o formato de saída" não
+  previa. **Não verificado** se o cabeçalho influi na saída; não corrigido,
+  porque os prompts estão congelados. Merece uma linha nas ameaças à validade.
+
+**Regressão: os 1021 continuam idênticos.** O corpus foi transpilado com o
+código de HEAD (`5c918f9`, numa worktree separada, conferido que rejeita
+`#"..."`) e com o código atual: 1021/1021 sem falha de transpilação ou XSD nos
+dois lados e **0 XML diferentes byte a byte**. O corpus só usa `#id`, então nem
+a gramática nova nem a exportação de slugs alteram nada nele.
+
+**Limitações da regra de rótulo, aceitas:**
+- Rótulo repetido: a referência vai para a **primeira** ocorrência
+  (`register_name` não sobrescreve). São exatamente os 6 casos ambíguos acima.
+- Um `#"Rótulo"` cujo slug coincida com um `#id` explícito de outro elemento
+  resolve para o `#id` (`resolve_ref` consulta `explicit_ids` antes de
+  `slug_ids`). Exige que o modelo use os dois mecanismos com o mesmo nome; não
+  medido.
+- Rótulos com acento perdem as letras acentuadas no slug (`[^a-z0-9_]` vira `_`).
+  Irrelevante na prática: os rótulos são em inglês (ADR 0001).
+
+### 2026-10-12 — A2r (`X-a2r`): resultado
+
+Execução: 159 gerações, `deepseek-v4-pro:cloud`, prompt `b49d66cbcc41`, 0 erros
+de geração, 0 truncamentos. Comparação contra o A2 (mesmo modelo, mesmo teto,
+prompt diferindo só no bloco de referências e nas duas correções).
+
+| métrica | A2 | A2r | nota |
+|---|---|---|---|
+| parse = XSD válido | 103/159 (64,8%) | **138/159 (86,8%)** | +35 saídas |
+| DF-F1 mediana por item (falha = 0) | 0,1375 | 0,1804 | `summarize` oficial |
+| DF-F1 condicional (só parse ok), média | 0,217 | 0,214 | n = 103 vs 138 |
+| DF-strict F1 | 0,0567 | 0,0807 | |
+| TCR média [IC95] | 7,03 [6,88; 7,17] | 6,91 [6,78; 7,04] | −1,7%; ICs se sobrepõem |
+| saídas usando `#"rótulo"` / `#id` | 0 / 60 | 94 / 6 | |
+
+Pareado por item (53 itens, taxa de parse dos 3 reps): 20 melhoram, 3 pioram,
+30 iguais; Wilcoxon p = 0,0045. DF-F1 mediano por item: Wilcoxon p = 0,019.
+**Ambos pós-hoc e exploratórios**: não entram na família de testes
+pré-registrados nem na correção de multiplicidade deles. Não adicionei o par a
+`CONTRASTES` (`run_analysis.py`), que é o conjunto congelado.
+
+**Leitura.**
+1. O modelo adotou o mecanismo novo quase por completo (94 saídas com rótulo,
+   6 com `#id`), e a validade sintática subiu 22 pontos. A troca de notação
+   resgata saídas **sem mudar a qualidade do que já parseava**: o DF-F1
+   condicional fica igual (0,217 → 0,214). O ganho é de forma, não de modelagem.
+2. Coincidência que precisa ser escrita com cuidado: 138/159 é **exatamente** a
+   validade do A4 (finetunado, 86,8%). Um modelo de fronteira com uma notação
+   mais amigável à geração da esquerda para a direita alcança a validade do 7B
+   finetunado na notação original. Isso **enfraquece** a leitura "o SFT é
+   necessário para emitir DSL válida" e **fortalece** a de que boa parte do
+   déficit do A2 era do desenho da notação. Não é um contraste justo com o A4
+   (modelos e prompts diferentes); é um ponto de referência.
+3. A compressão quase não muda: rótulos são mais longos que ids, mas a
+   referência aparece poucas vezes por modelo. O custo em TCR é 1,7%.
+
+**As 21 falhas que sobram:**
+- 8 de referência por rótulo: **7 são referências para frente** (pmo_11 nos
+  3 reps, pmo_47 nos 3, pmo_29 em 1), excluídas por desenho na decisão 4c; 1 é
+  rótulo divergente (pmo_28: `#"Write status updates"` contra "Write at least 3
+  status updates about internship").
+- 5 de justaposição (falta `->` ou `;`).
+- 4 de `-> ()` no meio de um fluxo (vazio usado como marcador depois de uma
+  tarefa, ex. `["yes"] -> task "Conduct site visit" -> ()`).
+- 2 de `-> @lane` (seta antes do bloco de raia, em vez de dentro dele).
+- 2 outras (um `-` e uma aspa inesperados).
+
+**Sobre a decisão 4c, à luz do resultado.** No A2, nenhuma referência não
+resolvida apontava para frente; com rótulos disponíveis, o modelo passou a
+usá-los também para convergência futura, e 7 saídas falharam por isso. Se o
+transpilador aceitasse rótulo futuro, o teto seria de até 145/159 (91,2%):
+essas 7 saídas já parseiam e falham só na resolução, mas não conferi se teriam
+outra referência solta adiante. **Esse
+número não deve ser reportado como resultado**: mudar a regra depois de ver as
+falhas é exatamente o ajuste que a declaração prévia proíbe. Ele entra, no
+máximo, como observação de que a decisão foi conservadora (contra o braço novo).
+
+**Não verificado:** variância entre execuções do modelo de nuvem (temperatura
+0, mas sem garantia de determinismo do provedor); se o efeito replica no GLM
+(A2g). Replicar no GLM custaria mais 159 chamadas e responderia se o efeito é
+da notação ou do DeepSeek.
+
+### 2026-10-12 — A2r nos contrastes das hipóteses (exploratório, sem Holm)
+
+Mesma função `comparar` de `run_analysis.py`, sobre medianas por item de DF-F1.
+p **sem** correção de Holm, porque nenhum destes pares é contraste planejado.
+
+| contraste | medianas | IC95 dif. | r_b | p |
+|---|---|---|---|---|
+| A2 vs A1 (H1, registrado) | 0,000 vs 0,162 | [−0,077; 0] | −0,366 | 0,019 |
+| **A2r vs A1** | 0,160 vs 0,162 | [−0,018; 0] | −0,122 | **0,40** |
+| A4 vs A2 (H3, registrado) | 0,087 vs 0,000 | [−0,033; 0] | −0,231 | 0,25 |
+| **A4 vs A2r** | 0,087 vs 0,160 | [−0,118; 0] | −0,349 | **0,001** |
+| A2r vs A2 | 0,160 vs 0,000 | [0; 0] | +0,267 | 0,019 |
+
+**O efeito corta para os dois lados, e precisa ser escrito assim:**
+- **A favor da DSL:** com o prompt que documenta a referência por rótulo, o
+  modelo de fronteira emitindo DSL **deixa de perder** fidelidade para o XML
+  direto (p = 0,40, medianas praticamente iguais). A refutação de H1 dependia
+  em boa parte das saídas inválidas do A2, que valem 0 no DF-F1.
+- **Contra o modelo pequeno:** a "não refutação" de H3 também dependia do A2
+  fraco. Contra o A2r, o A4 é **significativamente pior** em fidelidade
+  (p = 0,001, r_b = −0,35). O argumento do modelo pequeno não pode ser "alcança o
+  modelo de fronteira"; tem de ser "mesma validade a uma fração do custo, com
+  fidelidade menor".
+- A narrativa atual da monografia ("verbosidade não é dificuldade, novidade
+  sim"; "o benefício não se realiza por instrução, só por especialização"; "o
+  ajuste fino é condição necessária") é **contradita** pelo A2r: por instrução,
+  com a notação de referência adequada, o modelo de fronteira chega a 86,8% de
+  validade e empata com o XML em fidelidade.
+
+### 2026-10-12 — Os 86,8% iguais de A2r e A4 são coincidência
+
+As 21 falhas de cada braço caem em itens quase disjuntos: A4 falha em 7 itens,
+A2r em 10, e só 2 são comuns (pmo_32, pmo_49). Se fosse um teto da linguagem
+(construção que a DSL não expressa), as falhas coincidiriam.
+- **A4:** sistemático. Os 7 itens falham nos 3 reps (greedy local). Causas: 15
+  referências `#id` nunca declaradas e 6 `UnexpectedEOF` (bloco não fechado).
+  Coerente com o treino, que só tem `#id`.
+- **A2r:** espalhado. Só 3 dos 10 itens falham nos 3 reps. Causas: 8 referências
+  por rótulo (7 para frente, 1 rótulo divergente), 5 justaposições, 4 `()` fora
+  de ramo, 2 `-> @lane`, 2 outras.
+- O que é da linguagem: referência é a maior fonte de falha nos dois, e as
+  irregularidades de sintaxe (`;` só no `and`, `()` só como ramo, `->` antes de
+  `@lane` só dentro do bloco) aparecem no A2r.
+- Implicação (não executada): 15 das 21 falhas do A4 são de referência; treinar
+  com corpus que use rótulo nas referências para trás tende a subir o A4. É a
+  extensão que `conclusao.tex:41` já propunha.
+
+### 2026-10-12 — Custo por requisição (preços públicos, consultados hoje)
+
+Tokens médios por geração (tokenizador Qwen2.5-Coder para todos os braços, o
+que aproxima o DeepSeek), descrição incluída na entrada:
+
+| braço | entrada | saída | XSD válido |
+|---|---|---|---|
+| A1 (DeepSeek, XML) | 1306 | 891 | 98,1% |
+| A2r (DeepSeek, DSL) | 1611 | 160 | 86,8% |
+| A4 (Qwen 7B + LoRA, DSL) | 912 | 212 | 86,8% |
+
+Preços (US$/M tokens): DeepSeek V4 Pro 0,66 / 1,98 fora de pico e 1,32 / 3,96
+no pico (página oficial, 12/10/2026). Para o 7B: 0,30 / 0,30 (preço de mercado
+do Qwen2.5-Coder-7B-Instruct) e 0,45 / 0,45 (+50%, regra antiga do DeepInfra
+para adapter LoRA).
+
+| braço | US$ por 1M requisições | US$ por 1M saídas válidas |
+|---|---|---|
+| A1 | 2.626 – 5.252 | 2.677 – 5.353 |
+| A2r | 1.380 – 2.759 | 1.589 – 3.179 |
+| A4 | 337 – 506 | 388 – 583 |
+
+- DSL contra XML no mesmo modelo: −47% de custo, puxado pela saída (891 → 160).
+- No A2r, a **entrada** domina o custo, porque a gramática vai no prompt. O A4
+  dispensa a gramática (912 tokens de entrada contra 1611): o ajuste fino
+  economiza também na entrada.
+- A4 fica 3–8× mais barato que A2r e 5–14× mais barato que A1.
+
+**Hipóteses e lacunas, que têm de ir junto com qualquer número:**
+- **Nenhum provedor confirmado** serve adapter LoRA próprio sobre o
+  Qwen2.5-Coder-7B cobrando por token. Fireworks e Together: LoRA só em
+  implantação dedicada (por hora). DeepInfra: um post de 2024 diz por token com
+  +50%, a documentação atual diz por hora de GPU. O preço do A4 é, portanto, o
+  de um 7B de mercado, não uma oferta verificada.
+- Cache de prefixo do DeepSeek (US$ 0,022/M) não modelado. A gramática é prefixo
+  fixo, então com cache a entrada do A2r cai muito e a vantagem do A4 diminui.
+- Tempo de inferência **excluído** por decisão do Rafael: a latência do A4 (15,4 s
+  na RTX 2080 Ti) e a do DeepSeek (1,4 s na Ollama Cloud) medem hardware, não
+  método.
+- O cálculo foi feito em script avulso (scratchpad), **não versionado**. Antes de
+  ir para a monografia, vira `src/evaluation/run_custo.py`.
+
+### 2026-10-12 — Decisão de narrativa (Rafael)
+
+1. A monografia não segue com o A2 e um adendo "depois fiz outro". A DSL da tese
+   é a gramática com as duas formas de referência; o braço de fronteira com DSL
+   passa a ser o A2r.
+2. Não é preciso retreinar: a gramática só ganhou uma alternativa. Conferido:
+   as 159 saídas de A2 e A4 dão o mesmo resultado com a gramática atual (103 e
+   138, nenhuma mudou), e os 1021 do corpus geram XML idêntico.
+3. Eixo de tempo sai do argumento; o eixo econômico passa a ser custo por
+   requisição em tokens e preço de API.
+4. **Tensão em aberto, a resolver capítulo a capítulo:** a monografia é
+   construída sobre o pré-registro (seção própria na Metodologia, "o
+   pré-registro existe precisamente para que o parágrafo acima pudesse ser
+   escrito na ordem em que foi escrito"). O A2r foi desenhado depois de
+   observadas as falhas. Promovê-lo a braço principal sem dizer isso
+   contradiria a seção de pré-registro. O caminho compatível é narrar o A2 como
+   a primeira versão do prompt e o A2r como a revisão motivada por ela, com data.
+   Mapa completo de impacto: `docs/mapa-mudancas-2026-10-12.md`.
+
+### 2026-10-12 — Custo versionado, e o cache quase apagou a vantagem do 7B
+
+O cálculo saiu do scratchpad para `src/evaluation/run_custo.py` (15 testes em
+`tests/evaluation/test_custo.py`). Ao modelar o cache de prefixo, que antes eu
+tinha listado só como lacuna, o quadro mudou:
+
+| braço | sem cache | com cache |
+|---|---|---|
+| A2r (DeepSeek, fora de pico) | 1.380 | **455** |
+| A4 (7B / 7B +50%) | 337 – 506 | 120 – 179 |
+
+(US$ por milhão de requisições.) No A2r, 1.449 dos 1.611 tokens de entrada são
+prefixo fixo (a gramática), e o DeepSeek cobra cache a 1/30 do preço. Comparar
+o A2r com cache contra o A4 sem cache teria favorecido o modelo grande por
+construção, porque o prompt do A4 também se repete (750 de 912 tokens).
+
+**Decisão (Rafael):** tratamento simétrico. O 7B recebe a mesma proporção de
+desconto do DeepSeek (`cache = in / 30`), declarada como hipótese em cima de
+hipótese. Resultado: o A4 fica 2,7–4,1× mais barato que o A2r sem cache e
+2,5–3,8× com cache. A vantagem se mantém, menor do que parecia antes do cache.
+Travado em `test_cache_do_7b_tem_a_mesma_proporcao_do_deepseek`.
+
+**Figura de custo trocou de eixo (decisão do Rafael, opção a).** Com tokens de
+saída no eixo x, o A2r (141) aparecia à esquerda do A4 (200), ou seja, "mais
+barato", porque a figura ignorava a entrada, onde está a gramática. O eixo
+agora é US$ por milhão de requisições (sem cache, fora de pico; A4 no cenário
++50%, o conservador). Os valores vêm de `run_custo.custo_figura`, via
+`export_figuras`. Coincidência anotada: A3 (7B sem adapter, 1.688 tokens) e A4
+(7B +50%, 1.124 tokens) caem ambos em US$ 506.
+
+GLM-5.2 a US$ 1,40 / 4,40 (cache 0,26), preço da SiliconFlow conferido por ela
+em 2026-06-25, igual ao padrão da Z.ai. Só entra na figura (A1g, A2g).
+
 ### Erros de diagnóstico que eu cometi — LEIA ANTES DE CAÇAR BUGS
 
 Estes são o padrão de risco mais importante do projeto: **sondas escritas sem
@@ -1764,3 +2107,38 @@ Não reconferi as citações do capítulo contra os originais (a conferência de
 17/08 cobriu o `.bib`), não mexi na estrutura argumentativa, e a decomposição
 "cerca de 600 da descrição e 268 da DSL" foi **removida** em vez de remedida,
 por não ser reproduzível com o script atual.
+
+### Regressão da Figura 1, e a lição sobre dependência de preâmbulo
+
+A primeira versão do diagrama do protocolo quebrou a compilação do Rafael, e
+**não só a própria figura**: o log dele mostra `Environment tikzpicture
+undefined` na `pipeline.tex` e, na sequência, `axis undefined` em *todas* as
+figuras pgfplots seguintes, com a `validade.tex` imprimindo as opções do
+`\begin{axis}` como texto corrido. O documento ainda gerava PDF, o que torna a
+falha pior: ela passa por quem só olha se compilou.
+
+**Causa.** A figura usava `positioning` (`right=of`, `node distance`), biblioteca
+que eu havia acrescentado ao `lib/preambulo.tex` no mesmo commit. Com o preâmbulo
+fora de sincronia (ou numa distribuição que não aceite a adição), `right=of` vira
+chave desconhecida **dentro de um `\resizebox`**, o `tikzpicture` não fecha, e o
+grupo aberto contamina todo o resto do documento. Daí a cascata: a falha não fica
+contida na figura que a causou.
+
+**Correção.** A figura foi reescrita com **coordenadas explícitas**, no mesmo
+estilo das figuras BPMN de `figuras/tikz/`, sem `positioning`, sem `fit`, sem
+`backgrounds`, sem `\resizebox` e sem `\foreach`. A largura cabe no texto por
+construção. O acréscimo ao preâmbulo foi **revertido**: o diff de
+`lib/preambulo.tex` voltou a conter apenas a correção `brazil` → `brazilian`.
+Dependência nova da figura: nenhuma além de `arrows.meta`, que as figuras BPMN
+já exercitavam no build do Rafael.
+
+**Lições, duas.**
+
+1. **Figura nova não deve exigir preâmbulo novo.** Se exigir, ela deixa de ser
+   uma figura e passa a ser uma mudança global, que falha na máquina de quem não
+   sincronizou tudo. Preferir o vocabulário TikZ que o documento já usa.
+2. **`rc=0` e "zero referência indefinida" não são verificação suficiente.** Eu
+   conferi as duas coisas e a figura renderizada, e ainda assim entreguei um
+   arquivo que quebra em outro ambiente. O que teria pego: contar `^! ` no log
+   (que agora está em zero) e compilar do zero apagando os auxiliares. Ambos
+   entram no procedimento daqui em diante.
