@@ -127,3 +127,5 @@ experiments/sft/adapter-*/
 # antes de terminá-lo e é a única fonte da curva de perda daquele braço — seu
 # `treino.json` foi gravado pela versão do script com o bug `[-8:]`.
 !experiments/sft/sft_*.log
+
+configs/prompts/private/

@@ -86,9 +86,11 @@ class ProcessEmitter:
     def new_id(self, prefix: str) -> str:
         return self.context.new_id(prefix)
 
-    def track_node(self, node_id: str) -> None:
-        if self.current_lane:
-            self.lane_members[self.current_lane].append(node_id)
+    def track_node(self, node_id: str, lane: str = "") -> None:
+        # `(lane="X")` no elemento vence a lane do bloco `@lane` que o envolve.
+        lane = lane or self.current_lane
+        if lane:
+            self.lane_members[lane].append(node_id)
 
     def _id_for(self, dsl_id: str, prefix: str) -> str:
         """Allocate (or reuse) the XML id for a node, keyed by its DSL id.
@@ -127,14 +129,14 @@ class ProcessEmitter:
         return node_id
 
     def add_node_element(
-        self, tag: str, name: str = "", dsl_id: str = ""
+        self, tag: str, name: str = "", dsl_id: str = "", lane: str = ""
     ) -> tuple[str, etree._Element]:
         prefix = tag[0].upper() + tag[1:]
         node_id = self._id_for(dsl_id, prefix)
         # Redeclaração do mesmo `#id`: o identificador É a identidade do nó, de
         # modo que a segunda ocorrência refere-se ao mesmo nó em vez de criar
         # outro. Emitir um segundo elemento com o id já usado produz `xs:ID`
-        # duplicado — XML que parseia, transpila e **não valida**, furando a
+        # duplicado XML que parseia, transpila e **não valida**, furando a
         # garantia de validade por construção.
         #
         # Não é forma exótica: modelos de linguagem repetem o texto completo do
@@ -152,7 +154,7 @@ class ProcessEmitter:
             self.register_name(name, node_id)
         el = etree.SubElement(self.process_el, _q(tag), attrs)
         self.emitted[node_id] = el
-        self.track_node(node_id)
+        self.track_node(node_id, lane)
         return node_id, el
 
     def add_flow(self, source_id: str, target_id: str, condition: str = "") -> str:
@@ -306,6 +308,7 @@ def _emit_seq(
 ) -> list[str]:
     exits = incoming
     first = True
+    last = None
     for step in (c for c in seq.children if isinstance(c, Tree)):
         next_exits = _emit_step(emitter, step)
         for source_id in exits:
@@ -314,6 +317,9 @@ def _emit_seq(
                 emitter.add_flow(source_id, target_id, condition)
         exits = next_exits.exit_ids
         first = False
+        last = step
+    if last is not None and last.data in {"end_event", "ref"}:
+        return []
     return exits
 
 
@@ -327,14 +333,14 @@ class StepResult:
 def _emit_step(emitter: ProcessEmitter, step: Tree) -> StepResult:
     if step.data == "task":
         tag, name, doc, dsl_id = _parse_task(step)
-        node_id, el = emitter.add_node_element(tag, name, dsl_id)
+        node_id, el = emitter.add_node_element(tag, name, dsl_id, _prop(step, "lane"))
         if doc:
             etree.SubElement(el, _q("documentation")).text = doc
         return StepResult([node_id], [node_id])
 
     if step.data in {"start_event", "end_event", "catch_event", "throw_event"}:
         tag, name, definition, dsl_id = _parse_event(step)
-        node_id, el = emitter.add_node_element(tag, name, dsl_id)
+        node_id, el = emitter.add_node_element(tag, name, dsl_id, _prop(step, "lane"))
         if definition:
             etree.SubElement(el, _q(definition))
         return StepResult([node_id], [node_id])
@@ -372,13 +378,10 @@ def _emit_gateway(emitter: ProcessEmitter, tree: Tree) -> StepResult:
     }[tree.data]
     name = _optional_name(tree)
     split_id = emitter.add_node(tag, name, _node_id_opt(tree))
-    join_id = emitter.add_node(tag, f"{name} merge" if name else "")
+    pending: list[tuple[str, str]] = []
 
     if tree.data == "and_gw":
         branches_root = _first_tree(tree, {"and_branches"})
-        # `empty_branch` precisa entrar junto com `flow`: filtrar só por "flow"
-        # descartava o branch vazio de um `and`, e o fork ficava com uma única
-        # saída — o paralelismo virava sequência silenciosamente.
         branch_trees = (
             [
                 child
@@ -404,13 +407,17 @@ def _emit_gateway(emitter: ProcessEmitter, tree: Tree) -> StepResult:
             condition = str(branch.children[0]).strip()
             branch_target = _first_tree(branch, {"flow", "empty_branch"})
         if branch_target is None or branch_target.data == "empty_branch":
-            emitter.add_flow(split_id, join_id, condition)
+            pending.append((split_id, condition))
             continue
 
         exits = _emit_seq(emitter, branch_target, [split_id], incoming_condition=condition)
-        for exit_id in exits:
-            emitter.add_flow(exit_id, join_id)
+        pending.extend((exit_id, "") for exit_id in exits)
 
+    if not pending:
+        return StepResult([split_id], [])
+    join_id = emitter.add_node(tag, f"{name} merge" if name else "")
+    for source_id, condition in pending:
+        emitter.add_flow(source_id, join_id, condition)
     return StepResult([split_id], [join_id])
 
 
@@ -427,12 +434,17 @@ def _parse_task(tree: Tree) -> tuple[str, str, str, str]:
         "receive": "receiveTask",
         "rule": "businessRuleTask",
     }.get(keyword, "task")
-    doc = ""
+    return tag, name, _prop(tree, "doc", "documentation"), _node_id_opt(tree)
+
+
+def _prop(tree: Tree, *keys: str) -> str:
+    """Valor da propriedade `(chave="valor")` do elemento, ou "" se ausente."""
+    value = ""
     for props in _children(tree, "props"):
         for prop in _children(props, "prop"):
-            if str(prop.children[0]) in {"doc", "documentation"}:
-                doc = unquote(prop.children[1])
-    return tag, name, doc, _node_id_opt(tree)
+            if str(prop.children[0]) in keys:
+                value = unquote(prop.children[1])
+    return value
 
 
 def _parse_event(tree: Tree) -> tuple[str, str, str, str]:
@@ -471,7 +483,7 @@ def _emit_lane_set_from_members(
     context: XmlContext,
 ) -> None:
     lane_set = etree.Element(_q("laneSet"), {"id": context.new_id("LaneSet")})
-    for lane_name in lane_names:
+    for lane_name in dict.fromkeys([*lane_names, *lane_members]):
         lane_el = etree.SubElement(
             lane_set,
             _q("lane"),

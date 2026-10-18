@@ -35,6 +35,7 @@ load_dotenv()
 
 OLLAMA_CLOUD_URL = "https://ollama.com/api/chat"
 OLLAMA_CLOUD_MAX_CONCURRENT = 3
+META_API_URL = "https://api.meta.ai/v1/chat/completions"
 
 
 class LLMError(RuntimeError):
@@ -115,6 +116,53 @@ def generate_ollama_cloud(
         # modelo: os braços de XML operam perto do teto de 8192 por desenho.
         return text.strip(), {"done_reason": data.get("done_reason")}
     return text.strip()
+
+
+def generate_meta(
+    user_prompt: str,
+    *,
+    api_key: str,
+    model: str,
+    system_prompt: str | None = None,
+    json_schema: dict | None = None,
+    temperature: float = 0.0,
+    seed: int | None = None,
+    timeout: int = 300,
+) -> tuple[str, dict]:
+    """Call Meta's chat completions API; return (content, meta).
+
+    Os modelos Muse Spark raciocinam antes de responder e cobram esses tokens como
+    saída; `meta` guarda o `usage` para o custo do juiz entrar na monografia.
+    Com `json_schema`, a resposta vem restrita ao esquema (structured output).
+    """
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+    payload: dict = {"model": model, "messages": messages, "temperature": temperature}
+    if seed is not None:
+        payload["seed"] = seed
+    if json_schema is not None:
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "answer", "strict": True, "schema": json_schema},
+        }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    data = _post_json(META_API_URL, payload, headers=headers, timeout=timeout)
+
+    choice = (data.get("choices") or [{}])[0]
+    text = (choice.get("message") or {}).get("content") or ""
+    if not text:
+        raise LLMError(f"Meta API returned no text: {data}")
+    meta = {
+        "finish_reason": choice.get("finish_reason"),
+        "model": data.get("model"),
+        "usage": data.get("usage", {}),
+    }
+    return text.strip(), meta
 
 
 T = TypeVar("T")
