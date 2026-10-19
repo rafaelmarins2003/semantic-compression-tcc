@@ -2261,3 +2261,87 @@ feita, entra nas limitações.
   elas de 0,72 a 0,79).
 - O motivo do viés para x,5 (decodificação restrita sobre o enum de decimais é a
   hipótese, não testada isoladamente).
+
+---
+
+## 2026-10-19 — Validação do juiz por perturbação controlada: pré-registro
+
+Sem garantia de avaliação humana, o juiz passa a ter uma segunda validação que não
+depende de pessoas: casos em que a resposta certa é conhecida **por construção**.
+Esta seção foi escrita **antes** de qualquer chamada ao juiz nesses casos, e o commit
+que a contém congela os critérios.
+
+### Desenho
+
+- **Base:** o gold primário dos 46 itens do PMo que sobram ao excluir os 7 com
+  texto vazado do PET (`pmo_20`, `pmo_49`–`pmo_54`).
+- **Casos** (`src/evaluation/perturb.py`, `run_perturbation.py`; tabela `perturbation_cases`):
+
+  | tipo | defeitos | itens | o que faz |
+  |---|---|---|---|
+  | `intact` | 0 | 46 | o gold, reserializado |
+  | `drop_task` | 1 | 46 | remove uma atividade e religa os vizinhos |
+  | `add_task` | 1 | 46 | insere uma atividade inventada, de rótulo ausente do texto |
+  | `swap_tasks` | 1 | 46 | troca os rótulos de duas atividades (ordem ou ramo errado) |
+  | `parallel_to_exclusive` | 1 | 41 | todo paralelismo vira escolha exclusiva |
+  | `swap_branches` | 1 | 26 | troca os destinos de dois ramos rotulados de uma decisão |
+  | `triple` | 3 | 46 | três operadores distintos, sorteados |
+  | `paraphrase` | 0 | 46 | todos os rótulos de atividade e evento reescritos com o mesmo sentido |
+
+  Total: 343 casos × 3 repetições = 1.029 chamadas (estimativa ~US$ 1,20).
+- Todos os casos, inclusive o intacto, passam pela mesma serialização. Ela preserva
+  a renderização do gold nos 46 itens; os fluxos de mensagem (2 golds) ficam de fora
+  igualmente para todos.
+- Os mutantes são determinísticos (semente = id do caso). Um mutante que não muda
+  a renderização (ex.: trocar duas tarefas simétricas em ramos paralelos) não conta
+  como defeito e é descartado.
+- **Paráfrase:** `kimi-k2.6:cloud` via Ollama Cloud, de família diferente da do
+  juiz, com o prompt `configs/prompts/perturbation/paraphrase.md`. O mapeamento
+  fica gravado em `detail` para auditoria.
+- **Juiz:** o da tentativa 2 (`prompt_sha` `dd5177218c54…`), com 3 repetições e a
+  mediana por caso.
+
+### Critérios (em `run_perturbation_analysis.py`)
+
+Δ = nota do caso − nota do gold intacto do mesmo item.
+
+| | critério | limiar |
+|---|---|---|
+| C1 sensibilidade | concordância intacto × mutante de 1 defeito: P(intacto > mutante) + 0,5·P(empate) | ≥ 0,80 |
+| C2 gradação | Spearman entre o nº de defeitos (0, 1, 3) e Δ | ≤ −0,5 |
+| C3 invariância | proporção de itens com \|Δ da paráfrase\| ≤ 1 ponto (20% da escala) | ≥ 0,80 |
+
+O juiz passa nesta validação se C1, C2 e C3 passarem. Duas escolhas foram feitas
+antes de ver qualquer nota do juiz, e o motivo de cada uma:
+- **Empate conta meio ponto em C1.** Com a nota inteira, um defeito leve num gold
+  que já recebe 3 pode não mover a nota. Contar empate como falha puniria a escala,
+  e não o juiz.
+- **C2 sobre Δ, dentro do item, e não sobre a nota bruta.** Os itens têm dificuldade
+  diferente, e a correlação entre itens diluiria o efeito do defeito.
+
+**O DF-F1 recebe o mesmo cálculo, como comparação.** C1 e C2 o favorecem por
+construção, porque a referência dele é o próprio gold mutado. Os testes de mecânica
+(paráfrase falsa, sem o juiz) já mostram duas coisas que valem registrar antes do
+resultado:
+- `parallel_to_exclusive` e `swap_branches` dão concordância 0,5 no DF-F1. Ele não
+  vê esses defeitos, porque pula os gateways e trata os pares direct-follows como
+  conjunto.
+- Em 3 golds com paráfrase **real**, o DF-F1 foi de 1,0 para 0,0: mesmo processo,
+  outras palavras.
+
+### O que esta validação não prova
+
+Que o juiz concorda com o julgamento holístico de uma pessoa. Ela mostra se ele
+reage aos defeitos que importam e ignora os que não importam (validade de
+construto). A concordância com humanos continua como teste pendente; ver a seção
+anterior.
+
+### Não verificado
+
+- Que cada paráfrase preserva o sentido. Ela é feita por um LLM. As 3 conferidas à
+  mão preservam (ex.: "Collect resumes" → "Gather CVs"), mas algumas reescritas são
+  agressivas ("Place stock on shelves" → "Arrange products on display"). Se o
+  juiz falhar em C3, a primeira coisa a fazer é ler os mapeamentos dos itens que
+  falharam.
+- A gravidade relativa dos operadores não foi calibrada. `add_task` com uma etapa
+  administrativa é, de propósito, um defeito leve.
