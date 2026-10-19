@@ -60,6 +60,11 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - executar braço: uv run python -m src.evaluation.run_benchmark --arm A2 --execute
 - repontuar sem gerar: uv run python -m src.evaluation.run_benchmark --arm A2 --rescore
 - análise estatística: uv run python -m src.evaluation.run_analysis
+- juiz de fidelidade no Zenodo (validação): uv run python -m src.evaluation.run_judge --zenodo [--execute] [--workers 8]
+- análise da validação no Zenodo: uv run python -m src.evaluation.run_judge_validation [--prompt-sha SHA]
+- casos de perturbação: uv run python -m src.evaluation.run_perturbation --build [--execute]
+- juiz nos casos de perturbação: uv run python -m src.evaluation.run_perturbation --judge [--execute] [--workers 8]
+- análise da perturbação: uv run python -m src.evaluation.run_perturbation_analysis [--prompt-sha SHA]
 - tabelas complementares (condicional, MF-F1, teto): uv run python -m src.evaluation.run_tabelas
 - custo por requisição (preço de API, com/sem cache): uv run --with transformers python -m src.evaluation.run_custo
 - regerar dados das figuras: uv run --with transformers python -m src.evaluation.export_figuras

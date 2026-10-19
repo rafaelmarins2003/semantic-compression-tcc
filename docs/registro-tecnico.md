@@ -2345,3 +2345,22 @@ anterior.
   falharam.
 - A gravidade relativa dos operadores não foi calibrada. `add_task` com uma etapa
   administrativa é, de propósito, um defeito leve.
+
+### Nota (2026-10-19, antes de gerar qualquer paráfrase): o parafraseador passa a ser o GLM 5.3
+
+Na primeira execução do `--build`, o Kimi respondeu com o raciocínio em voz alta e só
+no fim o JSON, e as 46 paráfrases falharam no parse. Duas mudanças, as duas antes de
+qualquer paráfrase ser gravada (`perturbation_cases` vazia) e de qualquer chamada ao
+juiz nos casos:
+
+- O parse passou a extrair o último objeto JSON da resposta (`last_json_object`, com teste).
+- O Rafael trocou o modelo para `glm-5.3:cloud`, que também é de família diferente
+  da do juiz.
+
+**Isso muda a força do teste C3.** O GLM reescreve de forma mais leve: em geral troca
+só o verbo ("Collect resumes" → "Gather resumes"), enquanto o Kimi trocava quase
+todas as palavras ("Gather CVs"). Uma paráfrase leve é mais fácil de ignorar, tanto
+para o juiz quanto para o DF-F1: "Start onboarding process" ainda casa com "Begin
+onboarding process" no alinhamento do DF-F1 (Jaccard 0,5). O resultado de C3 precisa
+ser reportado junto com essa intensidade; não é comparável ao 1,0 → 0,0 visto com o
+Kimi nos 3 golds de teste.

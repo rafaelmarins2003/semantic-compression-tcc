@@ -18,6 +18,7 @@ C1 e C2 o favorecem por construção: a referência dele é o próprio gold muta
 from __future__ import annotations
 
 import argparse
+import json
 import statistics
 from collections import defaultdict
 
@@ -26,6 +27,7 @@ from scipy.stats import spearmanr
 from src.data.db import Database
 from src.evaluation.judge import prompt_sha
 from src.evaluation.run_benchmark import references, score_candidate
+from src.evaluation.topology import LABEL_MATCH_THRESHOLD, _jaccard, _tokens
 
 C1_MIN, C2_MAX, C3_MIN, C3_TOL = 0.80, -0.5, 0.80, 0.20
 SCALES = {"judge": 5.0, "df_f1": 1.0}
@@ -94,6 +96,26 @@ def analyze(casos: list[dict], medida: str) -> dict:
     }
 
 
+def paraphrase_intensity(db: Database) -> dict:
+    """Quanto as paráfrases mudam os rótulos, na tokenização do próprio DF-F1.
+
+    C3 só tem sentido junto com isto: paráfrase leve é fácil de ignorar.
+    """
+    pares = [
+        (orig, novo)
+        for (detail,) in db.query("SELECT detail FROM perturbation_cases WHERE kind = 'paraphrase'")
+        for orig, novo in json.loads(detail)["mapping"].items()
+    ]
+    if not pares:
+        return {}
+    sims = [_jaccard(_tokens(a), _tokens(b)) for a, b in pares]
+    return {
+        "rotulos": len(pares),
+        "jaccard_medio": round(statistics.mean(sims), 3),
+        "ainda_casam_no_df_f1": round(sum(s >= LABEL_MATCH_THRESHOLD for s in sims) / len(sims), 3),
+    }
+
+
 def _media(xs: list[float]) -> float | None:
     return round(statistics.mean(xs), 3) if xs else None
 
@@ -104,9 +126,11 @@ def main() -> None:
     sha = p.parse_args().prompt_sha or prompt_sha()
     with Database(read_only=True) as db:
         casos = load(db, sha)
+        intensidade = paraphrase_intensity(db)
     sem_nota = sum(c["judge"] is None for c in casos)
     print(f"prompt_sha={sha[:12]}  casos={len(casos)}  sem nota do juiz={sem_nota}")
     print(f"critérios: C1 >= {C1_MIN}, C2 <= {C2_MAX}, C3 >= {C3_MIN} (tolerância {C3_TOL:.0%})")
+    print(f"intensidade da paráfrase: {intensidade}")
     for medida in ("judge", "df_f1"):
         print(f"[{medida}]")
         for chave, valor in analyze(casos, medida).items():

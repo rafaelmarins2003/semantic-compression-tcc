@@ -70,3 +70,13 @@ def test_mutant_cases_never_include_a_no_op():
     assert casos[0]["kind"] == "intact"
     assert all(render(c["xml"]) != intacto for c in casos[1:])
     assert {c["kind"] for c in casos} >= {"drop_task", "add_task", "triple"}
+
+
+def test_paraphrase_json_is_found_after_reasoning():
+    from src.evaluation.run_perturbation import last_json_object
+
+    texto = (
+        'Let me think. "Place order" {maybe} -> ...\n```json\n{"Place order": "Submit order"}\n```'
+    )
+    assert last_json_object(texto) == {"Place order": "Submit order"}
+    assert last_json_object('{"a": "b"}') == {"a": "b"}

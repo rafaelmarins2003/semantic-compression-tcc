@@ -26,7 +26,6 @@ from src.data.migrations.create_perturbation_cases import ensure_schema
 from src.evaluation import perturb as pt
 from src.evaluation.judge import prompt_sha
 from src.evaluation.render import render
-from src.evaluation.run_benchmark import strip_fence
 from src.evaluation.run_judge import execute, pending
 
 # Texto do PET no holdout (auditoria de 2026-10-14, P2): fora de toda avaliação.
@@ -74,12 +73,32 @@ def mutant_cases(sid: str, gold_xml: str, description: str) -> list[dict]:
     return casos
 
 
+def last_json_object(texto: str) -> dict:
+    """Último objeto JSON do texto.
+
+    O Kimi às vezes raciocina em voz alta na resposta, mesmo com `think=False`, e só
+    no fim entrega o JSON (em cerca ```json ou não). Isso apareceu na primeira
+    execução real (2026-10-19), não no teste da véspera.
+    """
+    decoder = json.JSONDecoder()
+    for i in range(len(texto) - 1, -1, -1):
+        if texto[i] != "{":
+            continue
+        try:
+            obj, _ = decoder.raw_decode(texto, i)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    raise ValueError(f"sem objeto JSON na resposta: {texto[:120]!r}")
+
+
 def paraphrase_case(sid: str, gold_xml: str, api_key: str) -> dict:
     base = pt.graph(gold_xml)
     rotulos = pt.labels(base)
     pedido = load_prompt("perturbation/paraphrase.md").replace("{labels}", json.dumps(rotulos))
     texto = generate_ollama_cloud(pedido, api_key=api_key, model=PARAPHRASE_MODEL, temperature=0)
-    mapa = json.loads(strip_fence(texto))
+    mapa = last_json_object(texto)
     faltam = [r for r in rotulos if not str(mapa.get(r, "")).strip()]
     if faltam:
         raise ValueError(f"{sid}: paráfrase sem {len(faltam)} rótulo(s), ex. {faltam[0]!r}")
