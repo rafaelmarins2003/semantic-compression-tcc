@@ -2142,3 +2142,122 @@ já exercitavam no build do Rafael.
    arquivo que quebra em outro ambiente. O que teria pego: contar `^! ` no log
    (que agora está em zero) e compilar do zero apagando os auxiliares. Ambos
    entram no procedimento daqui em diante.
+
+---
+
+## 2026-10-18/19 — Juiz de fidelidade (P1): a tentativa 1 não passou no critério pré-registrado
+
+Contexto: a auditoria de 2026-10-14 (`configs/prompts/private/auditoria-avaliacao-2026-10-14.md`,
+fora do git) mostrou que o DF-F1 não correlaciona com a nota de especialista do
+Zenodo (ρ = 0,04). A P1 troca a medida primária de fidelidade por um juiz LLM,
+**validado antes de ser usado**.
+
+### Dois bugs do transpilador, corrigidos antes do juiz
+
+| | bug | efeito medido |
+|---|---|---|
+| P9 | ramo terminado em `end` ou em `#ref` era ligado ao merge, gerando fluxo **saindo de evento de fim**; o merge agora é criado só quando algum ramo chega nele | DF-F1: A2 0,1375 → 0,1398; A2r → 0,1852; A4 0,1114 → 0,1116. Validade XSD inalterada em todos os braços |
+| P10 | `(lane="X")` no elemento era ignorado, e `@lane` repetido gerava duas `<lane>` com o mesmo nome e os mesmos membros | lane correta (tarefas e eventos contra o JSON canônico): **79,3% → 99,7%**; amostras com lane duplicada 293 → 3 (as 3 são DSL com dois processos, cada um com sua lane set: correto). Só o A4 usa `lane=` (72 de 159 saídas). Nenhuma métrica atual muda, porque DF-F1 e XSD não olham lanes |
+
+Testes: `tests/transpiler/test_branch_terminator.py`, `tests/transpiler/test_lane_override.py`
+(os dois de lane falham no código antigo). Todos os braços de DSL foram retranspilados
+(`--retranspile`, determinístico, sem regerar nada). O corpus foi regenerado como
+`dsl_to_xml_v6_en` e materializado: 1021/1021 válidos no XSD. Na `v5`, 657 amostras
+tinham fluxo saindo de evento de fim. Uma amostra mantém `end -> ...` porque isso
+vem do JSON de origem, não do transpilador.
+
+O eixo 2 (`df_exact`) não pegou a P10 porque compara só a topologia de atividades
+e eventos, que não inclui lanes.
+
+### O juiz
+
+- Renderização neutra: `src/evaluation/render.py`. Apaga as convenções de origem
+  (ids, ordem do documento, subtipo de tarefa, nomes de merge, nomes padrão de
+  evento, `documentation`, gateways de passagem), para que o juiz não saiba de que
+  braço veio o modelo. A mesma entrada vale para o Zenodo e para o benchmark.
+- Modelo `muse-spark-1.3-contributor`, pela API da Meta (`generate_meta` em `clients.py`).
+- Rubrica (`configs/prompts/judge/`) com o critério que Mangler e Klievtsova (2023)
+  descrevem para as notas do Zenodo: tarefas e decisões do texto presentes,
+  paralelismo identificado, ordem e boa formação. Atores não entram na nota.
+  Problemas listados antes da nota, para auditoria.
+
+**Fonte verificada nesta sessão** (registro do Zenodo, doi 10.5281/zenodo.7783492):
+os 8 a 11 modelos por processo foram feitos por **modeladores novatos** e avaliados
+por **um** especialista. Isso responde ao item 1 de "Não verificado" da seção de
+2026-08-16: as alternativas não são modelos independentes de especialistas, e o
+"teto humano" precisa ser descrito assim.
+
+### Pré-registro e execução da tentativa 1
+
+- Commit `4c1b12a` (2026-10-18 17:00 -03) congelou os prompts
+  (`prompt_sha` `6d08d6e7ebee240f09b34c72256b7e6901303c81bce47ec644a8a7242c834d36`)
+  e o critério, que está em `run_judge_validation.py` (`THRESHOLD = 0.5`): adotar
+  o juiz se o Spearman entre a nota dele (mediana de 3 repetições) e a do
+  especialista for ρ ≥ 0,5 nos 222 modelos com nota.
+- Execução: 17:13 a 20:34 (-03), **depois** do commit. 666 chamadas, 0 falhas,
+  todas com `finish_reason = stop`. Tokens: 1,02 M de entrada e 3,31 M de saída
+  (3,15 M de raciocínio). Custo: **US$ 0,76** (US$ 0,10 e US$ 0,20 por milhão).
+
+| | valor |
+|---|---|
+| ρ juiz × especialista | **0,133**, IC95 [0,005; 0,263] (bootstrap agrupado por processo) |
+| ρ médio dentro do processo | 0,143 (22 processos) |
+| ρ entre repetições do juiz | 0,794 / 0,737 / 0,718 |
+| modelos com amplitude ≤ 0,5 entre repetições | 71,2% |
+| erro absoluto médio | 1,66 |
+| média de nota | juiz 2,84, especialista 4,26 |
+
+**Desfecho: o juiz não é adotado.** O IC exclui 0,5 com folga.
+
+### Diagnóstico (para entender o erro, não para ajustar a rubrica)
+
+1. **Defeito de escala, meu.** A nota era restrita por JSON schema a um enum de
+   decimais (0, 0,5, …, 5). O juiz respondeu quase só x,5: das 666 notas, 434 são
+   2,5, 145 são 3,5, 35 são 4,5, 32 são 1,5 e 20 são 5,0. Nenhuma nota inteira
+   abaixo de 5. Na prática, uma escala de 11 níveis virou 5 degraus deslocados,
+   concentrados no do meio.
+2. **A referência é leniente e, em casos verificáveis, erra.** A renderização foi
+   conferida contra o XML original e está fiel. Dois casos:
+   - `E_j01/0`: especialista 5, juiz 2,5. O join paralelo espera um token que nunca
+     chega quando o fluxo volta pelos ramos "no" (deadlock), e "emprego não
+     efetivado" encerra o processo, quando o texto manda continuar. As duas
+     críticas do juiz se confirmam no modelo.
+   - `V_k09/5`: especialista 1,0, juiz 5,0 nas 3 repetições. Comparado ao `V_k09/0`
+     (especialista 4,5), o modelo 5 é o mais fiel ao texto: gateway de evento com
+     timer de 10 dias para a multa, registro só na chegada do produto. O modelo 0
+     manda o item em estoque pela checagem de chegada e tem um loop sem condição.
+
+   Além disso, 48% das notas são 5, há um só avaliador e não há medida de
+   concordância. **Cautela:** são dois casos escolhidos ao olhar as divergências.
+   Isso mostra que a referência é questionável, mas não prova que o juiz está
+   certo no agregado.
+
+### Tentativa 2: só a escala muda
+
+- `SCORES` passa a ser os inteiros de 0 a 5 (`"type": "integer"`), um por âncora
+  da rubrica. No prompt, duas frases mudam: "a whole number from 0 to 5" e
+  "choose the closer one" (no lugar dos meios-pontos). **A rubrica não foi
+  afrouxada**: fazer o juiz imitar a leniência do especialista seria ajustá-lo à
+  referência, o mesmo erro da P3.
+- Novo `prompt_sha`: `dd5177218c54910f330ce65d434497743f9347a9f956d221fd5526477056c4e8`.
+- Checagem de mecânica **só em dados de treino** (4 amostras do PET, intacta e com
+  metade das tarefas removida, 1 chamada cada): o juiz usou 1, 2, 3 e 4, e a versão
+  intacta ficou acima da mutilada nos 4 casos. Nenhum modelo do Zenodo foi visto.
+- Critério da tentativa 2: **o mesmo**, ρ ≥ 0,5 nos 222 modelos. Se passar, as duas
+  tentativas são reportadas juntas, com o defeito de escala explicado.
+
+### Avaliação humana cega: pendente, sem garantia de execução
+
+A validação mais forte seria o Rafael e mais uma pessoa avaliarem, às cegas e com a
+mesma rubrica, uma amostra estratificada (~40 modelos do Zenodo, com as maiores
+divergências), medindo as concordâncias humano × humano, humanos × juiz e humanos
+× especialista. O Rafael não pode garantir tempo nem um segundo avaliador. Fica
+registrada como o teste que resolveria a dúvida sobre a referência; se não for
+feita, entra nas limitações.
+
+### Não verificado
+
+- Se a API respeita `seed`: o juiz raciocina, e as repetições divergem (ρ entre
+  elas de 0,72 a 0,79).
+- O motivo do viés para x,5 (decodificação restrita sobre o enum de decimais é a
+  hipótese, não testada isoladamente).

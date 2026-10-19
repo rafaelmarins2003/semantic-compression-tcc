@@ -7,7 +7,7 @@ from src.evaluation import judge as jz
 from src.transpiler.xml import transpile
 
 DSL = 'process "P" { start -> task "Check order" -> end "Done" }'
-OK = {"problems": {c: [] for c in jz.CRITERIA}, "score": 4.5}
+OK = {"problems": {c: [] for c in jz.CRITERIA}, "score": 4}
 
 
 def test_user_prompt_shows_rendering_not_xml():
@@ -18,14 +18,14 @@ def test_user_prompt_shows_rendering_not_xml():
 
 
 def test_valid_verdict_is_accepted():
-    assert jz.parse_verdict(json.dumps(OK))["score"] == 4.5
+    assert jz.parse_verdict(json.dumps(OK))["score"] == 4
 
 
 @pytest.mark.parametrize(
     "resposta",
     [
         "not json",
-        json.dumps({**OK, "score": 4.2}),
+        json.dumps({**OK, "score": 4.5}),
         json.dumps({**OK, "score": 6}),
         json.dumps({**OK, "problems": {"tasks": []}}),
     ],
@@ -43,6 +43,6 @@ def test_judge_records_prompt_hash_and_usage(monkeypatch):
 
     monkeypatch.setattr(jz, "generate_meta", falso)
     resultado = jz.judge("Orders are checked.", transpile(DSL), api_key="k")
-    assert resultado["score"] == 4.5
+    assert resultado["score"] == 4
     assert resultado["usage"]["completion_tokens"] == 9
     assert len(resultado["prompt_sha"]) == 64

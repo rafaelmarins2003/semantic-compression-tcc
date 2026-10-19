@@ -21,7 +21,10 @@ from src.evaluation.render import render
 JUDGE_MODEL = "muse-spark-1.3-contributor"
 SYSTEM_PROMPT = "judge/fidelity_system.md"
 USER_PROMPT = "judge/fidelity_user.md"
-SCORES = [i / 2 for i in range(11)]
+# Inteiros, um por âncora da rubrica. A tentativa 1 usava passos de 0,5 como enum
+# de decimais, e o juiz respondeu quase só x,5 (434 de 666 notas em 2,5): a escala
+# virou 5 degraus deslocados, e não 11. Ver registro-tecnico, 2026-10-19.
+SCORES = list(range(6))
 CRITERIA = ["tasks", "decisions", "parallelism", "order_and_flow", "well_formedness"]
 
 # Problemas antes da nota: o juiz justifica primeiro e pontua depois.
@@ -34,7 +37,7 @@ SCHEMA = {
             "required": CRITERIA,
             "additionalProperties": False,
         },
-        "score": {"type": "number", "enum": SCORES},
+        "score": {"type": "integer", "enum": SCORES},
     },
     "required": ["problems", "score"],
     "additionalProperties": False,

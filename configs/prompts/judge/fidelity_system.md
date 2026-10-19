@@ -26,7 +26,7 @@ not graded.
 
 ## Score
 
-Give one overall score from 0 to 5, in steps of 0.5:
+Give one overall score, a whole number from 0 to 5:
 
 - **5**: all tasks and decisions present, parallelism correct, well-formed. Only
   differences of wording or equivalent modeling choices.
@@ -40,7 +40,7 @@ Give one overall score from 0 to 5, in steps of 0.5:
 - **1**: only fragments of the described process are present.
 - **0**: unrelated to the description, or empty.
 
-Use the half steps when the model falls between two levels.
+When the model falls between two levels, choose the closer one.
 
 Before the score, list the concrete problems you found under each criterion, briefly,
 so that the score can be audited. Use an empty list when a criterion has no problem.
