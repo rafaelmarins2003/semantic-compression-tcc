@@ -1,0 +1,29 @@
+% Comparação qualitativa em pmo_52 — o item escolhido pela regra declarada na
+% legenda, não por pontuação. Os dois modelos descrevem o mesmo processo; o
+% DF-F1 do candidato é 0,000 porque a referência nomeia atividades como frases
+% em terceira pessoa e o candidato usa forma imperativa, conforme instruído.
+% Diagramas gerados por `src.evaluation.bpmn_tikz` a partir do BPMNDI real.
+\begin{figure}[htb]
+	\Caption{\label{fig:qualitativa} Divergência de nomenclatura sem divergência de estrutura (\textit{pmo\_52})}
+	\centering
+
+	\vspace{0.2em}
+	{\small\textbf{(a) Referência de especialista}}\\[0.3em]
+	\resizebox{\textwidth}{!}{\input{figuras/tikz/pmo_52_gold}}
+
+	\vspace{1.4em}
+	{\small\textbf{(b) Braço A4 --- modelo de 7B com ajuste fino \quad DF-F1 $= 0{,}000$}}\\[0.3em]
+	\resizebox{\textwidth}{!}{\input{figuras/tikz/pmo_52_A4}}
+
+	\Fonte{Elaborado pelo autor}
+	\Nota{Item selecionado pela regra, declarada antes da inspeção, de \textbf{menor
+	número de nós na referência entre os itens em que o braço A4 produziu saída
+	válida} --- critério de legibilidade, independente de pontuação. Os diagramas
+	usam a topologia e o leiaute automáticos do próprio \textit{pipeline}; apenas
+	o espaçamento vertical foi ampliado, porque os rótulos da referência ocupam
+	quatro a cinco linhas e estouram a altura reservada ao nó pelo leiaute.
+	A referência escreve \textit{MPOO confirmes the dismissal}; o candidato,
+	\textit{Confirm Dismissal}. A sobreposição de \textit{tokens} normalizados fica
+	abaixo do limiar de casamento, e a aresta correspondente é contabilizada como
+	erro estrutural.}
+\end{figure}

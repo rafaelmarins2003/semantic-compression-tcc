@@ -1,0 +1,142 @@
+\chapter{Metodologia}\label{cap:metodologia}
+
+\section{Visão geral}\label{sec:visao-geral}
+
+Neste trabalho, o modelo de linguagem não escreve o XML do BPMN 2.0 diretamente. Ele gera uma representação compacta do processo, a BPMN-DSL, e um programa determinístico, o transpilador, expande essa representação para o XML completo. O experimento compara essa estratégia com a geração direta de XML e verifica se um modelo de pequeno porte, especializado na DSL, alcança os resultados de modelos de grande porte com uma fração do uso de tokens e do custo.
+
+O trabalho tem duas fases, resumidas na Figura~\ref{fig:pipeline}. Na construção do corpus, descrições textuais de processos, a maior parte extraída do \textit{handbook} público da GitLab, são padronizadas e depois convertidas em um JSON que descreve o processo, em duas chamadas a um modelo de grande porte. Um conversor determinístico transforma esse JSON na DSL, e o transpilador gera o XML correspondente (Seção~\ref{sec:dados}). Os pares formados pelo texto original e pela DSL treinam o modelo pequeno. Trata-se de uma destilação: o modelo pequeno aprende a partir dos dados que os modelos grandes produziram (Seção~\ref{sec:sft}). Na avaliação, cada braço experimental recebe o texto de um processo do conjunto de teste e gera XML ou DSL. A DSL passa pelo transpilador, e todas as saídas são medidas da mesma forma (Seções~\ref{sec:bracos} e~\ref{sec:medidas}).
+
+\input{figuras/pipeline}
+
+A divisão de responsabilidades entre as partes define o que precisa ser medido. O transpilador garante que toda DSL sintaticamente correta produza um XML válido segundo o esquema oficial do BPMN 2.0, o que foi verificado nas 1.021 amostras do corpus (Seção~\ref{sec:transpilacao}). O modelo continua responsável pela sintaxe da DSL e pelo conteúdo do processo, dado esse fato, existe chance de erro de conteúdo e de sintaxe. Por isso a validade e a fidelidade são medidas separadamente.
+
+\section{Dados}\label{sec:dados}
+
+\subsection{Fontes}
+
+Não existe um conjunto público, em escala e confiável, que associe descrições textuais de processos a modelos BPMN. Dado esse fato, somente o lado da entrada foi coletado e o lado da saída foi gerado pelo processo descrito na Seção~\ref{sec:visao-geral}. A Tabela~\ref{tab:fontes} resume as fontes e o uso de cada uma.
+
+\begin{table}[htb]
+	\Caption{\label{tab:fontes} Fontes de dados e uso no trabalho}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrl}
+			\toprule
+			Fonte & Itens & Uso \\
+			\midrule \midrule
+			\textit{Handbook} da GitLab, seções com decisões ou atores & 728 & treino \\
+			\textit{Handbook} da GitLab, seções lineares & 172 & só verificação do transpilador \\
+			PET \cite{bellan2022pet} & 44 & treino \\
+			PMo \cite{brissard2025pmo} & 53 & avaliação ($n = 46$, ver Seção~\ref{subsec:contaminacao}) \\
+			Zenodo \cite{mangler2023textual} & 24 & validação da medida de fidelidade \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+}
+\end{table}
+
+A principal fonte de volume foi o \textit{handbook} público da GitLab que é um manual operacional aberto com milhares de páginas. As páginas foram coletadas e divididas em seções, e cada seção recebeu uma pontuação procedural baseada na presença de passos numerados, decisões e atores. Foram mantidas as seções com passos e com decisões ou atores, que descrevem processos com alguma estrutura além de uma lista. As seções lineares, só com passos, foram separadas e não entram nos experimentos. O PET \cite{bellan2022pet} também entra no treino com 44 descrições de processos de outros domínios.
+
+O conjunto de teste é o PMo \cite{brissard2025pmo}, que reúne 53 descrições de processos de fontes distintas, cada uma acompanhada de um modelo BPMN de referência. O Zenodo \cite{mangler2023textual} traz 24 descrições, as mesmas de 24 itens do PMo, cada uma com 8 a 11 modelos feitos por modeladores iniciantes e avaliados por um especialista com uma nota de 0 a 5. Essas notas são usadas na validação da medida de fidelidade (Seção~\ref{sec:medidas}).
+
+\subsection{Geração dos pares de treino}
+
+Cada descrição de treino passa por duas chamadas a um modelo de grande porte, o GLM~5.2. A primeira padroniza o texto: reorganiza a descrição em atores, passos, decisões e atividades paralelas, sem acrescentar informação. A segunda converte o texto padronizado em um JSON com os elementos, os fluxos e as raias do processo. Quando o GLM~5.2 falhou na segunda etapa, o Kimi~K2.6 foi usado, o que ocorreu em 32 das 1.021 amostras. O GLM~5.2 foi escolhido em um piloto com 50 amostras de treino, no qual teve a maior taxa de JSON aproveitável e o menor número de falhas entre três configurações. A diferença para o segundo colocado, no entanto, ficou dentro da variação observada entre repetições.
+
+O JSON é convertido em DSL por um programa determinístico, e a DSL é transpilada para XML. Para o treino, só foram mantidos os pares em que o XML reconstrói exatamente a topologia do JSON de origem, critério atendido por 768 das 772 amostras de treino. Os pares de treino são formados pelo texto original e pela DSL. O texto padronizado serve apenas para gerar os dados e não é visto pelo modelo pequeno. Todos os rótulos dos artefatos gerados estão em inglês, a língua dos textos de origem e do conjunto de teste.
+
+\subsection{Partições e prevenção de contaminação}\label{subsec:contaminacao}
+
+Os 768 pares foram divididos em treino (690) e validação (78). A divisão é feita por documento de origem, de modo que seções da mesma página do \textit{handbook} ficam sempre do mesmo lado. Como as seções de uma página compartilham redação e vocabulário, uma divisão aleatória colocaria seções quase iguais dos dois lados, e a perda de validação mediria memorização, e não generalização.
+
+Os conjuntos de avaliação, PMo e Zenodo, por também terem modelos BPMN de referência já em suas fontes, foram escolhidos para o conjunto de testes, e nunca entram no treino. Porém, uma verificação posterior mostrou que 7 dos 53 itens do PMo têm como texto descrições que também fazem parte do PET: seis vêm do subconjunto PET-7 incorporado ao PMo, e um sétimo coincide com um documento do PET. Como o PET está no treino, esses 7 itens foram excluídos da avaliação, que passa a ter 46 itens.
+
+Para verificar se havia outras sobreposições, cada texto de avaliação foi comparado com os 944 textos da partição de treino por sequências de oito palavras consecutivas, após normalização de caixa e pontuação. Os 7 itens excluídos compartilham entre 87\% e 100\% dessas sequências com um documento do PET. Nenhum dos outros 70 textos de avaliação (46 do PMo e 24 do Zenodo) compartilha sequência alguma. Com sequências de cinco palavras, a maior sobreposição entre eles é de cerca de 2\%, formada por expressões comuns da língua, como ``if you do not have'' e ``at the end of the''.
+
+Uma limitação desta composição é que 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, de uma única empresa e com estilo próprio, enquanto o teste é feito sobre processos de outros domínios. Isso é discutido na Seção~\ref{sec:ameacas}.
+\section{A BPMN-DSL}\label{sec:dsl}
+
+A BPMN-DSL é a representação intermediária, criada de forma autoral, para este trabalho. Existem outras representações textuais de processos, comparadas por \citeonline{brissard2025pmr}, mas o foco aqui é específico: uma notação que um modelo de linguagem consiga gerar da esquerda para a direita, com poucos \textit{tokens}, e que tenha uma tradução determinística e completa para BPMN 2.0 XML.
+
+O Código~\ref{lst:dsl} mostra um processo com uma decisão e uma repetição usando o BPMN-DSL, e o Código~\ref{lst:xml} mostra o XML que o transpilador gera a partir dele. A DSL tem 286 caracteres e o XML, 1.833.
+
+\begin{lstlisting}[float=p,caption={Processo com decisão e repetição na BPMN-DSL},label={lst:dsl}]
+process "Order Processing with Retry" {
+  start
+  -> service "Fetch data" #fetch
+  -> service "Validate"
+  -> xor "Valid?" {
+    [yes] -> service "Process" -> end
+    [no]  -> xor "Retry?" {
+               [yes] -> #fetch
+               [no]  -> end:error "Invalid"
+             }
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[float=p,caption={XML gerado pelo transpilador a partir do Código~\ref{lst:dsl}},label={lst:xml},basicstyle=\ttfamily\scriptsize]
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" ...>
+  <process id="Process_Order_Processing_with_Retry" name="Order Processing with Retry">
+    <startEvent id="StartEvent_1" name="start"/>
+    <serviceTask id="ServiceTask_1" name="Fetch data"/>
+    <sequenceFlow id="SequenceFlow_1" sourceRef="StartEvent_1" targetRef="ServiceTask_1"/>
+    <serviceTask id="ServiceTask_2" name="Validate"/>
+    <sequenceFlow id="SequenceFlow_2" sourceRef="ServiceTask_1" targetRef="ServiceTask_2"/>
+    <exclusiveGateway id="ExclusiveGateway_1" name="Valid?"/>
+    <serviceTask id="ServiceTask_3" name="Process"/>
+    <sequenceFlow id="SequenceFlow_3" sourceRef="ExclusiveGateway_1" targetRef="ServiceTask_3">
+      <conditionExpression>yes</conditionExpression>
+    </sequenceFlow>
+    <endEvent id="EndEvent_1" name="end"/>
+    <sequenceFlow id="SequenceFlow_4" sourceRef="ServiceTask_3" targetRef="EndEvent_1"/>
+    <exclusiveGateway id="ExclusiveGateway_2" name="Retry?"/>
+    <sequenceFlow id="SequenceFlow_5" sourceRef="ExclusiveGateway_2" targetRef="ServiceTask_1">
+      <conditionExpression>yes</conditionExpression>
+    </sequenceFlow>
+    <endEvent id="EndEvent_2" name="Invalid">
+      <errorEventDefinition/>
+    </endEvent>
+    <sequenceFlow id="SequenceFlow_6" sourceRef="ExclusiveGateway_2" targetRef="EndEvent_2">
+      <conditionExpression>no</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="SequenceFlow_7" sourceRef="ExclusiveGateway_1" targetRef="ExclusiveGateway_2">
+      <conditionExpression>no</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="SequenceFlow_8" sourceRef="ServiceTask_2" targetRef="ExclusiveGateway_1"/>
+  </process>
+</definitions>
+\end{lstlisting}
+
+A diferença de tamanho se dá principalmente pela forma de ligar os elementos. No XML, cada ligação é um elemento \texttt{sequenceFlow} próprio, que repete os identificadores da origem e do destino, e esses identificadores precisam ser consistentes em todo o documento. Na DSL, a ligação é dada pela posição: o operador \texttt{->} liga um elemento ao seguinte, e os ramos de uma decisão ficam dentro do bloco dela. A junção dos ramos também é implícita, e o transpilador cria o \textit{gateway} de convergência quando ele é necessário. A razão de compressão medida no corpus e nas saídas dos braços é apresentada na Seção~\ref{sec:medidas}.
+
+O desenho da notação segue quatro princípios:
+
+\begin{alineascomnumero}
+	\item cada conceito do BPMN tem uma única forma de escrita, o que reduz as escolhas que o modelo precisa fazer; a exceção é a referência, que tem duas formas, descritas a seguir;
+	\item o nome de um elemento serve à leitura, e o identificador, à referência, de modo que só recebem identificador os elementos referenciados em outro ponto;
+	\item raias são escopos que envolvem parte do fluxo (bloco \texttt{@lane}), em vez de listas de elementos declaradas à parte, o que evita declarar cada atividade duas vezes;
+	\item ramos vazios de uma decisão são escritos explicitamente, com \texttt{()}.
+\end{alineascomnumero}
+
+Um elemento que já apareceu no fluxo é referenciado com \texttt{\#}, o que permite escrever repetições e convergências. Existem duas formas de referência, equivalentes para o transpilador. Na primeira, o elemento recebe um identificador quando aparece (\verb|service "Fetch data" #fetch|) e é referenciado por ele (\verb|#fetch|), como no Código~\ref{lst:dsl}. Na segunda, a referência repete o rótulo do elemento (\verb|#"Fetch data"|), sem declaração prévia. A comparação de rótulos ignora diferenças de caixa, espaçamento e pontuação, e só alcança elementos que já apareceram. As duas formas produzem o mesmo XML. A diferença entre elas é para quem gera: a primeira exige decidir, ao escrever o elemento, que ele será referenciado mais adiante; a segunda não.
+
+A DSL cobre eventos iniciais, intermediários e finais, com gatilhos de mensagem, temporizador, erro, sinal e escalonamento; oito tipos de tarefa; \textit{gateways} exclusivos, paralelos, inclusivos e baseados em eventos; subprocessos; chamadas a outros processos; raias; \textit{pools} com fluxos de mensagem entre eles; e anotações. Ficam fora desta versão os eventos de borda, a compensação e as atividades de múltiplas instâncias.
+
+\section{Transpilação}\label{sec:transpilacao}
+
+Existem dois programas determinísticos que fazem as conversões entre representações. O primeiro converte o JSON do processo para DSL e é usado só na construção do corpus. O segundo é o transpilador, ele transforma a DSL em BPMN 2.0 XML e é usado tanto no corpus quanto na avaliação.
+
+A conversão de JSON para DSL percorre o grafo do processo e segue uma regra: todo elemento alcançável é escrito uma única vez, e qualquer novo encontro com um elemento já escrito vira uma referência. Essa regra é o que permite representar laços, ramos que voltam a um ponto anterior e convergências de vários ramos sem duplicar elementos nem perder ligações. O conversor sempre usa a referência por identificador, de modo que o corpus de treino contém só essa forma.
+
+O transpilador lê a DSL com um analisador gerado a partir da gramática formal da notação e traduz cada construção em um elemento XML fixo. Cada ligação vira um \texttt{sequenceFlow}; um bloco de decisão vira o \textit{gateway} de divisão e, quando algum ramo continua depois dele, o \textit{gateway} de convergência; um bloco \texttt{@lane} vira a raia com a lista dos seus elementos; um \textit{pool} vira um participante, com seus fluxos de mensagem. Um ramo que termina em um evento de fim ou em uma referência não é ligado à convergência, porque ali o fluxo já se encerrou ou seguiu para outro ponto. Os identificadores do XML são gerados pelo transpilador e são únicos no documento.
+
+ O componente foi verificado de duas formas sobre as 1.021 amostras do corpus. Na primeira, o XML de todas as amostras foi validado contra o esquema XSD oficial do BPMN 2.0, e as 1.021 passaram. Na segunda, a estrutura do XML foi comparada com a do JSON originalmente gerado, pelos pares de atividades e eventos que se sucedem no fluxo. As estruturas ficaram idênticas em 1.020 amostras. Na amostra restante, o próprio JSON tem fluxos saindo de eventos de fim, que o transpilador não reproduz porque um evento de fim encerra o fluxo. Nas saídas dos braços experimentais, as 1.225 DSL que seguiram a gramática produziram XML válido. A falha de validade de uma saída em DSL vem, portanto, sempre da geração, e não da transpilação.
+
+O XML gerado contém só a lógica do processo. Para que seja possível abrir o modelo em uma ferramenta de modelagem, é necessário possuir um pós-processador que acrescenta as coordenadas de cada elemento, com um leiaute em camadas no estilo de \citeonline{sugiyama1981methods}: os laços são desconsiderados para ordenar os elementos, cada elemento é posicionado pela distância até o início, e as raias são respeitadas. O leiaute é determinístico e serve apenas à visualização. Nenhuma medida deste trabalho depende dele: a validade e a razão de compressão são medidas sobre o XML sem coordenadas.
+\section{Especialização do modelo}\label{sec:sft}
+\section{Braços experimentais}\label{sec:bracos}
+\section{Medidas}\label{sec:medidas}
+\section{Protocolo e análise estatística}\label{sec:protocolo}
+\section{Desvios do protocolo inicial}\label{sec:desvios}
+\section{Ameaças à validade}\label{sec:ameacas}

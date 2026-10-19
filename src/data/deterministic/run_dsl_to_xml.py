@@ -31,7 +31,7 @@ from src.transpiler import transpile
 from src.transpiler.xsd import validate_bpmn_xsd
 
 DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v10_en"
-DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v5_en"
+DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v6_en"  # P9 + P10 (2026-10-18)
 DEFAULT_TIMEOUT_SECONDS = 30
 ERROR_MESSAGE_MAX = 2000
 

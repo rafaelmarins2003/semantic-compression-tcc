@@ -31,7 +31,7 @@ from src.data.db import Database
 # comando sem argumentos media o corpus obsoleto: 5,08 em vez de 6,01. Ao trocar
 # a base ativa, atualizar aqui — o número vai para a monografia.
 DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v10_en"
-DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v5_en"
+DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v6_en"  # P9 + P10 (2026-10-18)
 TOKENIZER = "Qwen/Qwen2.5-Coder-7B"
 BOOTSTRAP_N = 10_000
 SEED = 42

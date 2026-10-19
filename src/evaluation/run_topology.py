@@ -23,7 +23,7 @@ from src.evaluation.topology import compare
 # sem argumentos repontuava o corpus obsoleto. Mesmo defeito já corrigido em
 # `run_tcr.py`. Ao trocar a base ativa, atualizar nos dois.
 DEFAULT_SOURCE_DSL_VERSION = "json_to_dsl_v10_en"
-DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v5_en"
+DEFAULT_XML_TRANSPILER_VERSION = "dsl_to_xml_v6_en"  # P9 + P10 (2026-10-18)
 PREVIEW_MAX = 2000
 
 

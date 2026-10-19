@@ -2364,3 +2364,175 @@ para o juiz quanto para o DF-F1: "Start onboarding process" ainda casa com "Begi
 onboarding process" no alinhamento do DF-F1 (Jaccard 0,5). O resultado de C3 precisa
 ser reportado junto com essa intensidade; não é comparável ao 1,0 → 0,0 visto com o
 Kimi nos 3 golds de teste.
+
+---
+
+## 2026-10-19 — Juiz: tentativa 2 no Zenodo também não passou
+
+- `prompt_sha` `dd5177218c54…` (escala inteira de 0 a 5; rubrica igual à da tentativa 1),
+  commit `ba35339` (2026-10-18 21:17 -03). Execução: 21:20 a 22:14 (-03). 666 chamadas,
+  0 falhas, todas com `finish_reason = stop`.
+
+| | tentativa 1 | tentativa 2 |
+|---|---|---|
+| ρ juiz × especialista | 0,133 [0,005; 0,263] | **0,108** [−0,028; 0,258] |
+| ρ médio dentro do processo | 0,143 | 0,202 |
+| ρ entre repetições | 0,72–0,79 | 0,77–0,79 |
+| erro absoluto médio | 1,66 | 1,81 |
+| média de nota (juiz / especialista) | 2,84 / 4,26 | 2,65 / 4,26 |
+
+**Desfecho: não adotado pelo critério do Zenodo.** A correção da escala funcionou:
+o juiz passou a usar todos os inteiros (1: 21, 2: 279, 3: 305, 4: 34, 5: 27 notas), e
+mesmo assim o ρ não mudou. Isso afasta o defeito de escala como explicação e reforça
+a outra hipótese: o juiz e o especialista do Zenodo não estão medindo a mesma coisa.
+A nota do juiz quase não varia com a nota do especialista (média 2,45 para modelos
+com nota do especialista ≤ 2,5 e 2,70 para os com nota 5). Os casos do diagnóstico
+se repetem: `E_j01/0` com 2, 2, 2 e `V_k09/5` com 5, 5, 5.
+
+Pela regra registrada, o Zenodo não valida o juiz. A validação por perturbação,
+pré-registrada antes desta execução, é a próxima evidência. As duas são reportadas
+juntas, qualquer que seja o resultado.
+
+### Nota de cronologia (perturbação)
+
+Os critérios C1–C3 foram commitados em `1b6a277` (21:33 -03), antes de os casos
+serem gerados (22:07 -03). A nota sobre a troca do parafraseador para o GLM 5.3 foi
+escrita com a tabela de casos ainda vazia, mas só entrou no commit `2a2f7d0` às
+22:28 -03, depois da geração. A troca não mexe em nenhum critério.
+
+### Casos gerados: verificação
+
+343 casos (46 itens). Nenhum caso inválido no XSD, nenhum intacto diferente do gold
+na renderização, nenhum mutante sem efeito, todos os `triple` com 3 operadores, e
+nenhum rótulo parafraseado idêntico ao original (0 de 644). Intensidade da paráfrase
+(GLM 5.3): Jaccard médio de 0,41 entre o rótulo original e a paráfrase, e 42,9% dos
+rótulos ainda casariam no alinhamento do DF-F1. Uma deriva de sentido foi vista numa
+amostra de 15 rótulos ("Execute contract" → "Finalize contract").
+
+---
+
+## 2026-10-19 — Juiz × especialista: adjudicação de 10 divergências, e a decisão de construto
+
+O Rafael pediu, antes de rodar a perturbação, que eu verificasse quem está certo nos
+casos de maior divergência. Foram escolhidos os 10 casos de maior |juiz − especialista|
+da tentativa 2, nas duas direções e em 8 processos diferentes. Em cada um, o texto e o
+modelo renderizado foram lidos, e cada crítica do juiz foi conferida contra o modelo.
+**Cautela:** a adjudicação foi feita por mim, que também sou um LLM. É uma terceira
+opinião, não um árbitro humano.
+
+| caso | especialista | juiz | mais certo | motivo |
+|---|---|---|---|---|
+| E_j02/3 | 5 | 1 | juiz | inventa "Baby is sleeping?", "Feed baby", "Be silent"; faltam "Notify Social Security" e "Collect information" |
+| R_j02/0 | 5 | 1 | juiz | o texto pede um app de perguntas e coleta de valores; o modelo virou teste com códigos de erro e reparo |
+| R_j02/9 | 5 | 1 | especialista | concretização razoável de um enunciado vago (tipo, série, botões, valores, condicionais); o juiz pune o detalhe acrescentado |
+| E_j02/0 | 5 | 2 | especialista | elaboração plausível que cobre notificações e extensão; falta só "fetch information"; o juiz pune os acréscimos |
+| E_j05/9 | 0 | 2 | especialista | o modelo trata de emprego, não do visto; faltam moradia e conta. Pelos critérios do próprio juiz, a nota seria 0 ou 1 |
+| M_j03/9 | 0 | 2 | juiz | as tarefas estão quase todas lá, com erros de lógica; o 0 é severo |
+| V_k08/4 | 0,75 | 3 | juiz | modelo de duas pools completo, com falhas pequenas |
+| V_k09/5 | 1 | 5 | juiz | o modelo mais fiel do processo (ver a seção de 2026-10-18/19) |
+| M_g01/3 | 4,5 | 1 | comparação inválida | o XML tem 44 fluxos e só 1 completo (setas não ligadas aos elementos); o especialista avaliou o desenho |
+| M_g02/5 | 4,5 | 1 | comparação inválida | 0 de 34 fluxos completos |
+
+Em todos os 10, as afirmações factuais do juiz sobre os modelos estavam corretas
+(deadlock, tarefas ausentes, nós inalcançáveis). O desacordo é sobre o **peso** de
+cada problema, não sobre os fatos.
+
+### Causas da divergência
+
+1. **A rubrica do juiz não segue o critério do Mangler, ao contrário do que foi
+   afirmado na seção de 2026-10-18/19.** O critério de referência é cobertura de
+   tarefas e decisões, paralelismo e boa formação, e não pune acréscimos. A rubrica
+   acrescentou "o modelo não adiciona atividades que o texto não sustenta" e "não
+   premie detalhe além do texto". Os textos do Zenodo são enunciados de projeto vagos
+   ("Create a process that support…", "You develop an application…"), em que quem
+   modela precisa inventar detalhe, e o especialista premia uma boa invenção. É a
+   causa principal, e o erro foi de desenho da rubrica.
+2. **Ruído na referência:** um único avaliador, às vezes severo sem motivo visível
+   (V_k08/4, V_k09/5, M_j03/9).
+3. **XML quebrado:** 8 dos 222 modelos têm fluxos sem `sourceRef` ou `targetRef`
+   (E_j01/10, E_j05/9, G_g03/0, M_g01/3, M_g02/5, M_j02/5, R_g01/0, R_j03/2). O
+   especialista avaliou o desenho, que parece conectado.
+4. **Calibração do juiz nos extremos:** ele concentra as notas em 2 e 3 e reluta em
+   dar 0 ou 1 a um modelo ruim.
+
+### Consequência para o benchmark
+
+Os itens 25 a 48 do PMo são estes mesmos textos do Zenodo. Logo, 24 dos 46 itens de
+avaliação são enunciados vagos, em que a fidelidade ao texto é ambígua para qualquer
+medida. Isso entra nas ameaças à validade e justifica reportar a fidelidade também
+separada por tipo de texto (detalhado ou vago).
+
+### Decisão (Rafael, 2026-10-19): opção A
+
+**Fidelidade, neste trabalho, é representar o que o texto diz sem inventar
+conteúdo.** A rubrica estrita é mantida sem alteração (`prompt_sha` `dd5177218c54…`),
+porque, para os braços do benchmark, inventar conteúdo é justamente o erro que
+importa. Não haverá tentativa 3 no Zenodo. O resultado do Zenodo será reportado como
+está: não passou no critério, com as quatro causas acima, incluindo o reconhecimento
+de que a rubrica divergia do critério de referência. A validação por perturbação
+(critérios C1–C3, commitados em `1b6a277`) roda sem nenhum ajuste.
+
+A opção B (tentativa 3 com a rubrica do Mangler, sem punir acréscimos) foi descartada
+por dois motivos: seria feita depois de ver dois resultados, e poderia passar a
+premiar alucinação nas saídas dos braços.
+
+---
+
+## 2026-10-19 — T1: sobreposição de texto entre avaliação e treino
+
+Cada um dos 77 textos de avaliação (53 do PMo e 24 do Zenodo) foi comparado com os
+944 textos da partição de treino (`split` `sft` e `grpo`). A medida é a fração dos
+n-gramas de palavras do texto de avaliação (minúsculas, só `[a-z0-9]+`) presentes
+em algum texto de treino.
+
+| | 8-gramas | 5-gramas |
+|---|---|---|
+| `pmo_20`, `pmo_49`–`pmo_54` | 0,87 a 1,00 | 0,88 a 1,00 |
+| os outros 70 | **0** em todos | no máximo 0,03 |
+
+Nos 5-gramas, os outros 70 textos dividem 34 sequências distintas com o treino,
+todas expressões comuns da língua ("if you do not have", "at the end of the"). Não
+há outro vazamento. A exclusão dos 7 itens (n = 46) é suficiente.
+
+Dos 7, **6** estão de fato em `experiments/sft/train.jsonl` ou `val.jsonl`. O
+`pmo_49` (= `pet_doc-1_2`) ficou fora do SFT por estar entre os 4 pares que não
+passaram no `df_exact`. A exclusão continua valendo para ele, porque o texto está na
+partição de treino.
+
+**Não verificado:** contaminação dos modelos de fronteira (A1, A2, A2r) no
+pré-treino. O PMo é público desde 2025 e pode ter sido visto por eles. Isso vale
+igualmente para os braços de XML e de DSL do mesmo modelo, e por isso não favorece
+um formato, mas entra nas ameaças à validade.
+
+Script usado (fora do repositório, só leitura): n-gramas de `samples.raw_text`, com um
+índice invertido sobre a partição de treino. Para reproduzir, basta comparar
+`{tuple(w[i:i+n])}` de cada texto do holdout com a união dos n-gramas do treino.
+
+---
+
+## 2026-10-19 — A TCR do corpus estava inflada pelo bug P10
+
+Ao preparar a seção da DSL, recalculei a TCR (`run_tcr`, tokenizador do
+Qwen2.5-Coder-7B, XML lógico sem BPMNDI):
+
+| | XML `v5` (antes de P9/P10) | XML `v6` (atual) |
+|---|---|---|
+| corpus, n = 1021 | 6,01 [5,96; 6,06] | **5,37 [5,33; 5,41]**, redução de 81,4% |
+| A2 | 7,03 | 6,54 |
+| A2r (`X-a2r`) | 6,91 | 6,31 |
+| A4 | — | 5,76 |
+
+**Causa:** a P10. Em 293 amostras, o XML trazia a mesma lane repetida, cada cópia
+com a lista inteira de membros, o que aumentava o numerador da razão. O "6,01 da
+tese" e o "≈ 7" da H4 eram medidos sobre XML com esse defeito. A H4 (TCR ≥ 2)
+continua confirmada com folga.
+
+**O custo não muda.** `run_custo` conta os tokens que cada braço **emite**
+(`raw_output`), e isso não passa pelo transpilador. Para o argumento econômico,
+essa é a medida que importa: na mediana, o A1 emite 631 tokens por item, o A2r
+141 e o A4 200.
+
+Os defaults de versão do XML em `run_tcr.py`, `run_topology.py` e
+`run_dsl_to_xml.py` ainda apontavam para `dsl_to_xml_v5_en` e passaram a apontar
+para `v6`. Sem isso, o comando sem argumentos continuaria medindo o XML com o
+defeito.

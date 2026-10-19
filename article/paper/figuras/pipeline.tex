@@ -1,0 +1,79 @@
+% Diagrama do protocolo: as duas fases compartilham a mesma cauda determinística,
+% que é a afirmação central do capítulo. Estágio probabilístico com borda
+% tracejada, determinístico com borda sólida: a distinção é o conteúdo da figura,
+% não decoração, e sobrevive à impressão em tons de cinza.
+%
+% Escrito com coordenadas explícitas e sem `\resizebox`, como as figuras BPMN de
+% figuras/tikz/. A primeira versão usava `positioning` (`right=of`) e envolvia a
+% imagem em `\resizebox`; com o preâmbulo dessincronizado, a chave desconhecida
+% quebrava o `tikzpicture` dentro da caixa e derrubava o TikZ de TODAS as figuras
+% seguintes. Aqui não há dependência além de `arrows.meta`, já usada pelas
+% figuras BPMN, e a largura cabe no texto por construção.
+\begin{figure}[htb]
+	\Caption{\label{fig:pipeline} Visão geral: construção do corpus e avaliação}
+	\centering
+	\begin{tikzpicture}[
+		x=1cm, y=1cm, font=\footnotesize,
+		caixa/.style={draw, rounded corners=2pt, align=center, text width=2.0cm, minimum height=1.1cm, inner sep=2pt, fill=white},
+		prob/.style={caixa, dashed, thick, draw=corDSL},
+		det/.style={caixa, thick, draw=corXML},
+		art/.style={align=center, font=\scriptsize\itshape, text=black!70},
+		papel/.style={align=center, font=\scriptsize, text=black!60},
+		fase/.style={anchor=west, font=\footnotesize\bfseries, text=black!70},
+		seta/.style={-{Latex[length=2mm]}, thick, draw=black!55}]
+		% Faixa das transformações determinísticas, comum às duas fases.
+		\fill[black!5, rounded corners=3pt] (7.2,-6.1) rectangle (15.75,1.45);
+		\node[papel] at (11.45,1.2) {transformações determinísticas};
+		% Construção do corpus.
+		\node[fase] at (-0.1,1.75) {Construção do corpus};
+		\node[art] (txt) at (0.4,0) {texto\\bruto};
+		\node[prob] (pre) at (2.3,0) {Padronização\\do texto\\\scriptsize (LLM)};
+		\node[prob] (ext) at (5.5,0) {Extração\\para JSON\\\scriptsize (LLM)};
+		\node[det] (conv) at (8.6,0) {Conversão\\JSON para DSL};
+		\node[det] (trans) at (11.45,0) {Transpilação\\DSL para XML};
+		\node[det] (val) at (14.4,0) {Validação\\\scriptsize XSD};
+		\draw[seta] (txt) -- (pre);
+		\draw[seta] (pre) -- (ext);
+		\draw[seta] (ext) -- (conv);
+		\draw[seta] (conv) -- (trans);
+		\draw[seta] (trans) -- (val);
+		\node[art] at (3.9,1.08) {texto\\padronizado};
+		\node[art] at (7.05,0.8) {JSON};
+		\node[art] at (10.05,0.8) {DSL};
+		\node[art] at (12.95,0.8) {XML};
+		\node[papel] at (2.3,-0.95) {adequação da entrada};
+		\node[papel] at (5.5,-0.95) {geração da saída};
+		% Avaliação: os braços ocupam o lugar da extração e recebem o texto original.
+		% Agrupados por quem gera e o que gera; a lista completa fica na Seção 4.6.
+		% Os dois grupos que geram DSL ficam em cima, para a saída deles subir até a
+		% transpilação sem cruzar a do grupo que gera XML.
+		\node[fase] at (-0.1,-1.75) {Avaliação};
+		\node[art] (txt2) at (0.4,-3.95) {texto\\bruto};
+		\node[prob, text width=3.0cm] (qwen) at (5.5,-2.55) {Modelo pequeno\\gera DSL\\\scriptsize sem e com ajuste fino};
+		\node[prob, text width=3.0cm] (frdsl) at (5.5,-3.95) {Modelo grande\\gera DSL\\\scriptsize gramática no \textit{prompt}};
+		\node[prob, text width=3.0cm] (frxml) at (5.5,-5.35) {Modelo grande\\gera XML\\\scriptsize geração direta};
+		\draw[thick, draw=black!55] (txt2) -- (2.9,-3.95);
+		\foreach \b in {qwen, frdsl, frxml} \draw[seta] (2.9,-3.95) |- (\b.west);
+		\node[art] at (2.0,-3.65) {texto original};
+		% O corpus treina o modelo pequeno (pares texto original e DSL).
+		\draw[seta, dotted] (conv.south) -- (8.6,-1.55) -| (qwen.north);
+		\node[art, anchor=north west] at (8.7,-0.75) {pares (texto, DSL)\\para o ajuste fino};
+		% DSL dos dois grupos converge para a transpilação; XML vai direto à validação.
+		\draw[thick, draw=black!55] (qwen.east) -| (7.6,-3.95);
+		\draw[thick, draw=black!55] (frdsl.east) -- (7.6,-3.95);
+		\fill[black!55] (7.6,-3.95) circle (1.5pt);
+		\draw[seta] (7.6,-3.95) -- (11.45,-3.95) -- (trans);
+		\node[art] at (10.05,-3.73) {DSL};
+		\draw[seta] (frxml.east) -- (14.4,-5.35) -- (val);
+		\node[art] at (10.05,-5.13) {XML};
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Borda tracejada indica etapa probabilística; borda sólida, etapa
+	determinística. Na construção do corpus, a padronização só adequa o texto de
+	entrada, e a extração gera a saída como JSON; daí em diante há apenas
+	transformações determinísticas entre representações. Os pares formados pelo
+	texto original e pela DSL treinam o modelo pequeno (seta pontilhada). Na
+	avaliação, os braços recebem o texto original e ocupam o lugar da extração: os
+	que geram DSL passam pela mesma transpilação, e os que geram XML seguem direto
+	para a validação.}
+\end{figure}
