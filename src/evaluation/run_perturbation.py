@@ -18,7 +18,7 @@ import copy
 import json
 import random
 
-from src.data.db import Database
+from src.data.db import LEAKED_HOLDOUT, Database
 from src.data.llm.clients import env_key, generate_ollama_cloud
 from src.data.llm.utils import load_prompt
 from src.data.migrations.create_judge_eval import ensure_schema as ensure_judge_schema
@@ -28,8 +28,6 @@ from src.evaluation.judge import prompt_sha
 from src.evaluation.render import render
 from src.evaluation.run_judge import execute, pending
 
-# Texto do PET no holdout (auditoria de 2026-10-14, P2): fora de toda avaliação.
-LEAKED = {"pmo_20", "pmo_49", "pmo_50", "pmo_51", "pmo_52", "pmo_53", "pmo_54"}
 PARAPHRASE_MODEL = "glm-5.3:cloud"
 TRIES = 10  # sementes tentadas até um mutante mudar de fato o processo
 
@@ -40,7 +38,7 @@ def golds(db: Database) -> list[dict]:
         " JOIN samples s ON s.id = g.sample_id"
         " WHERE g.source = 'pmo' AND g.variant = 'primary' ORDER BY g.sample_id"
     )
-    return [dict(r) for r in linhas if r["sample_id"] not in LEAKED]
+    return [dict(r) for r in linhas if r["sample_id"] not in LEAKED_HOLDOUT]
 
 
 def _case(sid: str, kind: str, n: int, ops: list, g: dict, detail: dict | None = None) -> dict:

@@ -2536,3 +2536,93 @@ Os defaults de versão do XML em `run_tcr.py`, `run_topology.py` e
 `run_dsl_to_xml.py` ainda apontavam para `dsl_to_xml_v5_en` e passaram a apontar
 para `v6`. Sem isso, o comando sem argumentos continuaria medindo o XML com o
 defeito.
+
+---
+
+## 2026-10-20 — Validação por perturbação: resultado
+
+Juiz `dd5177218c54…`, 343 casos × 3 repetições = 1.029 chamadas, 0 truncamentos,
+0 sem nota. Critérios commitados em `1b6a277` (2026-10-18 21:33 -03), antes da
+primeira chamada (23:43 -03). O commit posterior no mesmo arquivo (`2a2f7d0`)
+só acrescentou a medida de intensidade da paráfrase; os limiares não mudaram.
+
+| critério | limiar | juiz | DF-F1 |
+|---|---|---|---|
+| C1 sensibilidade | ≥ 0,80 | **0,702** ✗ | 0,837 ✓ |
+| C2 gradação | ≤ −0,5 | **−0,385** ✗ | −0,588 ✓ |
+| C3 invariância | ≥ 0,80 | **1,000** ✓ | **0,000** ✗ |
+
+Intensidade da paráfrase (GLM 5.3): 644 rótulos, Jaccard médio 0,412; 42,9% dos
+rótulos parafraseados ainda casariam no alinhamento do DF-F1.
+
+**Desfecho pré-registrado: o juiz não passa.** O DF-F1 também não: falha em C3
+(a paráfrase derruba a nota em média 0,80 numa escala de 0 a 1) e não vê
+`parallel_to_exclusive` nem `swap_branches` (concordância 0,5 nos dois).
+
+### Diagnóstico (exploratório, para entender o erro)
+
+- **O juiz quase não inverte.** Nos 205 pares de gold e mutante com 1 defeito: o
+  gold ficou acima em 93, empatou em 102 e ficou abaixo em 10 (5%). O que derruba
+  C1 são os empates.
+- **Os empates vêm de um efeito de piso: o próprio gold recebe nota baixa.** 28
+  dos 46 golds tiveram nota ≤ 3. A concordância por nota do gold intacto: 2 → 0,47;
+  3 → 0,68; 4 → 0,88; 5 → 0,97.
+- **O desenho do teste supunha que o gold fosse um modelo correto, e isso é falso
+  em parte do PMo.** Pelo menos 10 dos golds dos itens 25–48 são cópias idênticas
+  (mesma renderização) de modelos de iniciantes do Zenodo, todos com nota 5 do
+  especialista: `pmo_25, 27, 28, 32, 33, 34, 39, 40, 45, 46`. As críticas do juiz a
+  esses golds são concretas (decisões inventadas, ramos ligados ao caso errado,
+  atividades sem base no texto) e, nos casos lidos, procedem.
+- Por origem do texto (critério anterior ao resultado, mas a divisão é **pós-hoc**):
+
+  | itens | C1 | C2 |
+  |---|---|---|
+  | 25–48 (textos e golds do Zenodo), 24 itens | 0,613 | −0,278 |
+  | demais, 22 itens | **0,826** | **−0,536** |
+
+  Nos 22 itens cujo gold não vem dos modelos de iniciantes, o juiz passaria em C1
+  e C2. Isso é **exploratório**: o recorte foi feito depois de ver os dados e não
+  substitui o critério registrado.
+
+**Erro de desenho, meu:** a base da perturbação deveria ter excluído os golds de
+origem duvidosa. A sobreposição entre os golds do PMo e os modelos do Zenodo já
+era conhecida da auditoria. O teste mediu, em parte, a qualidade do gold, e não
+só a do juiz.
+
+### O que isso significa para a avaliação
+
+Nenhuma medida de fidelidade passou numa validação pré-registrada: nem o DF-F1
+(Zenodo ρ = 0,04; perturbação C3 = 0) nem o juiz (Zenodo ρ = 0,133 e 0,108;
+perturbação C1/C2). O juiz tem evidências parciais a favor (C3 perfeito, quase sem
+inversões, C1/C2 acima do limiar no recorte de golds confiáveis), mas elas são
+exploratórias.
+
+---
+
+## 2026-10-20 — Fidelidade dos braços pelo juiz (T6): plano, antes de rodar
+
+Decisão do Rafael: a fidelidade entra como medida **exploratória**, com a
+validação declarada parcial (seção anterior). As conclusões principais ficam em
+validade e custo. O plano abaixo é registrado antes da execução, mesmo sendo
+exploratório, para que a análise não seja escolhida depois de ver os números.
+
+- **Alvos** (`run_judge --arms`): toda saída válida no XSD dos braços A1, A1g, A2,
+  A2g, A2r (`X-a2r`) e A4, nos 46 itens do PMo fora do vazamento. São 663 saídas
+  × 3 repetições = 1.989 chamadas, com o juiz `dd5177218c54…`. O juiz recebe o
+  mesmo texto cru que o braço recebeu.
+- **Nota** (`run_fidelity`): a nota de uma saída é a mediana das 3 repetições; a
+  nota de um braço num item é a média das suas saídas válidas. A unidade é o item.
+- **Relato por braço:** cobertura (itens com ao menos uma saída válida), média e
+  IC95 por bootstrap sobre os itens.
+- **Contrastes pareados** nos itens em que os dois braços têm saída válida: A2r − A1,
+  A4 − A2r, A4 − A1 e A2 − A1. Diferença média, IC95 por bootstrap e Wilcoxon,
+  **sem correção de multiplicidade e sem leitura confirmatória**.
+- **Tudo também separado por tipo de texto:** os 24 itens de Mangler et al. (2023)
+  e os 22 demais, porque o juiz se comporta diferente neles.
+- A fidelidade é condicional à validade: um braço que só acerta os itens fáceis
+  pode ter média alta com cobertura baixa. Por isso cobertura e média saem sempre
+  juntas.
+
+A lista dos 7 itens vazados passou para `src/data/db.py` (`LEAKED_HOLDOUT`), usada
+por `run_perturbation`, `run_judge` e `run_fidelity`. **O `run_analysis` ainda
+usa os 53 itens** e precisa passar a excluí-los (pendência da T1).

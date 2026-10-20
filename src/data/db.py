@@ -25,6 +25,11 @@ _DB_PATH = Path(__file__).parent.parent.parent / "data" / "dataset.db"
 # CLAUDE.md e spec 003 §7.
 HOLDOUT_SPLIT = "holdout"
 
+# Itens do PMo cujo texto é um documento do PET, que está no treino (auditoria de
+# 2026-10-14, P2; checagem por 8-gramas em 2026-10-19). Ficam fora de toda
+# avaliação, que passa a ter 46 itens do PMo.
+LEAKED_HOLDOUT = frozenset({"pmo_20", "pmo_49", "pmo_50", "pmo_51", "pmo_52", "pmo_53", "pmo_54"})
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS samples (
     id             TEXT PRIMARY KEY,

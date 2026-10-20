@@ -1,11 +1,16 @@
 """Roda o juiz de fidelidade e grava as notas em `judge_eval`.
 
-    uv run python -m src.evaluation.run_judge --zenodo --dry-run
-    uv run python -m src.evaluation.run_judge --zenodo --execute [--workers 6]
+    uv run python -m src.evaluation.run_judge --zenodo [--execute] [--workers 6]
+    uv run python -m src.evaluation.run_judge --arms A1,A2 [--execute] [--workers 6]
 
 `--zenodo` é a validação (T5): os 222 modelos do Zenodo com nota de especialista,
 3 repetições cada. Todos entram, inclusive os 17 que são cópia do gold do PMo: aqui
 não há referência, só texto e modelo, então a cópia não tem vantagem.
+
+`--arms` é a fidelidade dos braços (T6): toda saída válida no XSD dos braços
+pedidos, nos 46 itens do PMo fora do vazamento, 3 repetições cada. O juiz recebe o
+mesmo texto que o braço recebeu. Saída inválida não é julgada: a fidelidade é
+condicionada à validade, que já é medida à parte.
 
 Retomável: alvos já pontuados com o prompt atual são pulados, e falhas ficam
 pendentes para a próxima execução. As notas são gravadas a cada lote, para que uma
@@ -19,13 +24,14 @@ import json
 import time
 from pathlib import Path
 
-from src.data.db import Database
+from src.data.db import LEAKED_HOLDOUT, Database
 from src.data.ingestion.import_gold_zenodo import ZENODO_DIR
 from src.data.llm.clients import env_key, run_parallel
 from src.data.migrations.create_judge_eval import ensure_schema
 from src.evaluation.judge import JUDGE_MODEL, judge, prompt_sha
 
 K_REPS = 3
+MAIN_ARMS = "A1,A1g,A2,A2g,X-a2r,A4"
 BATCH = 24
 
 
@@ -50,6 +56,30 @@ def zenodo_targets(zenodo_dir: Path = ZENODO_DIR) -> list[dict]:
                 }
             )
     return alvos
+
+
+def benchmark_targets(db: Database, arms: list[str]) -> list[dict]:
+    """Um alvo por saída válida no XSD, fora dos itens vazados."""
+    linhas = db.query(
+        "SELECT b.id, b.arm, b.sample_id, b.output_xml, s.raw_text FROM benchmark_eval b"
+        " JOIN samples s ON s.id = b.sample_id"
+        f" WHERE b.xsd_valid = 1 AND b.arm IN ({', '.join('?' * len(arms))})"
+        " ORDER BY b.arm, b.sample_id, b.rep",
+        tuple(arms),
+    )
+    return [
+        {
+            "target": f"bench:{r['id']}",
+            "kind": "benchmark",
+            "sample_id": r["sample_id"],
+            "arm": r["arm"],
+            "expert_score": None,
+            "description": r["raw_text"] or "",
+            "xml": r["output_xml"],
+        }  # fmt: skip
+        for r in linhas
+        if r["sample_id"] not in LEAKED_HOLDOUT
+    ]
 
 
 def pending(db: Database, alvos: list[dict], sha: str, k: int = K_REPS) -> list[tuple[dict, int]]:
@@ -113,9 +143,9 @@ def execute(db: Database, fila: list[tuple[dict, int]], api_key: str, workers: i
 
 def run(args: argparse.Namespace) -> None:
     sha = prompt_sha()
-    alvos = zenodo_targets()
     with Database() as db:
         ensure_schema(db._conn)
+        alvos = zenodo_targets() if args.zenodo else benchmark_targets(db, args.arms.split(","))
         fila = pending(db, alvos, sha)
         print(f"prompt_sha={sha[:12]}  alvos={len(alvos)}  pendentes={len(fila)} (k={K_REPS})")
         if not args.execute:
@@ -127,7 +157,11 @@ def run(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--zenodo", action="store_true", required=True, help="validação (T5)")
+    modo = p.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--zenodo", action="store_true", help="validação (T5)")
+    modo.add_argument(
+        "--arms", nargs="?", const=MAIN_ARMS, help=f"fidelidade dos braços (T6); padrão {MAIN_ARMS}"
+    )
     p.add_argument("--execute", action="store_true", help="sem isto, só planeja")
     p.add_argument("--workers", type=int, default=6)
     return p.parse_args()

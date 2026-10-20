@@ -62,6 +62,8 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - análise estatística: uv run python -m src.evaluation.run_analysis
 - juiz de fidelidade no Zenodo (validação): uv run python -m src.evaluation.run_judge --zenodo [--execute] [--workers 8]
 - análise da validação no Zenodo: uv run python -m src.evaluation.run_judge_validation [--prompt-sha SHA]
+- juiz nos braços (T6, exploratório): uv run python -m src.evaluation.run_judge --arms [A1,A4,...] [--execute] [--workers 8]
+- fidelidade dos braços (T6, exploratório): uv run python -m src.evaluation.run_fidelity [--prompt-sha SHA]
 - casos de perturbação: uv run python -m src.evaluation.run_perturbation --build [--execute]
 - juiz nos casos de perturbação: uv run python -m src.evaluation.run_perturbation --judge [--execute] [--workers 8]
 - análise da perturbação: uv run python -m src.evaluation.run_perturbation_analysis [--prompt-sha SHA]
