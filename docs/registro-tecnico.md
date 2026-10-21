@@ -2626,3 +2626,167 @@ exploratório, para que a análise não seja escolhida depois de ver os números
 A lista dos 7 itens vazados passou para `src/data/db.py` (`LEAKED_HOLDOUT`), usada
 por `run_perturbation`, `run_judge` e `run_fidelity`. **O `run_analysis` ainda
 usa os 53 itens** e precisa passar a excluí-los (pendência da T1).
+
+---
+
+## 2026-10-20 — Resultados passam a usar 46 itens
+
+Os 7 itens vazados saem de todos os scripts que produzem resultados, sem apagar
+nada do banco. A exclusão é feita na leitura: `not_leaked()` em `src/data/db.py`
+gera o trecho SQL e é aplicada em `per_item_medians` (base de `run_analysis`,
+`run_tabelas`, `export_figuras` e `summarize`) e nas consultas diretas de
+`run_analysis`, `run_tabelas`, `run_custo`, `run_tcr` e `export_figuras`. As
+linhas dos 7 itens continuam em `benchmark_eval`.
+
+Validade XSD com n = 46 (138 gerações por braço), contra n = 53 (159):
+
+| braço | 53 itens | 46 itens |
+|---|---|---|
+| A1 | 98,1% | 97,8% |
+| A1g | 94,3% | 93,5% |
+| A2 | 64,8% | 62,3% |
+| A2g | 56,6% | 52,9% |
+| A2r (`X-a2r`) | 86,8% | 87,0% |
+| A4 | 86,8% | 87,0% |
+
+Contrastes planejados (DF-F1, mantidos só para o apêndice das hipóteses
+originais): A2 vs A1 p_holm 0,032; A2g vs A1g p_holm 0,008; A4 vs A2 p_holm 0,283.
+
+Os números de custo, TCR por braço e figuras precisam ser regerados
+(`run_custo`, `run_tcr --all-arms`, `export_figuras`) antes de entrar no texto.
+
+### Custo, tokens, TCR e figuras com n = 46 (regerados em 2026-10-20)
+
+Comandos: `run_custo`, `run_tcr --all-arms`, `export_figuras`, todos com
+`--with transformers`. Preços de 2026-10-12, tokenizador do Qwen2.5-Coder-7B. O
+destino padrão do `export_figuras` passou a ser `article/paper/figuras/dados`; a
+pasta do documento antigo não foi tocada.
+
+**Tokens por requisição (média) e validade:**
+
+| braço | entrada | saída | prefixo fixo | válidas |
+|---|---|---|---|---|
+| A1 | 1.316 | 935 | 1.144 | 97,8% |
+| A1g | 1.316 | 938 | 1.144 | 93,5% |
+| A2 | 1.520 | 172 | 1.348 | 62,3% |
+| A2g | 1.520 | 178 | 1.348 | 52,9% |
+| A2r | 1.621 | 171 | 1.449 | 87,0% |
+| A3 | 1.520 | 189 | 1.348 | 58,7% |
+| A3m | 922 | 1.750 | 750 | 0,0% |
+| A4 | 922 | 220 | 750 | 87,0% |
+
+**Tokens emitidos, mediana por saída:** A1 656; A1g 730; A2 152,5; A2g 151,5;
+A2r 156; A3 161; A4 202.
+
+**Custo em US$ por milhão de requisições** (por milhão de saídas válidas entre
+parênteses):
+
+| braço | sem cache | com cache |
+|---|---|---|
+| A1 (DeepSeek, fora de pico) | 2.720 (2.781) | 1.990 (2.035) |
+| A1g (GLM) | 5.969 (6.386) | 4.665 (4.990) |
+| A2 (DeepSeek, fora de pico) | 1.343 (2.155) | 483 (775) |
+| A2r (DeepSeek, fora de pico) | 1.409 (1.620) | 484 (557) |
+| A4 (7B) | 343 (394) | 125 (144) |
+| A4 (7B com LoRA, +50%) | 514 (591) | 188 (216) |
+
+No horário de pico, o DeepSeek custa o dobro: A1 5.441 / 3.981; A2r 2.818 / 969.
+O preço do A4 continua sendo hipótese (preço de mercado de um 7B, não medido).
+
+**TCR por braço** (só saídas que transpilam): A2 6,46 [6,34; 6,58]; A2g 6,15;
+A2r 6,25 [6,16; 6,35]; A3 6,01; A4 5,78 [5,67; 5,89]. A TCR do corpus não muda
+com o recorte (5,37; não usa o benchmark).
+
+Os CSVs de `validade`, `custo` e `df_f1` mudaram em relação à versão de 53 itens.
+Os de `sft_*` e `limiar` foram regerados, mas não dependem do recorte.
+
+### T6 — fidelidade dos braços pelo juiz (2026-10-20). EXPLORATÓRIO
+
+Execução: `run_judge --arms` (braços A1, A1g, A2, A2g, X-a2r, A4; só saídas
+válidas no XSD; itens vazados fora), prompt_sha `dd5177218c54`, k = 3. 663 saídas,
+1.989 chamadas, 0 pendentes, todas com `finish_reason = stop`. A execução foi
+interrompida uma vez e retomada; o `pending()` pulou as 840 chamadas já gravadas.
+Análise: `run_fidelity` (nota da saída = mediana das 3 repetições; nota do item =
+média das saídas válidas do braço; IC por bootstrap, 10.000 reamostragens).
+
+O juiz **não passou** em nenhum critério pré-registrado (Zenodo ρ 0,108;
+perturbação C1 0,702, C2 −0,385). Os números abaixo são descritivos, sem correção
+de multiplicidade, e não sustentam conclusão principal.
+
+**Nota média por braço (0–5), 46 itens:**
+
+| braço | cobertura | média | IC95 |
+|---|---|---|---|
+| A1 | 46/46 | 3,77 | [3,46; 4,06] |
+| A1g | 46/46 | 3,32 | [3,05; 3,61] |
+| A2 | 34/46 | 3,67 | [3,31; 4,02] |
+| A2g | 35/46 | 3,49 | [3,13; 3,84] |
+| A2r | 43/46 | 3,85 | [3,54; 4,15] |
+| A4 | 40/46 | 2,78 | [2,51; 3,08] |
+
+**Contrastes pareados** (só itens em que os dois braços têm saída válida):
+
+| contraste | itens | dif. média | IC95 | p (Wilcoxon) |
+|---|---|---|---|---|
+| A2r − A1 | 43 | +0,02 | [−0,24; 0,30] | 0,93 |
+| A4 − A2r | 37 | −1,08 | [−1,43; −0,75] | < 0,001 |
+| A4 − A1 | 40 | −1,03 | [−1,35; −0,70] | < 0,001 |
+| A2 − A1 | 34 | −0,19 | [−0,54; 0,16] | 0,51 |
+
+**Por tipo de texto:** a ordem dos braços e os sinais dos contrastes se repetem
+nos dois estratos. Os itens de Mangler (24) têm notas mais baixas em todos os
+braços: A1 3,40 contra 4,17 nos outros 22, o que é coerente com o efeito de piso
+da perturbação. A queda do A4 em relação ao A2r é de −0,88 (Mangler, 17 pares) e
+−1,25 (outros, 20 pares); em relação ao A1 é de −1,07 e −0,98.
+
+**Problemas apontados pelo juiz** (média por chamada; tarefas / ordem e fluxo /
+decisões / paralelismo / boa formação): A1 0,25 / 1,04 / 0,41 / 0,57 / 0,18;
+A2r 0,26 / 0,81 / 0,40 / 0,38 / 0,14; A4 0,99 / 1,95 / 1,14 / 0,64 / 0,03. O A4
+erra mais no conteúdo (cerca de 4× mais problemas de tarefa e 3× mais de decisão
+que o A2r), não na boa formação.
+
+**Leitura permitida:**
+- A2r não é distinguível do A1 em fidelidade pelo juiz. O IC exclui perdas
+  maiores que cerca de 0,25 ponto, mas **não há margem de equivalência
+  pré-registrada** (T10 pendente), então não se afirma equivalência.
+- O A4 fica cerca de 1 ponto abaixo do A1 e do A2r, nos dois tipos de texto. Isto
+  é o contrapeso exploratório do custo menor do A4: a validade fica igual à do
+  A2r (87,0%), mas o conteúdo é pior pelo juiz.
+
+**Ressalvas:**
+- A fidelidade é condicional à validade; o pareamento descarta itens diferentes
+  em cada contraste.
+- O A4 foi treinado quase só em textos do handbook (94,4%) e é avaliado no PMo;
+  a queda pode vir da mudança de domínio, do tamanho do modelo ou dos dois. O
+  desenho não separa essas causas.
+- Na perturbação, o juiz não separou de forma confiável o gold intacto do
+  mutante (C1 0,702). A escala não é calibrada, então "1 ponto" não tem
+  tradução em defeitos.
+
+### T10 — margens de equivalência (registrado em 2026-10-20, antes de aplicar)
+
+"Sem diferença significativa" não é "equivalente". Toda afirmação de empate na
+monografia passa a exigir que o IC95 da diferença pareada caia **inteiro** dentro
+de ±margem. Se o IC cruza a margem: inconclusivo. Usar o IC95 em vez do IC90 do
+TOST é mais conservador.
+
+**Fidelidade pelo juiz: ±0,5 ponto (escala 0–5). Fixada DEPOIS de ver a T6.**
+Isso é declarado no texto, e a equivalência fica exploratória como o resto do
+juiz. Justificativa, sem usar a T6:
+- a escala é inteira, e menos de meio ponto de diferença média deixa os dois
+  braços, em média, no mesmo nível da rubrica;
+- na perturbação (2026-10-20), um defeito inserido no gold derruba a nota em
+  0,63 em média (205 pares; 3 defeitos derrubam 1,33). Uma margem de 0,5 é menor
+  que a penalidade média de um defeito.
+
+Contrastes aos quais se aplica: os da T6 (A2r − A1, A2 − A1, A4 − A2r, A4 − A1).
+
+**Validade XSD: ±10 pontos percentuais. Fixada ANTES de calcular o IC.**
+O IC pareado da validade ainda não existe (T3 pendente); só as proporções
+marginais foram vistas. Justificativa: 10 p.p. é a margem usual de não
+inferioridade para proporções, e uma diferença menor que isso não altera a
+ordem de custo por saída válida entre os braços da tabela de custo.
+
+Método: a validade de um item num braço é a fração das 3 repetições válidas no
+XSD; diferença pareada por item nos 46 itens; IC95 por bootstrap sobre itens
+(10.000 reamostragens, semente fixa). Contrastes: A4 − A2r e A2r − A1.
