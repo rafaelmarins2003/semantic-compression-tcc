@@ -1,6 +1,6 @@
 % Custo por requisição contra validade — o argumento econômico da tese em um
-% plano. Eixo x em US$ por milhão de requisições (entrada + saída, preço público
-% de 2026-10-12, sem cache, fora de pico; A4 no cenário mais caro, +50% de
+% plano. Eixo x em US$ por milhão de requisições (entrada + saída, preços do
+% Together AI de 2026-10-24, sem cache; A4 no cenário mais caro, +50% de
 % adapter). Tokens de saída sozinhos escondiam a entrada, onde está a gramática
 % do prompt. Dados: `run_custo.custo_figura`, via `export_figuras`.
 % Rótulos posicionados um a um: `nodes near coords` colidia nos aglomerados.
@@ -46,10 +46,10 @@
 	\Fonte{Elaborado pelo autor}
 	\Nota{Canto superior esquerdo é o desejável: alta validade a baixo custo.
 	Custo = \textit{tokens} médios de entrada e de saída $\times$ preço público por
-	\textit{token}, consultado em 12/10/2026, sem cache de \textit{prompt} e fora
-	do horário de pico. Os braços do modelo pequeno usam preço de mercado de um
-	modelo de 7 bilhões de parâmetros, e o A4, o cenário mais caro (adaptador com
-	acréscimo de 50\%); nenhum provedor confirmado oferece hoje esse adaptador por
+	\textit{token} no Together AI, consultado em 24/10/2026, sem cache de
+	\textit{prompt} (Tabela~\ref{tab:precos}). Os braços do modelo pequeno usam o
+	preço do Qwen2.5-7B-Instruct, e o A4, o cenário mais caro (adaptador com
+	acréscimo de 50\%); nenhum provedor consultado oferece hoje esse adaptador por
 	\textit{token}. O cenário com cache é discutido na
 	Seção~\ref{subsec:res-economico}.}
 \end{figure}

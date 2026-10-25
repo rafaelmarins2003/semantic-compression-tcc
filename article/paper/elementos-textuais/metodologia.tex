@@ -8,7 +8,7 @@ O trabalho tem duas fases, resumidas na Figura~\ref{fig:pipeline}. Na construç�
 
 \input{figuras/pipeline}
 
-A divisão de responsabilidades entre as partes define o que precisa ser medido. O transpilador garante que toda DSL sintaticamente correta produza um XML válido segundo o esquema oficial do BPMN 2.0, o que foi verificado nas 1.021 amostras do corpus (Seção~\ref{sec:transpilacao}). O modelo continua responsável pela sintaxe da DSL e pelo conteúdo do processo, dado esse fato, existe chance de erro de conteúdo e de sintaxe. Por isso a validade e a fidelidade são medidas separadamente.
+A divisão de responsabilidades entre as partes define o que precisa ser medido. O transpilador garante que toda DSL sintaticamente correta produza um XML válido segundo o esquema oficial do BPMN 2.0, o que foi verificado nas 1.021 amostras do corpus (Seção~\ref{sec:transpilacao}). O modelo continua responsável pela sintaxe da DSL e pelo conteúdo do processo, e pode errar em qualquer um dos dois. Por isso a validade e a fidelidade são medidas separadamente. A validade é verificada por programa, contra o esquema XSD. A fidelidade, isto é, se o modelo representa o processo descrito no texto, exige julgamento e foi medida por um modelo de linguagem usado como juiz. Como a validação desse juiz foi apenas parcial (Seção~\ref{sec:medidas}), as conclusões principais se apoiam na validade e no custo, e a fidelidade é reportada como exploratória.
 
 \section{Dados}\label{sec:dados}
 
@@ -37,13 +37,15 @@ Não existe um conjunto público, em escala e confiável, que associe descriçõ
 
 A principal fonte de volume foi o \textit{handbook} público da GitLab que é um manual operacional aberto com milhares de páginas. As páginas foram coletadas e divididas em seções, e cada seção recebeu uma pontuação procedural baseada na presença de passos numerados, decisões e atores. Foram mantidas as seções com passos e com decisões ou atores, que descrevem processos com alguma estrutura além de uma lista. As seções lineares, só com passos, foram separadas e não entram nos experimentos. O PET \cite{bellan2022pet} também entra no treino com 44 descrições de processos de outros domínios.
 
-O conjunto de teste é o PMo \cite{brissard2025pmo}, que reúne 53 descrições de processos de fontes distintas, cada uma acompanhada de um modelo BPMN de referência. O Zenodo \cite{mangler2023textual} traz 24 descrições, as mesmas de 24 itens do PMo, cada uma com 8 a 11 modelos feitos por modeladores iniciantes e avaliados por um especialista com uma nota de 0 a 5. Essas notas são usadas na validação da medida de fidelidade (Seção~\ref{sec:medidas}).
+O conjunto de teste é o PMo \cite{brissard2025pmo}, que reúne 53 descrições de processos de fontes distintas, cada uma acompanhada de um modelo BPMN de referência. O Zenodo \cite{mangler2023textual} traz 24 descrições, as mesmas de 24 itens do PMo, cada uma com 8 a 11 modelos feitos por modeladores iniciantes e avaliados por um especialista com uma nota de 0 a 5. Essas notas são usadas na validação da medida de fidelidade (Seção~\ref{sec:medidas}). A sobreposição entre as duas fontes tem uma consequência para as referências do PMo: em pelo menos 10 desses 24 itens, a referência coincide, após normalização dos rótulos e fluxos, com um dos modelos feitos por iniciantes no Zenodo, e não é, portanto, um modelo de especialista. Por isso, a fidelidade das saídas é julgada contra o texto, e não contra a referência (Seção~\ref{sec:medidas}).
 
-\subsection{Geração dos pares de treino}
+\subsection{Geração dos pares de treino}\label{subsec:geracao_pares}
 
-Cada descrição de treino passa por duas chamadas a um modelo de grande porte, o GLM~5.2. A primeira padroniza o texto: reorganiza a descrição em atores, passos, decisões e atividades paralelas, sem acrescentar informação. A segunda converte o texto padronizado em um JSON com os elementos, os fluxos e as raias do processo. Quando o GLM~5.2 falhou na segunda etapa, o Kimi~K2.6 foi usado, o que ocorreu em 32 das 1.021 amostras. O GLM~5.2 foi escolhido em um piloto com 50 amostras de treino, no qual teve a maior taxa de JSON aproveitável e o menor número de falhas entre três configurações. A diferença para o segundo colocado, no entanto, ficou dentro da variação observada entre repetições.
+Cada descrição de treino passa por duas chamadas a um modelo de grande porte, o GLM~5.2. A primeira padroniza o texto: reorganiza a descrição em atores, passos, decisões e atividades paralelas, sem acrescentar informação. A segunda converte o texto padronizado em um JSON com os elementos, os fluxos e as raias do processo. Nos casos em que o GLM~5.2 falhou na geração do JSON, foi usado o Kimi~K2.6 como alternativa, o que ocorreu em 32 das 1.021 amostras.
 
-O JSON é convertido em DSL por um programa determinístico, e a DSL é transpilada para XML. Para o treino, só foram mantidos os pares em que o XML reconstrói exatamente a topologia do JSON de origem, critério atendido por 768 das 772 amostras de treino. Os pares de treino são formados pelo texto original e pela DSL. O texto padronizado serve apenas para gerar os dados e não é visto pelo modelo pequeno. Todos os rótulos dos artefatos gerados estão em inglês, a língua dos textos de origem e do conjunto de teste.
+A escolha do GLM~5.2 veio de um teste piloto com 50 amostras de treino, que comparou três configurações: o GLM~5.2 nas duas etapas, a combinação de Kimi~K2.6 e DeepSeek~V4~Pro, e o DeepSeek~V4~Flash. O GLM~5.2 teve a maior taxa de JSON aproveitável e o menor número de falhas, além da maior proporção de XML válido ao fim do processo (96\%, contra 92\% da segunda melhor configuração). Essa vantagem, porém, corresponde a apenas 2 amostras em 50, e o próprio piloto mostrou que repetir a geração de uma mesma amostra pode mudar o resultado. Por isso, a escolha se apoia no fato de o GLM~5.2 ter ficado à frente nas três medidas ao mesmo tempo, e não em uma diferença estatisticamente comprovável.
+
+O JSON é convertido em DSL por um programa determinístico, e a DSL é transpilada para XML. Para o treino, só foram mantidos os pares em que o XML reconstrói exatamente a topologia do JSON de origem, critério atendido por 768 das 772 amostras de treino. Os pares de treino são formados pelo texto original e pela DSL. O texto padronizado serve apenas para gerar os dados e não é visto pelo modelo pequeno. Todos os rótulos dos artefatos gerados são em inglês, a mesma língua dos textos de origem e do conjunto de teste.
 
 \subsection{Partições e prevenção de contaminação}\label{subsec:contaminacao}
 
@@ -51,7 +53,7 @@ Os 768 pares foram divididos em treino (690) e validação (78). A divisão é f
 
 Os conjuntos de avaliação, PMo e Zenodo, por também terem modelos BPMN de referência já em suas fontes, foram escolhidos para o conjunto de testes, e nunca entram no treino. Porém, uma verificação posterior mostrou que 7 dos 53 itens do PMo têm como texto descrições que também fazem parte do PET: seis vêm do subconjunto PET-7 incorporado ao PMo, e um sétimo coincide com um documento do PET. Como o PET está no treino, esses 7 itens foram excluídos da avaliação, que passa a ter 46 itens.
 
-Para verificar se havia outras sobreposições, cada texto de avaliação foi comparado com os 944 textos da partição de treino por sequências de oito palavras consecutivas, após normalização de caixa e pontuação. Os 7 itens excluídos compartilham entre 87\% e 100\% dessas sequências com um documento do PET. Nenhum dos outros 70 textos de avaliação (46 do PMo e 24 do Zenodo) compartilha sequência alguma. Com sequências de cinco palavras, a maior sobreposição entre eles é de cerca de 2\%, formada por expressões comuns da língua, como ``if you do not have'' e ``at the end of the''.
+Para verificar se havia outras sobreposições, cada texto de avaliação foi comparado com os 944 textos da partição de treino, contando com as seções lineares do \textit{handbook}, por sequências de oito palavras consecutivas, após normalização de caixa e pontuação. Os 7 itens excluídos compartilham entre 87\% e 100\% dessas sequências com um documento do PET. Nenhum dos outros 70 textos de avaliação (46 do PMo e 24 do Zenodo) compartilha sequência alguma. Com sequências de cinco palavras, a maior sobreposição entre eles é de cerca de 2\%, formada por expressões comuns da língua, como ``if you do not have'' e ``at the end of the''.
 
 Uma limitação desta composição é que 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, de uma única empresa e com estilo próprio, enquanto o teste é feito sobre processos de outros domínios. Isso é discutido na Seção~\ref{sec:ameacas}.
 \section{A BPMN-DSL}\label{sec:dsl}
@@ -131,12 +133,317 @@ A conversão de JSON para DSL percorre o grafo do processo e segue uma regra: to
 
 O transpilador lê a DSL com um analisador gerado a partir da gramática formal da notação e traduz cada construção em um elemento XML fixo. Cada ligação vira um \texttt{sequenceFlow}; um bloco de decisão vira o \textit{gateway} de divisão e, quando algum ramo continua depois dele, o \textit{gateway} de convergência; um bloco \texttt{@lane} vira a raia com a lista dos seus elementos; um \textit{pool} vira um participante, com seus fluxos de mensagem. Um ramo que termina em um evento de fim ou em uma referência não é ligado à convergência, porque ali o fluxo já se encerrou ou seguiu para outro ponto. Os identificadores do XML são gerados pelo transpilador e são únicos no documento.
 
- O componente foi verificado de duas formas sobre as 1.021 amostras do corpus. Na primeira, o XML de todas as amostras foi validado contra o esquema XSD oficial do BPMN 2.0, e as 1.021 passaram. Na segunda, a estrutura do XML foi comparada com a do JSON originalmente gerado, pelos pares de atividades e eventos que se sucedem no fluxo. As estruturas ficaram idênticas em 1.020 amostras. Na amostra restante, o próprio JSON tem fluxos saindo de eventos de fim, que o transpilador não reproduz porque um evento de fim encerra o fluxo. Nas saídas dos braços experimentais, as 1.225 DSL que seguiram a gramática produziram XML válido. A falha de validade de uma saída em DSL vem, portanto, sempre da geração, e não da transpilação.
+O componente foi verificado de duas formas sobre as 1.021 amostras do corpus. Na primeira, o XML de todas as amostras foi validado contra o esquema XSD oficial do BPMN 2.0, e as 1.021 passaram. Na segunda, a estrutura do XML foi comparada com a do JSON originalmente gerado, pelos pares de atividades e eventos que se sucedem no fluxo. As estruturas ficaram idênticas em 1.020 amostras. Na amostra restante, o próprio JSON tem fluxos saindo de eventos de fim, que o transpilador não reproduz porque um evento de fim encerra o fluxo. Nas saídas dos braços experimentais, as 951 DSL que seguiram a gramática produziram XML válido. A falha de validade de uma saída em DSL vem, portanto, sempre da geração, e não da transpilação.
 
 O XML gerado contém só a lógica do processo. Para que seja possível abrir o modelo em uma ferramenta de modelagem, é necessário possuir um pós-processador que acrescenta as coordenadas de cada elemento, com um leiaute em camadas no estilo de \citeonline{sugiyama1981methods}: os laços são desconsiderados para ordenar os elementos, cada elemento é posicionado pela distância até o início, e as raias são respeitadas. O leiaute é determinístico e serve apenas à visualização. Nenhuma medida deste trabalho depende dele: a validade e a razão de compressão são medidas sobre o XML sem coordenadas.
+
 \section{Especialização do modelo}\label{sec:sft}
+
+O modelo pequeno é o Qwen2.5-Coder-7B-Instruct \cite{hui2024qwen25coder}, tem 7 bilhões de parâmetros e licença Apache 2.0 e foi ajustado de forma supervisionada sobre os pares de texto original como entrada e DSL descritos na Seção~\ref{sec:dados} como saída. O texto original foi mantido apesar de existir uma versão do texto padronizado (Seção~\ref{subsec:geracao_pares}) porque os textos do conjunto de teste também são descrições sem padronização textual. As saídas em DSL foram geradas por modelos de grande porte, por isso o ajuste é uma destilação: o modelo pequeno aprende a reproduzir, na DSL, o que os modelos grandes extraíram dos textos. Ele não vê o texto padronizado, o JSON intermediário nem o BPMN 2.0 XML final.
+
+O ajuste usa QLoRA \cite{dettmers2023qlora}. Os pesos do modelo base ficam congelados e quantizados em 4 bits, e só são treinadas matrizes de baixo posto acrescentadas às camadas lineares \cite{hu2022lora}. A perda é calculada apenas sobre os \textit{tokens} da DSL, e não sobre os do \textit{prompt}. O \textit{prompt} de treino é o mesmo usado na avaliação do modelo ajustado: curto e sem a gramática da DSL, de modo que o modelo aprende a notação pelos exemplos (o \textit{prompt} completo está no Apêndice~\ref{ap:prompts-bracos}). Os hiperparâmetros estão na Tabela~\ref{tab:sft}.
+
+\begin{table}[htb]
+	\Caption{\label{tab:sft} Configuração do ajuste supervisionado}%
+	\IBGEtab{}{%
+		\begin{tabular}{ll}
+			\toprule
+			Parâmetro & Valor \\
+			\midrule \midrule
+			Modelo base & Qwen2.5-Coder-7B-Instruct \\
+			Quantização do modelo base & 4 bits (NF4, dupla quantização) \\
+			Posto e $\alpha$ do LoRA & 16 e 32 \\
+			\textit{Dropout} do LoRA & 0,05 \\
+			Camadas adaptadas & todas as projeções lineares \\
+			Comprimento máximo da sequência & 4.096 \textit{tokens} \\
+			Épocas & 3 \\
+			Taxa de aprendizado & $10^{-4}$, cosseno, 3\% de aquecimento \\
+			Lote efetivo & 8 (1 exemplo, 8 passos de acumulação) \\
+			Otimizador & AdamW paginado de 8 bits \\
+			Semente & 42 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+}
+\end{table}
+
+Dos 690 pares de treino, 18 passam de 4.096 \textit{tokens} e foram descartados, restando 672. O treino foi feito em uma GPU A40 alugada, com 48~GB de VRAM, em 1 hora e 1 minuto, ao custo de US\$~0,47. A perda na validação foi medida ao fim de cada época: 0,440, 0,416 e 0,422. O adaptador mantido é o da segunda época, a de menor perda. Como a validação é separada por documento de origem (Seção~\ref{subsec:contaminacao}), essa escolha favorece a generalização para documentos não vistos, e não a memorização.
+
+Na avaliação, o modelo roda localmente em uma RTX 2080 Ti de 11~GB de VRAM, com o modelo base em 4 bits, cálculos em 16 bits de ponto flutuante e decodificação gulosa, com até 2.048 \textit{tokens} gerados. O braço de controle com o mesmo modelo sem o adaptador (Seção~\ref{sec:bracos}) usa exatamente a mesma configuração, para que a diferença entre os dois meça o efeito do ajuste, e não da forma de execução. O treino usou o formato \textit{bfloat16}, disponível na A40, e a inferência usa \textit{float16}, porque a arquitetura da 2080 Ti não oferece o primeiro.
+
 \section{Braços experimentais}\label{sec:bracos}
+
+Cada braço experimental é uma forma de gerar o modelo BPMN a partir da descrição: um modelo de linguagem, um \textit{prompt} e um formato de saída. Todos os braços recebem as mesmas descrições do conjunto de teste, no texto original. Os braços que emitem DSL passam pelo mesmo transpilador (Seção~\ref{sec:transpilacao}), e os que emitem XML são avaliados diretamente. A Tabela~\ref{tab:bracos} resume os braços.
+
+\begin{table}[htb]
+	\Caption{\label{tab:bracos} Braços experimentais}%
+	\IBGEtab{}{%
+		\small
+		\begin{tabular}{lllp{2.1cm}p{4.6cm}}
+			\toprule
+			Braço & Modelo & Saída & \textit{Prompt} & O que o braço mede \\
+			\midrule \midrule
+			A1  & DeepSeek~V4~Pro & XML & XML & a prática corrente: XML gerado direto \\
+			A2  & DeepSeek~V4~Pro & DSL & gramática & o efeito do formato, com o modelo fixo \\
+			A1g & GLM~5.2 & XML & XML & A1 com o modelo que gerou o corpus \\
+			A2g & GLM~5.2 & DSL & gramática & A2 com o modelo que gerou o corpus \\
+			A3  & Qwen~7B & DSL & gramática & o modelo pequeno sem ajuste \\
+			A3m & Qwen~7B & DSL & mínimo & o controle do A4: só falta o adaptador \\
+			A4  & Qwen~7B$^{\dagger}$ & DSL & mínimo & o modelo pequeno especializado \\
+			\midrule
+			A2r & DeepSeek~V4~Pro & DSL & gramática com rótulo & se as falhas do A2 vêm das referências \\
+			X-lc25/50 & Qwen~7B$^{\dagger}$ & DSL & mínimo & o A4 treinado com 25\% e 50\% dos dados \\
+			X-gr & Granite~4.1~8B$^{\dagger}$ & DSL & mínimo & o A4 em outra família de modelo \\
+			X-mi & MiMo-7B-RL$^{\dagger}$ & DSL & mínimo & o A4 em outra família de modelo \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Qwen~7B é o Qwen2.5-Coder-7B-Instruct; $^{\dagger}$~com o adaptador treinado (Seção~\ref{sec:sft}). Os braços acima do traço foram definidos antes de qualquer execução; os de baixo são exploratórios (ver texto).}%
+}
+\end{table}
+
+Os sete primeiros braços foram definidos e congelados antes da primeira execução. O A1 e o A1g representam a prática corrente, em que o modelo de grande porte escreve o BPMN 2.0 XML diretamente, e contempla comparação externa ao método. O A2 usa o mesmo modelo, mas pede a DSL, de modo que a diferença entre A2 e A1 vem só do formato de saída. O DeepSeek~V4~Pro foi escolhido por não ter participado da geração do corpus. O par A1g e A2g repete a mesma comparação com o GLM~5.2, que gerou o corpus. Se o efeito do formato aparecer com um modelo e não com o outro, indica que o efeito está atrelado ao mesmo, e não da DSL. A2 e A2g não são concorrentes do método: são o próprio método executado com um modelo de grande porte, a referência que o modelo pequeno tenta alcançar.
+
+Os três braços do modelo pequeno separam o efeito do ajuste do efeito da instrução. O A3 recebe o \textit{prompt} com a gramática completa, o mesmo do A2, e mede o que o modelo pequeno consegue sem ajuste. O A4 recebe o \textit{prompt} mínimo, sem gramática nem exemplo da notação, que é o mesmo usado no treino (Seção~\ref{sec:sft}). Como A3 e A4 diferem nos pesos e no \textit{prompt} ao mesmo tempo, foi acrescentado o A3m, que usa o modelo e o \textit{prompt} do A4 sem o adaptador. A diferença entre A4 e A3m mede só o ajuste. A diferença entre A4 e A3 mede a intervenção inteira: os pesos ajustados somados à dispensa da gramática.
+
+O \textit{prompt} indica o que o contexto informa sobre a notação. Há quatro \textit{prompts}: um para XML, com um exemplo da notação; um para a DSL, com a gramática completa e um exemplo; a versão deste com a referência por rótulo (Seção~\ref{sec:dsl}); e o mínimo. Medidos com o tokenizador do Qwen, sem a descrição do processo, eles têm 1.147, 1.351, 1.452 e 753 \textit{tokens}, respectivamente. As partes que descrevem o papel do modelo, o idioma, as regras de modelagem e o formato da resposta são idênticas em todos os \textit{prompts}, e um teste automatizado garante isso. Os exemplos do \textit{prompt} de XML e do de DSL descrevem o mesmo processo. Assim, a comparação entre formatos não depende da redação da instrução.
+
+Os demais braços são exploratórios, dado que foram definidos depois do congelamento e seus resultados são reportados à parte. O A2r foi definido depois de observados os resultados do A2, em que a maior parte das falhas sintáticas estava nas referências por identificador. Para voltar a um elemento já escrito, num laço ou numa convergência, o modelo precisava tê-lo marcado com um identificador quando o escreveu pela primeira vez, isto é, antecipar que ia precisar dele. O A2r repete o A2 com o mesmo modelo e o mesmo \textit{prompt}, exceto no trecho sobre referências, onde passa a documentar a referência por rótulo, que aponta para trás sem declaração prévia (Seção~\ref{sec:dsl}). Na mesma ocasião, foram corrigidas duas imprecisões do \textit{prompt} do A2 em relação à gramática, sobre onde cabem propriedades e como se escrevem identificadores. Como nenhuma saída do A2 usou as formas afetadas, essas correções não explicam a diferença entre os dois braços. Um teste automatizado garante que os dois \textit{prompts} não diferem em mais nada. Como a gramática apenas ganhou uma forma alternativa, o modelo ajustado não precisou ser retreinado.
+
+Os outros quatro braços exploratórios foram definidos antes de serem executados e respondem a duas perguntas sobre o A4. X-lc25 e X-lc50 repetem o treino do A4 com 25\% e 50\% dos pares de treino, selecionados por documento de origem e aninhados (os documentos de 25\% estão contidos nos de 50\%), para verificar se a qualidade ainda cresce com mais dados ou se já estabilizou; o ponto de 100\% é o próprio A4. X-gr e X-mi repetem o treino com os mesmos dados e hiperparâmetros em modelos de outras famílias, o Granite~4.1~8B, da IBM, e o MiMo-7B-RL, da Xiaomi, para verificar se o resultado do A4 é do método ou do Qwen. Antes da execução, ficou registrado que todo braço treinado entraria no texto, qualquer que fosse o resultado. Um quinto braço, com o DeepSeek-Coder-6.7B, foi descartado sem que seus resultados fossem usados: o tokenizador desse modelo apaga os espaços do texto, de modo que o braço media o tokenizador, e não o método.
+
 \section{Medidas}\label{sec:medidas}
+
+São quatro medidas: a validade, o custo por requisição, a razão de compressão e a fidelidade. As três primeiras são calculadas por programa, sem julgamento. A fidelidade exige julgamento e foi medida por um modelo de linguagem usado como juiz, cuja validação foi parcial (Seção~\ref{subsec:fidelidade}). Por isso as conclusões principais do trabalho se apoiam na validade e no custo, e a fidelidade é reportada como exploratória.
+
+\subsection{Validade}\label{subsec:validade}
+
+Uma saída é válida quando produz um BPMN 2.0 XML aceito pelo esquema XSD oficial. Nos braços que emitem XML, a saída é validada diretamente. Nos que emitem DSL, a saída precisa ser aceita pela gramática e ter todas as referências resolvidas, isto é, cada fluxo deve apontar para um elemento definido; só então é transpilada. Como o esquema XSD oficial aceitou todos os XMLs produzidos pelo transpilador, tanto no corpus quanto nas saídas dos braços (Seção~\ref{sec:transpilacao}), a validade desses braços equivale, na prática, à taxa de saídas que o transpilador consegue ler e converter. Saídas truncadas pelo limite de \textit{tokens}, respostas com erro, saídas fora da gramática e saídas com referências a elementos inexistentes contam como inválidas. A validade de um braço é a proporção de saídas válidas entre todas as gerações: 46 itens com 3 repetições cada, ou 138 gerações (Seção~\ref{sec:protocolo}).
+
+A validade perante o esquema é uma condição necessária, e não suficiente: um XML válido pode descrever o processo errado. É por isso que a fidelidade é medida à parte.
+
+\subsection{Custo por requisição}\label{subsec:custo}
+
+O custo de uma requisição é
+\begin{equation}
+	C = t_{\text{in}} \cdot p_{\text{in}} + t_{\text{out}} \cdot p_{\text{out}},
+\end{equation}
+em que $t_{\text{in}}$ e $t_{\text{out}}$ são as médias de \textit{tokens} de entrada (\textit{prompt} e descrição) e de saída das gerações de cada braço, e $p_{\text{in}}$ e $p_{\text{out}}$ são os preços por \textit{token} do provedor (Tabela~\ref{tab:precos}). Os \textit{tokens} de todos os braços são contados com o mesmo tokenizador, o do Qwen2.5-Coder, o que é uma aproximação para os modelos de grande porte. Também é reportado o custo por saída válida, $C$ dividido pela validade do braço, que incorpora o gasto com as gerações que não servem.
+
+\begin{table}[htb]
+	\Caption{\label{tab:precos} Preços usados no cálculo do custo (US\$ por milhão de \textit{tokens})}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrr}
+			\toprule
+			Modelo & Entrada & Saída & Entrada em \textit{cache} \\
+			\midrule \midrule
+			DeepSeek~V4~Pro & 1,32 & 3,96 & 0,13 \\
+			GLM~5.2 & 1,40 & 4,40 & 0,26 \\
+			Qwen2.5~7B & 0,30 & 0,30 & --- \\
+			Qwen2.5~7B com adaptador (hipótese) & 0,45 & 0,45 & --- \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor, com preços públicos do Together AI consultados em 24/10/2026 \cite{togetherpricing2026}}%
+	\Nota{O preço do Qwen2.5~7B é o do Qwen2.5-7B-Instruct, que tem a mesma arquitetura e o mesmo porte do Qwen2.5-Coder-7B; nenhum provedor consultado oferecia a variante Coder por \textit{token}. O acréscimo de 50\% no cenário com adaptador é uma margem arbitrada, e não um preço observado. O provedor não oferece preço de \textit{cache} para o Qwen2.5~7B, e toda a sua entrada é cobrada a preço cheio.}%
+}
+\end{table}
+
+Todos os preços vêm de um único provedor, o Together AI, que oferece os três modelos, consultado em uma única data. Isso evita misturar tabelas de provedores diferentes e descontos por horário ou temporários. Dois cenários são calculados. No primeiro, toda a entrada é cobrada a preço cheio. No segundo, a parte do \textit{prompt} anterior à descrição, que é igual em todas as requisições de um braço, é cobrada a preço de \textit{cache}. Como o provedor não oferece \textit{cache} para o modelo pequeno, o custo do A3 e do A4 é o mesmo nos dois cenários, o que desfavorece o A4 no segundo.
+
+O preço do modelo base tem fonte: o Qwen2.5-7B-Instruct é oferecido a US\$~0,30 por milhão de \textit{tokens}, e o único outro provedor encontrado cobrava menos (US\$~0,10 na entrada e US\$~0,20 na saída, no OpenRouter), de modo que o valor adotado é o menos favorável ao A4. O preço do adaptador, por outro lado, não existe no catálogo disponível dos provedores observados, por isso, foi estimado. Em outubro de 2026, os provedores consultados tinham encerrado a hospedagem de adaptadores LoRA cobrada por \textit{token} e só os ofereciam em implantações dedicadas, cobradas por hora de uso \cite{togetherlora2026, fireworkslora2026}. Por isso, o preço do A4 é uma hipótese, e não um valor observado. O cenário com acréscimo de 50\% foi utilizado nas comparações, por ser o menos favorável ao A4. Para que a conclusão não dependa desse valor, também é calculado o preço de equilíbrio: o preço por \textit{token} a partir do qual o A4 deixaria de ser mais barato que cada braço de grande porte, mantidos os \textit{tokens} medidos e a validade de cada braço. O tempo de inferência não é medido, pois os modelos de grande porte rodaram na infraestrutura dos provedores e o modelo pequeno em uma estação local, de modo que a comparação mediria o equipamento, e não o método.
+
+\subsection{Razão de compressão}\label{subsec:tcr}
+
+A razão de compressão de \textit{tokens} (TCR) mede quanto a DSL é menor que o XML que ela produz:
+\begin{equation}
+	\text{TCR} = \frac{\text{tokens}(\text{XML})}{\text{tokens}(\text{DSL})},
+\end{equation}
+com o tokenizador do Qwen2.5-Coder. O XML do numerador é o produzido pelo transpilador, sem as coordenadas do leiaute, que inflariam a razão sem acrescentar conteúdo ao processo (Seção~\ref{sec:transpilacao}). A TCR é calculada sobre o corpus e sobre as saídas dos braços que emitem DSL, considerando apenas as saídas que passam pela transpilação. Nos braços que emitem XML não há representação intermediária, e a razão não é definida.
+
+\subsection{Fidelidade}\label{subsec:fidelidade}
+
+A fidelidade é o quanto o modelo gerado representa o processo descrito no texto. Neste trabalho, ser fiel é representar o que o texto diz sem inventar conteúdo: um modelo que acrescenta atividades ou decisões que o texto não sustenta é penalizado, mesmo que o acréscimo seja plausível. Essa definição foi escolhida porque, nas saídas de um modelo de linguagem, inventar conteúdo é justamente o erro que importa detectar.
+
+\subsubsection{O juiz}
+
+A fidelidade é medida por um modelo de linguagem usado como juiz, o \texttt{muse-\allowbreak spark-\allowbreak 1.3-\allowbreak contributor}, da Meta. Dois critérios orientaram a escolha. O primeiro é a família: o juiz é de família diferente da de todos os modelos que geraram o corpus ou participam dos braços, o que reduz o risco de ele favorecer saídas parecidas com as que ele mesmo produziria. O segundo é a capacidade: no índice de inteligência do Artificial Analysis, que agrega avaliações independentes de modelos de linguagem \cite{artificialanalysis2026}, o juiz obtém entre 45 e 48 pontos, conforme a configuração de raciocínio, contra no máximo 36 dos modelos de grande porte que geraram o corpus ou participam dos braços, cada um na sua configuração mais alta. Capacidade geral, porém, não garante que o juiz avalie fidelidade como um especialista, e por isso ele foi validado de duas formas antes de ser usado nos braços, como descrito a seguir.
+
+O juiz recebe o texto original do processo e o modelo gerado, e devolve uma nota inteira de 0 a 5.
+
+O juiz não vê o XML. O modelo é apresentado como uma lista neutra de elementos e fluxos, com tipo e rótulo de cada elemento e identificadores sem significado (N1, N2, \ldots). Isso remove as diferenças de forma entre um XML escrito diretamente por um modelo e um XML produzido pelo transpilador, de modo que o juiz não sabe de que braço veio a saída.
+
+A rubrica do juiz tem cinco critérios: as atividades do texto estão presentes e nenhuma foi inventada; as decisões aparecem com as saídas que o texto dá; o paralelismo corresponde ao texto; a ordem, as repetições e os finais correspondem ao texto; e o modelo é bem formado, com início, fim e todos os elementos alcançáveis. Cada nota de 0 a 5 tem uma descrição na rubrica. Antes de dar a nota, o juiz lista os problemas encontrados em cada critério, em uma resposta com formato fixo, o que permite auditar cada nota. Quem executa cada atividade não é avaliado.
+
+Cada saída é julgada três vezes, com temperatura zero e sementes diferentes, e a nota da saída é a mediana das três. O texto completo das instruções do juiz é fixado por um \textit{hash}, gravado com cada julgamento, de modo que uma mudança na rubrica gera um novo conjunto de notas, e não uma mistura de versões. As instruções estão no Apêndice~\ref{ap:prompts-juiz}.
+
+\subsubsection{Validação contra notas de especialista}
+
+A primeira validação comparou as notas do juiz com as do especialista no Zenodo: 222 modelos de 24 processos, cada um com uma nota de 0 a 5 \cite{mangler2023textual}. O critério, fixado antes da execução, era uma correlação de Spearman de pelo menos 0,5 entre as duas notas, com intervalo de confiança obtido por \textit{bootstrap} sobre os processos.
+
+O juiz não passou. Na primeira tentativa, a escala tinha passos de meio ponto, e o juiz respondeu quase só com valores terminados em 0,5, o que reduziu a escala a cinco níveis deslocados; a correlação foi de 0,133, com intervalo de [0,005; 0,263]. Na segunda tentativa, com a escala de inteiros e a rubrica inalterada, o juiz passou a usar todos os níveis, e a correlação foi de 0,108 [$-$0,028; 0,258].
+
+A leitura dos 10 casos de maior divergência, feita pelo autor, indicou que o juiz e o especialista não medem a mesma coisa. Em todos os 10, os problemas que o juiz apontou existiam de fato no modelo; o desacordo estava no peso dado a eles. A principal causa é a definição de fidelidade: os textos do Zenodo são enunciados de projeto vagos, como ``crie um processo que dê suporte a\ldots'', em que quem modela precisa inventar detalhes, e o especialista premia uma boa invenção, enquanto a rubrica do juiz a penaliza. Somam-se a isso três fatores: as notas vêm de um único avaliador, 48\% delas são a nota máxima, e 8 dos 222 modelos têm fluxos que, no XML, não estão ligados aos elementos, embora pareçam ligados no desenho que o especialista avaliou. Como o juiz está entre os modelos mais bem posicionados no índice citado acima, a falta de concordância dificilmente se explica por falta de capacidade: ela aponta, antes, para a diferença entre o que a rubrica e o especialista consideram fiel.
+
+A rubrica não foi ajustada para se aproximar do especialista. Uma terceira tentativa, feita depois de ver dois resultados, seria um ajuste aos dados, e uma rubrica que não penaliza acréscimos poderia premiar exatamente as invenções que se quer detectar nos braços.
+
+\subsubsection{Validação por perturbação controlada}
+
+A segunda validação usa casos em que a resposta certa é conhecida por construção. Partindo do modelo de referência de cada um dos 46 itens do PMo, foram gerados mutantes com defeitos conhecidos: a remoção de uma atividade, a inserção de uma atividade inventada, a troca dos rótulos de duas atividades, a troca de um paralelismo por uma escolha exclusiva e a troca dos destinos de dois ramos de uma decisão. Cada item recebeu ainda um mutante com três defeitos sorteados e uma paráfrase, em que todos os rótulos foram reescritos com o mesmo sentido por outro modelo de linguagem, o GLM~5.3. A reescrita foi leve, em geral trocando só o verbo: a semelhança média entre o rótulo original e a paráfrase foi de 0,41 pelo índice de Jaccard, o que limita o quanto a invariância (C3) demonstra. Ao todo, foram 343 casos.
+
+Os critérios foram fixados antes de qualquer julgamento e comparam cada caso com o modelo intacto do mesmo item. A sensibilidade (C1) é a proporção de pares em que o intacto recebe nota maior que o mutante com um defeito, com empates contando meio ponto, e deve ser de pelo menos 0,80. A gradação (C2) é a correlação de Spearman entre o número de defeitos (0, 1 ou 3) e a variação da nota em relação ao intacto, e deve ser de no máximo $-$0,5. A invariância (C3) é a proporção de itens em que a paráfrase muda a nota em no máximo 20\% da escala, e deve ser de pelo menos 0,80. A medida originalmente prevista para a fidelidade, o DF-F1 (Seção~\ref{subsec:dff1}), recebeu o mesmo cálculo, como comparação. A Tabela~\ref{tab:perturbacao} mostra os resultados.
+
+\begin{table}[htb]
+	\Caption{\label{tab:perturbacao} Validação por perturbação controlada}%
+	\IBGEtab{}{%
+		\begin{tabular}{llrr}
+			\toprule
+			Critério & Limiar & Juiz & DF-F1 \\
+			\midrule \midrule
+			C1 sensibilidade & $\geq 0{,}80$ & 0,702 & 0,837 \\
+			C2 gradação & $\leq -0{,}5$ & $-$0,385 & $-$0,588 \\
+			C3 invariância & $\geq 0{,}80$ & 1,000 & 0,000 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+}
+\end{table}
+
+Nenhuma das duas medidas passou. O DF-F1 falhou na invariância: a paráfrase derrubou sua nota, em média, em 0,80 numa escala de 0 a 1, embora o processo fosse o mesmo. Ele também não percebe a troca de paralelismo por escolha nem a troca de ramos, com concordância de 0,5 nos dois casos, porque a nota não muda. O juiz foi perfeito na invariância, mas ficou abaixo do limiar na sensibilidade e na gradação.
+
+A análise dos erros do juiz, feita depois do resultado, mostrou que ele quase nunca inverte a ordem: em 205 pares de intacto e mutante com um defeito, o mutante recebeu nota maior em apenas 10. O que derruba a sensibilidade são os empates, que vêm de um efeito de piso: em 28 dos 46 itens, o próprio modelo de referência recebeu nota 3 ou menor, e um defeito a mais em um modelo que já tem problemas nem sempre muda a nota. A concordância cresce com a nota do intacto, de 0,47 quando ela é 2 a 0,97 quando é 5. Esse piso tem uma causa identificada: em pelo menos 10 dos itens compartilhados com o Zenodo, a referência do PMo é um modelo feito por iniciante (Seção~\ref{sec:dados}), e as críticas do juiz a essas referências procedem nos casos lidos. Nos 22 itens que não vêm do Zenodo, o juiz teria passado em C1 (0,826) e C2 ($-$0,536). Esse recorte, porém, foi feito depois de ver os dados e não substitui o critério fixado antes.
+
+\subsubsection{Uso da medida}
+
+Nenhuma medida de fidelidade passou nas validações fixadas antes da execução. O juiz tem evidências parciais a seu favor: é insensível à paráfrase, quase não inverte a ordem entre o modelo correto e o defeituoso, e passaria nos critérios nos itens cuja referência não vem do Zenodo, embora esse recorte seja posterior ao resultado. Por isso ele é usado, mas a fidelidade é reportada como medida exploratória, e nenhuma conclusão principal depende dela.
+
+O juiz foi aplicado às saídas válidas dos braços A1, A1g, A2, A2g, A2r e A4. Uma saída inválida não tem modelo a julgar. A nota de um braço em um item é a média das notas das suas saídas válidas, e cada braço é reportado com a sua cobertura, isto é, o número de itens em que teve ao menos uma saída válida. Como os 24 itens de origem do Zenodo têm textos vagos e se comportaram de forma diferente na validação, a fidelidade também é reportada separadamente para eles e para os 22 demais.
+
+\subsection{A medida originalmente prevista: DF-F1}\label{subsec:dff1}
+
+O protocolo inicial previa como medida de fidelidade o DF-F1, que compara a saída com o modelo de referência pelos pares de atividades e eventos que se sucedem no fluxo, após alinhar os rótulos, e resume a concordância por um F1. A medida tem duas falhas que só foram verificadas depois do congelamento do protocolo. Ela não concorda com o especialista do Zenodo (correlação de Spearman de 0,04) e falhou na validação por perturbação, como mostra a Tabela~\ref{tab:perturbacao}. Além disso, depende do modelo de referência, que em parte dos itens não é confiável. Por isso foi substituída pelo juiz, o que é declarado como desvio do protocolo (Seção~\ref{sec:desvios}). Os resultados das hipóteses originais, decididas pelo DF-F1, são apresentados no Apêndice~\ref{ap:hipoteses-originais}, apenas para registro.
 \section{Protocolo e análise estatística}\label{sec:protocolo}
+
+\subsection{Execução}
+
+Cada braço gerou uma saída para cada um dos 46 itens do conjunto de teste, três vezes, num total de 138 gerações por braço. Os braços de grande porte foram chamados com temperatura zero, reduzindo assim a variação entre as repetições, mas não a eliminando, pois o mesmo pedido pode produzir saídas diferentes no provedor. Os braços do modelo pequeno rodaram localmente com decodificação gulosa, em que a repetição tende a ser idêntica. As três repetições foram mantidas em todos os braços, para que a variação entre elas seja medida, e não suposta.
+
+O limite de \textit{tokens} de saída foi de 8.192 nos braços que emitem XML e de 2.048 nos que emitem DSL. A diferença acompanha o tamanho de cada formato, já que o XML é várias vezes mais longo que a DSL equivalente (Seção~\ref{subsec:tcr}). Uma saída que atinge o limite é registrada como truncada e conta como inválida (Seção~\ref{subsec:validade}). Com esses limites, foram truncadas 3 gerações do A1, 2 do A1g e 81 do A3m, e nenhuma dos demais braços. Nenhuma geração foi repetida em caso de falha, já que uma falha é parte do resultado do braço. Cada geração foi gravada com o modelo, o \textit{hash} do \textit{prompt} e a versão do código que a produziu.
+
+\subsection{Unidade de análise e comparações}
+
+A unidade de análise é o item. Como todos os braços recebem os mesmos 46 itens, as comparações entre dois braços são pareadas: calcula-se a diferença item a item, e o resultado é a média dessas diferenças, com intervalo de confiança de 95\% obtido por \textit{bootstrap} sobre os itens, com 10.000 reamostragens e semente fixa. O \textit{bootstrap} foi escolhido por não exigir que as diferenças sigam uma distribuição conhecida, o que não vale para proporções de três repetições nem para notas inteiras.
+
+Na validade, o valor de um braço em um item é a fração das três repetições que são válidas, isto é, 0, 1/3, 2/3 ou 1. Na fidelidade, também é reportado o teste de Wilcoxon pareado, que indica se as diferenças entre os braços pendem para um dos lados mais do que o acaso explicaria. O teste foi escolhido por não supor que as diferenças sigam uma distribuição normal, o que não vale para notas inteiras de 0 a 5, e é bilateral, isto é, considera tanto a possibilidade de um braço ser melhor quanto a de ser pior.
+
+\subsection{Equivalência}
+
+A ausência de diferença significativa não demonstra que dois braços são equivalentes: com 46 itens, um intervalo largo pode conter tanto o zero quanto diferenças grandes. Por isso, toda afirmação de empate exige uma margem de equivalência fixada de antemão. A regra é a mesma para as duas medidas. Se o intervalo de 95\% da diferença cai inteiro dentro da margem, os braços são declarados equivalentes. Se cai inteiro fora, são declarados diferentes além da margem. Nos demais casos, o resultado é inconclusivo.
+
+Na validade, a margem é de $\pm$10 pontos percentuais, fixada antes do cálculo dos intervalos, quando apenas as proporções de cada braço tinham sido vistas. Uma diferença menor que essa não altera a ordem de custo por saída válida entre os braços. Os contrastes são A4~$-$~A2r, que compara o modelo pequeno com o método executado pelo modelo de grande porte, e A2r~$-$~A1, que compara o método com a geração direta de XML.
+
+Na fidelidade, a margem é de $\pm$0,5 ponto na escala de 0 a 5, e foi fixada depois de vistas as notas dos braços, o que torna esses vereditos exploratórios. A margem se justifica sem recorrer a essas notas: é metade do passo da escala inteira e é menor que a queda média de nota causada por um único defeito na validação por perturbação, de 0,63 ponto. Os contrastes são A2r~$-$~A1, A2~$-$~A1, A4~$-$~A2r e A4~$-$~A1.
+
+\subsection{Custo e compressão}
+
+O custo e a razão de compressão são descritivos: reportam-se os valores de cada braço, sem teste. A conclusão sobre o custo é verificada pelo preço de equilíbrio do A4 (Seção~\ref{subsec:custo}), que diz quanto o preço do modelo pequeno poderia subir antes de a ordem entre os braços se inverter.
+
+\subsection{Estatuto dos resultados}
+
+O protocolo inicial, congelado antes da primeira execução, previa quatro hipóteses, três delas decididas pelo DF-F1, com teste de Wilcoxon pareado bilateral sobre a mediana das três repetições por item, correção de Holm sobre os três contrastes planejados (A2~$-$~A1, A2g~$-$~A1g e A4~$-$~A2) e intervalos por \textit{bootstrap}. Como o DF-F1 foi substituído (Seção~\ref{subsec:dff1}), essa análise é reportada integralmente, mas apenas no Apêndice~\ref{ap:hipoteses-originais}.
+
+As análises do corpo do trabalho foram definidas depois do congelamento, e o texto as distingue pelo momento em que cada decisão foi tomada. A margem da validade foi fixada antes do cálculo dos intervalos. A margem da fidelidade, depois de vistas as notas. A fidelidade inteira é exploratória, pela validação parcial do juiz, e não recebe correção para comparações múltiplas. O braço A2r foi definido depois de vistos os resultados do A2. Os desvios em relação ao protocolo inicial estão reunidos na Seção~\ref{sec:desvios}.
+
 \section{Desvios do protocolo inicial}\label{sec:desvios}
+
+O protocolo inicial fixou, antes da primeira execução, os braços, os \textit{prompts}, as medidas, as hipóteses e a análise estatística. Ele admitia mudanças, desde que declaradas com a data, o motivo e a indicação de terem sido feitas antes ou depois de vistos os resultados. Uma mudança feita depois dos resultados é mais fraca, porque pode ter sido escolhida por favorecer as hipóteses do autor. Por isso, para cada desvio, é indicado também em que direção ele poderia mover os resultados. A Tabela~\ref{tab:desvios} resume os desvios, descritos a seguir.
+
+\begin{table}[htb]
+	\Caption{\label{tab:desvios} Desvios do protocolo inicial}%
+	\IBGEtab{}{%
+		\small
+		\begin{tabular}{p{5.2cm}lp{2.2cm}p{4.2cm}}
+			\toprule
+			Desvio & Data & Resultados & Efeito possível \\
+			\midrule \midrule
+			Glosa no \textit{prompt} de DSL & 16/08/2026 & depois (A3) & eleva o A3, contra a hipótese \\
+			Correção de identificadores duplicados & 25/08/2026 & depois & eleva a DSL, a favor \\
+			Braço A2r & 12/10/2026 & depois & a favor; braço exploratório \\
+			Medida de custo & 12/10/2026 & depois & medida nova \\
+			Exclusão de 7 itens vazados & 14/10/2026 & depois & nenhum previsível \\
+			Correções P9 e P10 do transpilador & 18/10/2026 & depois & reduz a TCR, contra \\
+			Substituição do DF-F1 pelo juiz & 18--20/10/2026 & depois & medida nova \\
+			Erro no desenho da perturbação & 20/10/2026 & depois & recorte posterior \\
+			Margens de equivalência & 20/10/2026 & ver texto & análise nova \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{A coluna ``Resultados'' indica se o desvio foi decidido antes ou depois de vistos os resultados que ele afeta.}%
+}
+\end{table}
+
+\subsection{Mudanças nos artefatos}
+
+\textbf{Glosa no \textit{prompt} de DSL.} Depois da execução do A3, verificou-se que o \textit{prompt} de DSL listava as palavras-chave dos \textit{gateways} sem ligá-las aos conceitos de BPMN usados nas regras de modelagem, e mostrava duas sintaxes de ramificação sem avisar que uma não se generaliza para a outra. O \textit{prompt} de XML não precisa dessa ligação, porque a terminologia BPMN já está no pré-treinamento dos modelos, e a omissão prejudicava apenas os braços de DSL. Os dois defeitos são verificáveis lendo o \textit{prompt} e testando construções no \textit{parser}, sem recorrer a nenhum resultado. O \textit{prompt} foi corrigido e o A3 foi executado de novo; o A2 e o A2g já foram executados com a versão corrigida. A mudança é posterior aos resultados do A3, mas só podia elevar o A3, o que reduz a vantagem que o A4 poderia mostrar sobre ele. O efeito foi pequeno, e as gerações anteriores foram preservadas.
+
+\textbf{Correção de identificadores duplicados.} Quando uma DSL redeclarava um elemento já marcado com identificador, o transpilador emitia dois elementos com o mesmo identificador, e o XML era rejeitado pelo esquema. A correção é posterior aos resultados e só podia elevar a validade dos braços de DSL, isto é, favorecer o método. Por isso, foi aplicada a todos os braços ao mesmo tempo, retranspilando as saídas já gravadas, sem nova chamada a modelo. Mudaram 6 de 1.590 gerações, nenhuma do A4, e nenhum desfecho de hipótese mudou.
+
+\textbf{Correções P9 e P10 do transpilador.} Antes da execução do juiz, foram corrigidos dois defeitos. O primeiro (P9) ligava ao \textit{gateway} de convergência um ramo que terminava em evento de fim, gerando um fluxo saindo do fim. O segundo (P10) ignorava a raia indicada no próprio elemento e repetia a mesma raia, com todos os membros, quando o bloco aparecia mais de uma vez. Nenhuma das correções alterou a validade de nenhum braço. Todas as saídas e o corpus foram retranspilados, e o corpus continuou inteiramente válido. A P10 afetou a razão de compressão: as raias repetidas inflavam o XML, e a TCR do corpus caiu de 6,01 para 5,37 (Seção~\ref{subsec:tcr}). O efeito é contrário à hipótese do trabalho, e os valores reportados são os corrigidos.
+
+\textbf{Braço A2r.} O A2r foi definido depois de vistos os resultados do A2, a partir da análise das falhas de sintaxe (Seção~\ref{sec:bracos}). É, portanto, exploratório, e seus resultados são reportados como tais, mesmo sendo o braço do método com maior validade.
+
+\subsection{Mudanças nos dados}
+
+\textbf{Exclusão de 7 itens.} Uma auditoria posterior aos resultados encontrou 7 itens do PMo cujos textos também estão no PET, usado no treino (Seção~\ref{subsec:contaminacao}). Os 7 itens foram excluídos de todas as análises, que passaram de 53 para 46 itens, sem apagar nenhuma geração. A exclusão segue um critério definido sem olhar o desempenho dos braços, a sobreposição de texto com o treino, e foi aplicada a todos os braços. As validades mudaram no máximo 3,7 pontos percentuais, e a ordem entre os braços se manteve.
+
+\subsection{Mudanças nas medidas e na análise}
+
+\textbf{Medida de custo.} O custo por requisição não estava no protocolo inicial. Ele não é uma medição nova, e sim a conversão em dinheiro de quantidades já medidas, os \textit{tokens} de entrada e de saída de cada geração. Os preços e as hipóteses do cálculo estão na Seção~\ref{subsec:custo}.
+
+\textbf{Substituição do DF-F1 pelo juiz.} A medida de fidelidade prevista, o DF-F1, falhou nas duas validações feitas depois do congelamento, e foi substituída pelo juiz (Seções~\ref{subsec:fidelidade} e \ref{subsec:dff1}). O juiz também não passou nos critérios fixados, e por isso a fidelidade é exploratória. As hipóteses originais, decididas pelo DF-F1, são reportadas no Apêndice~\ref{ap:hipoteses-originais}. Na validação contra o Zenodo, o juiz foi executado duas vezes: a segunda corrigiu a escala de meio ponto, que o juiz não usava por inteiro, e manteve a rubrica. As duas tentativas são reportadas.
+
+\textbf{Erro no desenho da perturbação.} A validação por perturbação supunha que o modelo de referência de cada item estivesse correto. Depois do resultado, verificou-se que ao menos 10 referências são modelos de iniciantes do Zenodo (Seção~\ref{sec:dados}), o que já se sabia antes do teste e deveria ter excluído esses itens da base. O teste mediu, em parte, a qualidade da referência, e não só a do juiz. O resultado nos 22 itens fora do Zenodo é reportado, mas como recorte posterior ao resultado, sem valor de validação.
+
+\textbf{Margens de equivalência e unidade da validade.} O protocolo inicial não previa margens de equivalência, e um empate só podia ser descrito como ausência de diferença significativa. As margens foram acrescentadas depois do congelamento (Seção~\ref{sec:protocolo}). A da validade foi fixada antes do cálculo dos intervalos, e a da fidelidade, depois de vistas as notas. Na mesma ocasião, a validade de um item passou a ser a fração das três repetições válidas, e não a mediana prevista no protocolo inicial. Com três repetições que valem 0 ou 1, a mediana vira um voto de maioria e descarta a informação de que, por exemplo, uma de três saídas falhou.
+
 \section{Ameaças à validade}\label{sec:ameacas}
+
+As ameaças estão agrupadas pelo tipo de conclusão que afetam, se os efeitos observados se devem aos braços (validade interna), se as medidas medem o que se pretende (validade de construto), se os resultados se estendem além deste estudo (validade externa) e se a análise sustenta as conclusões tiradas (validade da conclusão).
+
+\subsection{Validade interna}
+
+\textbf{Decisões tomadas depois dos resultados.} Parte das decisões foi tomada depois de vistos os resultados, o braço A2r, a medida de custo, a substituição do DF-F1 e a margem de equivalência da fidelidade (Seção~\ref{sec:desvios}). Cada uma pode ter sido influenciada, ainda que sem intenção, pelo que favorecia o trabalho. A mitigação adotada foi declarar o momento de cada decisão, reportar a análise original no apêndice e aplicar toda correção a todos os braços ao mesmo tempo.
+
+\textbf{Redação dos \textit{prompts}.} Cada formato foi testado com um único \textit{prompt}, e testar com outras variantes poderiam mudar os resultados. As partes comuns são idênticas entre os \textit{prompts}, o que torna a comparação entre formatos justa, mas não garante que cada \textit{prompt} seja o melhor possível para o seu formato. A emenda da glosa (Seção~\ref{sec:desvios}) mostrou que uma correção de redação teve efeito pequeno, mas uma única emenda não basta para descartar essa sensibilidade.
+
+\textbf{Variação entre execuções e versões dos modelos.} A temperatura zero não garante saídas idênticas nos provedores, e os modelos de grande porte foram acessados por API, cujas versões podem mudar sem aviso. As três repetições medem a variação dentro do período de execução, mas uma nova execução no futuro pode não reproduzir exatamente os números. Os resultados do modelo pequeno, executado localmente com pesos fixos, não têm essa limitação.
+
+\subsection{Validade de construto}
+
+\textbf{Fidelidade.} O juiz não passou nos critérios de validação fixados (Seção~\ref{subsec:fidelidade}), e por isso a fidelidade é exploratória. Mesmo como medida exploratória, a escala do juiz não é calibrada, pois uma diferença de um ponto não corresponde a um número conhecido de defeitos, e as notas de braços diferentes só podem ser comparadas entre si, e não interpretadas em termos absolutos.
+
+\textbf{Referências e textos de avaliação.} Ao menos 10 das referências do PMo são modelos feitos por iniciantes, e os 24 itens vindos do Zenodo têm enunciados de projeto vagos, em que quem modela precisa inventar parte do processo (Seção~\ref{sec:dados}). Isso afeta qualquer medida que dependa da referência ou que penalize acréscimos. A fidelidade é julgada contra o texto, e não contra a referência, e é reportada separadamente para os dois grupos de itens, mas a vagueza desses textos continua afetando o julgamento.
+
+\textbf{Validade.} A validade mede apenas a conformidade com o esquema XSD. Um XML válido pode ter elementos inalcançáveis, decisões sem saída ou um processo diferente do descrito, e esses problemas só são capturados, em parte, pela fidelidade, que é exploratória.
+
+\textbf{Custo.} O preço do modelo com adaptador é uma hipótese, porque nenhum provedor consultado oferecia esse serviço cobrando por \textit{token}, e todos os preços são de um único provedor em uma única data. Além disso, os \textit{tokens} de todos os braços foram contados com o tokenizador do Qwen, o que é uma aproximação para os modelos de grande porte. O preço de equilíbrio (Seção~\ref{subsec:custo}) reduz a dependência da conclusão em relação ao preço exato, mas não a elimina.
+
+\subsection{Validade externa}
+
+\textbf{Domínio dos dados de treino.} 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, de uma única empresa, enquanto o teste é feito sobre processos de outros domínios. Isso pode subestimar o modelo pequeno, que foi avaliado fora do domínio em que foi treinado, mas também significa que não se sabe como ele se comportaria com dados de treino mais variados. O desenho não separa o efeito dessa mudança de domínio do efeito do tamanho do modelo.
+
+\textbf{Dados de treino gerados por modelo.} Os pares de treino foram gerados pelo GLM~5.2 e filtrados apenas pela consistência entre o JSON e o XML, sem verificação humana de que o JSON representa o texto. Erros do gerador podem ter sido aprendidos pelo modelo pequeno. O GLM~5.2 também é usado nos braços A1g e A2g, o que pode favorecê-lo nesses braços, já que o corpus segue o seu estilo de modelagem; por isso a comparação entre formatos foi replicada com o DeepSeek~V4~Pro, que não participou da geração.
+
+\textbf{Contaminação dos modelos de grande porte.} O PMo, o Zenodo e o PET são conjuntos públicos, e é possível que seus textos e modelos de referência estejam nos dados de pré-treinamento dos modelos de grande porte. Se estiverem, os braços A1, A1g, A2, A2g e A2r são favorecidos, e a comparação com o modelo pequeno fica desfavorável a ele. Não há como verificar essa contaminação em modelos de pesos fechados ou de dados de treino não publicados.
+
+\textbf{Alcance do estudo.} O estudo usa uma linguagem de saída (BPMN 2.0), uma língua (inglês), uma família de modelo pequeno no braço principal e 46 itens de teste. Os braços com o Granite e o MiMo verificam parte da dependência em relação ao modelo pequeno, mas a generalização para outras linguagens XML, que é a motivação do método, não foi testada.
+
+\subsection{Validade da conclusão}
+
+\textbf{Tamanho da amostra.} Com 46 itens, os intervalos de confiança das diferenças de validade têm cerca de $\pm$13 pontos percentuais, mais largos que a margem de equivalência de 10 pontos. Por isso, a igualdade de validade entre o A4 e o A2r não pode ser declarada equivalência, e o estudo não tem itens suficientes para isso (Seção~\ref{sec:protocolo}).
+
+\textbf{Comparações múltiplas.} As análises de fidelidade e os braços exploratórios não recebem correção para comparações múltiplas. Com vários contrastes, a chance de algum resultado aparentemente significativo ser fruto do acaso aumenta, e esses resultados devem ser lidos como indicações, e não como confirmações.

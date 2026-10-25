@@ -21,8 +21,9 @@
 		papel/.style={align=center, font=\scriptsize, text=black!60},
 		fase/.style={anchor=west, font=\footnotesize\bfseries, text=black!70},
 		seta/.style={-{Latex[length=2mm]}, thick, draw=black!55}]
-		% Faixa das transformações determinísticas, comum às duas fases.
-		\fill[black!5, rounded corners=3pt] (7.2,-6.1) rectangle (15.75,1.45);
+		% Faixa das transformações determinísticas, comum às duas fases. Cobre só a
+		% linha das caixas: abaixo dela fica o juiz, que é probabilístico.
+		\fill[black!5, rounded corners=3pt] (7.2,-0.85) rectangle (15.75,1.45);
 		\node[papel] at (11.45,1.2) {transformações determinísticas};
 		% Construção do corpus.
 		\node[fase] at (-0.1,1.75) {Construção do corpus};
@@ -57,15 +58,20 @@
 		\node[art] at (2.0,-3.65) {texto original};
 		% O corpus treina o modelo pequeno (pares texto original e DSL).
 		\draw[seta, dotted] (conv.south) -- (8.6,-1.55) -| (qwen.north);
-		\node[art, anchor=north west] at (8.7,-0.75) {pares (texto, DSL)\\para o ajuste fino};
+		\node[art, anchor=north west] at (8.7,-0.95) {pares (texto, DSL)\\para o ajuste fino};
 		% DSL dos dois grupos converge para a transpilação; XML vai direto à validação.
 		\draw[thick, draw=black!55] (qwen.east) -| (7.6,-3.95);
 		\draw[thick, draw=black!55] (frdsl.east) -- (7.6,-3.95);
 		\fill[black!55] (7.6,-3.95) circle (1.5pt);
 		\draw[seta] (7.6,-3.95) -- (11.45,-3.95) -- (trans);
 		\node[art] at (10.05,-3.73) {DSL};
-		\draw[seta] (frxml.east) -- (14.4,-5.35) -- (val);
+		\draw[seta] (frxml.east) -- (13.75,-5.35) -- (13.75,-0.55);
 		\node[art] at (10.05,-5.13) {XML};
+		% Só as saídas válidas chegam ao juiz, que compara o modelo com o texto original.
+		\node[prob, text width=1.5cm] (juiz) at (14.95,-2.55) {Juiz de\\fidelidade\\\scriptsize (LLM)};
+		\draw[seta] (14.95,-0.55) -- (juiz.north);
+		\node[art, anchor=east] at (14.9,-1.3) {válido};
+		\node[art, anchor=north, yshift=-1.5mm] at (juiz.south) {nota\\de 0 a 5};
 	\end{tikzpicture}
 	\Fonte{Elaborado pelo autor}
 	\Nota{Borda tracejada indica etapa probabilística; borda sólida, etapa
@@ -75,5 +81,7 @@
 	texto original e pela DSL treinam o modelo pequeno (seta pontilhada). Na
 	avaliação, os braços recebem o texto original e ocupam o lugar da extração: os
 	que geram DSL passam pela mesma transpilação, e os que geram XML seguem direto
-	para a validação.}
+	para a validação. As saídas válidas seguem para o juiz de fidelidade, um modelo
+	de linguagem que compara o processo gerado com o texto original; por isso ele
+	também tem borda tracejada.}
 \end{figure}
