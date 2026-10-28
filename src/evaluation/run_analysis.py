@@ -17,7 +17,7 @@ import statistics as st
 
 from scipy.stats import wilcoxon
 
-from src.data.db import Database
+from src.data.db import Database, not_leaked
 from src.evaluation.run_benchmark import ARMS, per_item_medians
 
 # Contrastes **planejados**, fixados aqui para que a correção múltipla não vire
@@ -38,9 +38,7 @@ def pareado(a: dict[str, float], b: dict[str, float]) -> tuple[list[float], list
 def bootstrap_ci(diferencas: list[float], n: int = BOOTSTRAP_N) -> tuple[float, float]:
     """IC95% da mediana das diferenças pareadas, semente fixa (§6.3)."""
     rng = random.Random(SEED)
-    medianas = sorted(
-        st.median(rng.choices(diferencas, k=len(diferencas))) for _ in range(n)
-    )
+    medianas = sorted(st.median(rng.choices(diferencas, k=len(diferencas))) for _ in range(n))
     return medianas[int(0.025 * n)], medianas[int(0.975 * n)]
 
 
@@ -49,7 +47,7 @@ def rank_biserial(x: list[float], y: list[float]) -> float:
 
     Proporção de pares em que x supera y menos a proporção inversa. Varia de -1
     a 1 e não depende da escala, então é comparável entre métricas. Reportado
-    porque com n = 53 o valor-p sozinho diz pouco (§6.3).
+    porque com n = 46 o valor-p sozinho diz pouco (§6.3).
     """
     ganhos = sum(a > b for a, b in zip(x, y, strict=True))
     perdas = sum(a < b for a, b in zip(x, y, strict=True))
@@ -109,14 +107,16 @@ def descrever(db: Database, braco: str, metrica: str) -> dict | None:
     linhas = db.query(
         """SELECT COUNT(*) n, SUM(xsd_valid) xsd, SUM(COALESCE(parse_ok,1)) parse_ok,
                   SUM(truncated) truncadas, SUM(gen_error IS NOT NULL) erros
-           FROM benchmark_eval WHERE arm = ?""",
+           FROM benchmark_eval WHERE arm = ?"""
+        + not_leaked(),
         (braco,),
     )[0]
     if not linhas["n"]:
         return None
     medianas = per_item_medians(db, braco, metrica)
     espalhamento: dict[str, list[float]] = {}
-    for r in db.query(f"SELECT sample_id, {metrica} v FROM benchmark_eval WHERE arm=?", (braco,)):
+    sql = f"SELECT sample_id, {metrica} v FROM benchmark_eval WHERE arm=?{not_leaked()}"
+    for r in db.query(sql, (braco,)):
         espalhamento.setdefault(r["sample_id"], []).append(r["v"] or 0.0)
     amplitudes = [max(v) - min(v) for v in espalhamento.values() if len(v) > 1]
     return {
@@ -167,7 +167,8 @@ def run(args: argparse.Namespace) -> None:
         bloco("Exploratórios — SEM correção, não confirmatórios", EXPLORATORIOS, corrigir=False)
 
         print(
-            "\nNota: n = 53 é pequeno. Reportar tamanho de efeito e IC, não só o"
+            "\nNota: n = 46 itens (53 do PMo menos os 7 vazados) é pequeno."
+            " Reportar tamanho de efeito e IC, não só o"
             " valor-p (§6.3). Resultado contrário às hipóteses é publicável (§6.1)."
         )
 

@@ -29,12 +29,10 @@ def test_cache_sem_preco_falha_em_vez_de_cobrar_zero():
         custo(1000, 0, {"in": 1.0, "out": 1.0, "cache": None}, t_cache=10)
 
 
-def test_cache_do_7b_tem_a_mesma_proporcao_do_deepseek():
-    """Tratamento simétrico: comparar o grande com cache contra o pequeno sem
-    cache favoreceria o grande por construção."""
-    ds = PRECOS["deepseek_fora_pico"]
+def test_7b_sem_cache_no_provedor_paga_entrada_cheia():
+    """O Together não oferece cache para o 7B: nenhum desconto inventado."""
     for nome in ("7b", "7b_lora"):
-        assert PRECOS[nome]["cache"] / PRECOS[nome]["in"] == pytest.approx(ds["cache"] / ds["in"])
+        assert PRECOS[nome]["cache"] == PRECOS[nome]["in"]
 
 
 def test_figura_usa_o_cenario_mais_caro_do_a4():

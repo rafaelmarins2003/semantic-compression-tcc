@@ -10,7 +10,7 @@ Uso: uv run python -m src.evaluation.run_tabelas
 import argparse
 import statistics as st
 
-from src.data.db import Database
+from src.data.db import Database, not_leaked
 from src.evaluation.export_figuras import per_item_medians, teto_humano
 from src.evaluation.run_benchmark import MIN_REF_SCORE, references
 from src.evaluation.topology import (
@@ -33,7 +33,9 @@ def contraste_condicional(db, dsl: str, xml: str) -> list[dict]:
     validos = {
         r["sample_id"]
         for r in db.query(
-            "SELECT DISTINCT sample_id FROM benchmark_eval WHERE arm=? AND xsd_valid=1", (dsl,)
+            "SELECT DISTINCT sample_id FROM benchmark_eval WHERE arm=? AND xsd_valid=1"
+            + not_leaked(),
+            (dsl,),
         )
     }
     todos = sorted(set(md) & set(mx))
@@ -62,7 +64,8 @@ def mf_f1(db, bracos: list[str]) -> list[dict]:
     linhas = []
     for a in bracos:
         rs = db.query(
-            f"SELECT mf_f1, output_xml FROM benchmark_eval WHERE arm=? AND sample_id IN ({marca})",
+            f"SELECT mf_f1, output_xml FROM benchmark_eval WHERE arm=? AND sample_id IN ({marca})"
+            + not_leaked(),
             (a, *itens),
         )
         emitiram = sum(1 for r in rs if r["output_xml"] and "messageFlow" in r["output_xml"])

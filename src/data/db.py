@@ -30,6 +30,16 @@ HOLDOUT_SPLIT = "holdout"
 # avaliação, que passa a ter 46 itens do PMo.
 LEAKED_HOLDOUT = frozenset({"pmo_20", "pmo_49", "pmo_50", "pmo_51", "pmo_52", "pmo_53", "pmo_54"})
 
+
+def not_leaked(column: str = "sample_id") -> str:
+    """Trecho `AND <coluna> NOT IN (...)` para tirar os itens vazados de uma consulta.
+
+    As linhas continuam no banco: só os scripts que produzem resultados as excluem.
+    """
+    ids = ", ".join(f"'{s}'" for s in sorted(LEAKED_HOLDOUT))
+    return f" AND {column} NOT IN ({ids})"
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS samples (
     id             TEXT PRIMARY KEY,

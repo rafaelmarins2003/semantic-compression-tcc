@@ -25,7 +25,7 @@ import argparse
 import random
 import statistics as st
 
-from src.data.db import Database
+from src.data.db import Database, not_leaked
 
 # Base ativa. Estes defaults ficaram apontando para a base PT antiga (v8/v3) e o
 # comando sem argumentos media o corpus obsoleto: 5,08 em vez de 6,01. Ao trocar
@@ -114,7 +114,8 @@ def arm_report(db: Database, arm: str, tok) -> dict:
     linhas = [
         dict(r)
         for r in db.query(
-            "SELECT sample_id, raw_output, output_xml FROM benchmark_eval WHERE arm = ?",
+            "SELECT sample_id, raw_output, output_xml FROM benchmark_eval WHERE arm = ?"
+            + not_leaked(),
             (arm,),
         )
     ]

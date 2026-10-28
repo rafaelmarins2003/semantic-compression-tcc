@@ -11,6 +11,7 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - lxml (manipulação XML + validação XSD)
 - pytest
 - ruff
+- networkx (layout hierárquico simplificado quando necessário)
 
 ## Regras
 - Código de pesquisa: priorizar clareza e reprodutibilidade sobre abstração.
@@ -19,8 +20,6 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - Cada componente deve ser testável isoladamente.
 - Transpiler deve ter 100% de cobertura nos testes de validação XSD.
 - Atualizar README quando comandos ou setup mudarem.
-- Atualizar obsidian quando a documentação mudar em /home/rafaelmf/obsidian/rafael.
-- Ler CLAUDE.local.md para entender o estilo de trabalho.
 
 ## Estrutura
 - src/dsl/: gramática EBNF, parser, AST
@@ -33,6 +32,10 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - configs/: hiperparâmetros e configurações de experimentos
 - experiments/: resultados e checkpoints
 - tests/: testes unitários por componente
+- docs/registro-tecnico.md: diário de engenharia — decisões, achados, bugs e,
+  sobretudo, **o que não foi verificado**. Ler antes de auditar o projeto.
+- docs/ideias-pos-defesa.md: ideias de produto/artefato para depois de 30/11.
+  Não confundir com Trabalhos Futuros da monografia, que são perguntas de pesquisa.
 
 ## Comandos
 - instalar: uv sync
@@ -41,10 +44,35 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - format: uv run ruff format .
 - parse: uv run python -m src.dsl.parser <arquivo.bpmndsl>
 - transpile: uv run python -m src.transpiler.main <arquivo.bpmndsl> -o output.bpmn
+- json -> xml: uv run python -m src.data.deterministic.json_to_xml input.json -o output.bpmn
+- json -> xml lógico: uv run python -m src.data.deterministic.json_to_xml input.json --no-layout
 - importar handbook: uv run python -m src.data.ingestion.import_handbook [--min-score 40]
 - importar pmo: uv run python -m src.data.ingestion.import_pmo
 - importar pet: uv run python -m src.data.ingestion.import_pet
 - importar zenodo: uv run python -m src.data.ingestion.import_zenodo
+- materializar samples: uv run python -m src.data.run_materialize [--dry-run]
+- carregar gold pmo: uv run python -m src.data.ingestion.import_gold_pmo [--dry-run]
+- carregar refs zenodo: uv run python -m src.data.ingestion.import_gold_zenodo [--dry-run]
+- TCR do corpus: uv run --with transformers python -m src.evaluation.run_tcr
+- TCR por braço: uv run --with transformers python -m src.evaluation.run_tcr --all-arms
+- criar tabela do benchmark: uv run python -m src.data.migrations.create_benchmark_eval
+- planejar braço: uv run python -m src.evaluation.run_benchmark --arm A2 --dry-run
+- executar braço: uv run python -m src.evaluation.run_benchmark --arm A2 --execute
+- repontuar sem gerar: uv run python -m src.evaluation.run_benchmark --arm A2 --rescore
+- análise estatística: uv run python -m src.evaluation.run_analysis
+- juiz de fidelidade no Zenodo (validação): uv run python -m src.evaluation.run_judge --zenodo [--execute] [--workers 8]
+- análise da validação no Zenodo: uv run python -m src.evaluation.run_judge_validation [--prompt-sha SHA]
+- juiz nos braços (T6, exploratório): uv run python -m src.evaluation.run_judge --arms [A1,A4,...] [--execute] [--workers 8]
+- fidelidade dos braços (T6, exploratório): uv run python -m src.evaluation.run_fidelity [--prompt-sha SHA]
+- validade com IC pareado e equivalência (T3/T10): uv run python -m src.evaluation.run_validity
+- casos de perturbação: uv run python -m src.evaluation.run_perturbation --build [--execute]
+- juiz nos casos de perturbação: uv run python -m src.evaluation.run_perturbation --judge [--execute] [--workers 8]
+- análise da perturbação: uv run python -m src.evaluation.run_perturbation_analysis [--prompt-sha SHA]
+- tabelas complementares (condicional, MF-F1, teto): uv run python -m src.evaluation.run_tabelas
+- custo por requisição (preço de API, com/sem cache): uv run --with transformers python -m src.evaluation.run_custo
+- regerar dados das figuras: uv run --with transformers python -m src.evaluation.export_figuras
+- instalar deps de inferência local (A3/A4): uv sync --extra training
+- diagnóstico de VRAM: uv run python -c "from src.evaluation.local_model import vram_report; print(vram_report())"
 
 ## Pipeline de dados (augmentation)
 
@@ -66,11 +94,22 @@ Semântica do split: `sft`/`grpo` = treino; `holdout` = só avaliação
 seeds (raw text)
     → Kimi K2.6 (pré-processamento estruturado, Ollama Cloud)
     → DeepSeek V4 → canonical BPMN JSON (elements, flows, gateways)
-    → json_to_dsl.py (v8)
-    → BPMN-DSL string
+    → json_to_dsl.py (v8) → BPMN-DSL string
+    → dsl_to_xml.py / transpiler.xml → BPMN XML lógico
+    → transpiler.layout.add_layout → BPMN XML com BPMNDI
     → par (text, dsl) inserido no DB (bpmn_json + dsl columns)
     → SFT (+ GRPO opcional)
 ```
+
+Baseline determinístico direto:
+```
+canonical BPMN JSON
+    → json_to_xml.py
+    → BPMN XML lógico + BPMNDI determinístico
+```
+
+Comparações entre JSON→XML e JSON→DSL→XML devem usar equivalência topológica
+(`src.evaluation.topology`) e validação XSD, não igualdade textual do XML.
 
 ### Classificação BPMN das seções
 - **ideal**: steps + decisions + actors → SFT
@@ -78,10 +117,11 @@ seeds (raw text)
 - **linear**: steps only → GRPO
 - **marginal**: sem steps → descartado
 
-## Estado e ordem de prioridade (2026-07-04 — detalhe em TODO.md)
+## Estado e ordem de prioridade (2026-07-05 — detalhe em TODO.md)
 
 Feito: gramática+parser (Lark), **json_to_dsl v8** (1021/1021, zero arestas perdidas),
-dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9999**).
+dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9999**),
+JSON→XML direto com BPMNDI determinístico e layout comum pós-XML.
 
 1. Commitar o eixo 2 + fix v8 (arquivos untracked/modificados na branch)
 2. Bug das arestas de convergência — CORRIGIDO em 2026-07-04 (json_to_dsl_v8,
@@ -91,9 +131,13 @@ dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9
 5. SFT (Qwen2.5-Coder-7B, QLoRA 4-bit) sobre o pool exato: 766 pares
 6. GRPO — OPCIONAL, fora do escopo mínimo do TCC (material para artigo futuro)
 7. Publicar dataset E modelo (adapter LoRA + model card) no HuggingFace
-8. Layout/BPMNDI (portar da Vertere) — por último; nenhuma métrica depende disso
+8. Melhorar layout/BPMNDI se necessário para inspeção visual; métricas continuam independentes disso
 
 ## Convenções
+- Jobs de lote sobre o banco têm prefixo explícito: `run_*` (processamento) ou
+  `import_*` (ingestão). Bibliotecas não têm prefixo. `src/` tem profundidade máxima 3.
+- Autoridade dos dados: `samples` é o estado atual materializado; as tabelas
+  `*_runs` são histórico de execução. Ver `src/data/run_materialize.py`.
 - Nomes de variáveis e funções em inglês, comentários podem ser pt-br.
 - Um arquivo por responsabilidade. Não crescer módulos além de ~200 linhas.
 - Testes espelham a estrutura de src/.
@@ -107,7 +151,7 @@ dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9
 - **MaD Dataset**: 30k pares de Li et al. (2023). Baixa variabilidade — deprioritizado; pode ser usado como fallback se volume for insuficiente.
 - **Related work chave**: ProMoAI (Kourani et al. 2024, IJCAI demo; `kourani2024promoai` no .bib) — LLM prompted → POWL → BPMN. Posicionar a tese explicitamente contra ele: DSL própria com compressão medida (TCR) + modelo pequeno finetunado + recompensa verificável.
 - **Constrained decoding**: contra-argumento a endereçar na tese; como experimento/baseline fica para artigo futuro derivado.
-- **Modelo base candidato**: Qwen2.5-Coder-7B
+- **Modelo base**: Qwen2.5-Coder-7B-Instruct (Apache 2.0) — variante Instruct, não a base pura; ver spec 003 §6.2
 - **Função de recompensa GRPO (etapa OPCIONAL)**: r_sint(0.35) + r_sem(0.30) + r_topo(0.25) + r_comp(0.10). r_sem é o componente frágil (não verificável por código).
 - **Publicação**: dataset (quando 100% populado) e modelo SFT no HuggingFace — não existe base equivalente aberta.
 
@@ -115,10 +159,13 @@ dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9
 
 - **Parser**: lark (EBNF declarativo, não parser manual)
 - **XML**: lxml (validação XSD embutida via `lxml.etree`)
-- **Layout**: hierárquico Sugiyama simplificado com networkx (topological sort + espaçamento fixo)
+- **JSON→XML direto**: `src.data.deterministic.json_to_xml`, reutilizando `load_llm`, IDs XML seguros e validação XSD.
+- **Layout**: pós-processador comum em `src.transpiler.layout.add_layout(xml_text)`, com BPMNDI determinístico, remoção simples de ciclos via DFS, ranking longest-path e espaçamento fixo.
 - **Training**: LoRA 4-bit com `trl.GRPOTrainer`
 - **Schema**: XSD oficial BPMN 2.0 em `schemas/bpmn20.xsd`
 - **Storage**: SQLite (`data/dataset.db`) com views `{source}__{stage}` simulando schemas. Sem arquivos JSONL intermediários.
+- **Idioma dos artefatos**: rótulos de JSON/DSL/BPMN em **inglês** (a monografia segue em português). Ver [ADR 0001](specs/adr/0001-idioma-dos-artefatos.md).
+- **Specs**: `specs/NNN-nome/spec.md` para entregáveis; `specs/adr/` para decisões de alcance amplo. Critérios de aceitação são ligados a testes homônimos.
 
 ## Fora de escopo
 
@@ -129,7 +176,7 @@ dsl_to_xml v3 (XSD 1021/1021), eixo 2 de avaliação (**1015/1021 exatos, F1 0.9
 
 ## Limitações computacionais (Para testes)
 
-- Placa de vídeo: RTX 2080 TI, 12 Gb de VRAM
+- Placa de vídeo: RTX 2080 TI, 11 Gb de VRAM (10,6 GiB utilizáveis)
 - Processador: I9 - 9900
 - Memória RAM: 24 Gb
 - Armazenamento: SSD 1 Tb

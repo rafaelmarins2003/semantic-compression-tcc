@@ -17,7 +17,7 @@ import warnings
 from collections import Counter
 from pathlib import Path
 
-from src.data.db import Database
+from src.data.db import Database, not_leaked
 from src.evaluation.run_benchmark import MIN_REF_SCORE, per_item_medians
 from src.evaluation.topology import (
     _prf,
@@ -142,7 +142,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     # Dentro da raiz do documento LaTeX: o pgfplots resolve o caminho da tabela
     # relativo a `main.tex`, não ao diretório do projeto.
-    p.add_argument("--out", default="article/Atualização Template TCC Unifor 2022.2/figuras/dados")
+    p.add_argument("--out", default="article/paper/figuras/dados")
     args = p.parse_args()
     warnings.simplefilter("ignore")
 
@@ -166,7 +166,8 @@ def main() -> None:
         for a in BRACOS_VALIDADE_CUSTO:
             linha = db.query(
                 """SELECT COUNT(*) n, SUM(COALESCE(parse_ok,1)) p, SUM(xsd_valid) x
-                   FROM benchmark_eval WHERE arm = ?""",
+                   FROM benchmark_eval WHERE arm = ?"""
+                + not_leaked(),
                 (a,),
             )[0]
             n = linha["n"] or 1
@@ -209,7 +210,9 @@ def main() -> None:
         for a in ("A1", "A2", "A4"):
             porsample: dict[str, list[str | None]] = collections.defaultdict(list)
             for r in db.query(
-                "SELECT sample_id, output_xml FROM benchmark_eval WHERE arm = ? ORDER BY rep",
+                "SELECT sample_id, output_xml FROM benchmark_eval WHERE arm = ?"
+                + not_leaked()
+                + " ORDER BY rep",
                 (a,),
             ):
                 porsample[r["sample_id"]].append(r["output_xml"])

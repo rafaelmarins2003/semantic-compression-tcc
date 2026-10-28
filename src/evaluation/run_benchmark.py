@@ -24,7 +24,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 
-from src.data.db import HOLDOUT_SPLIT, Database
+from src.data.db import HOLDOUT_SPLIT, Database, not_leaked
 from src.data.llm.clients import LLMError, env_key, generate_ollama_cloud, load_dotenv
 from src.data.llm.utils import load_prompt
 from src.data.migrations.create_benchmark_eval import ensure_schema
@@ -457,10 +457,13 @@ def per_item_medians(db: Database, braco: str, coluna: str = "df_f1") -> dict[st
 
     Mediana e não média: o ADR 0003 mostrou saídas ocasionalmente degeneradas, e
     uma execução que falha o XSD puxaria a média de forma desproporcional.
+
+    Os itens vazados (`LEAKED_HOLDOUT`) ficam de fora: é a base de todos os resultados.
     """
     valores: dict[str, list[float]] = {}
     for r in db.query(
-        f"SELECT sample_id, {coluna} v FROM benchmark_eval WHERE arm = ? ORDER BY sample_id, rep",
+        f"SELECT sample_id, {coluna} v FROM benchmark_eval WHERE arm = ?{not_leaked()}"
+        " ORDER BY sample_id, rep",
         (braco,),
     ):
         valores.setdefault(r["sample_id"], []).append(r["v"] or 0.0)

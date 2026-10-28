@@ -29,9 +29,11 @@ from scipy.stats import wilcoxon
 from src.data.db import LEAKED_HOLDOUT, Database
 from src.evaluation.judge import prompt_sha
 from src.evaluation.run_judge import MAIN_ARMS
+from src.evaluation.run_validity import verdict
 
 CONTRASTS = [("X-a2r", "A1"), ("A4", "X-a2r"), ("A4", "A1"), ("A2", "A1")]
 MANGLER = "Mangler et al. (2023)"
+MARGIN = 0.5  # T10, fixada depois de ver a T6 (registro técnico, commit 1f4805a)
 N_BOOT = 10_000
 SEED = 20261020
 
@@ -87,11 +89,13 @@ def contrast(a: dict[str, float], b: dict[str, float], itens: set[str]) -> dict:
     if len(difs) < 2:
         return {"itens_pareados": len(difs)}
     p = wilcoxon(difs).pvalue if any(difs) else 1.0
+    ic = bootstrap_ci(difs)
     return {
         "itens_pareados": len(difs),
         "dif_media": round(statistics.mean(difs), 3),
-        "ic95": bootstrap_ci(difs),
+        "ic95": ic,
         "p_wilcoxon": round(float(p), 4),
+        "veredito": verdict(tuple(ic), MARGIN),
     }
 
 
