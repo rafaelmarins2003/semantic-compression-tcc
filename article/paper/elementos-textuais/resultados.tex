@@ -52,7 +52,7 @@ A Figura~\ref{fig:validade} mostra a validade de cada braço, isto é, a propor�
 
 \input{figuras/validade}
 
-O A3m não produziu nenhuma saída válida, e o motivo não é a dificuldade da notação. Sem o adaptador e sem a gramática no \textit{prompt}, o modelo não tem como saber o que é a DSL, e escreveu BPMN XML nas 138 gerações, o formato que conhece do pré-treinamento. Em 81 delas, o XML passou do limite de 2.048 \textit{tokens}, dimensionado para a DSL, e foi truncado. O zero do A3m mostra que o \textit{prompt} mínimo, sozinho, não transmite a notação; é com esse mesmo \textit{prompt} que o A4 chega a 87,0\%, e a diferença entre os dois é apenas o adaptador.
+O A3m não produziu nenhuma saída válida, e o motivo não teve relação com a dificuldade da notação. Sem o adaptador e sem a gramática no \textit{prompt}, o modelo não tem como saber o que é a DSL, e escreveu BPMN XML nas 138 gerações, o formato que conhece do pré-treinamento. Em 81 delas, o XML passou do limite de 2.048 \textit{tokens}, dimensionado para a DSL, e foi truncado. O zero do A3m mostra que o \textit{prompt} mínimo, sozinho, não transmite a notação; é com esse mesmo \textit{prompt} que o A4 chega a 87,0\%, e a diferença entre os dois é apenas o adaptador.
 
 Entre os três braços do modelo pequeno, a validade passa de 0\% sem a notação, a 58,7\% com a gramática no \textit{prompt} (A3) e a 87,0\% com a notação aprendida no ajuste (A4). O A4 ainda usa um \textit{prompt} 598 \textit{tokens} menor que o do A3, porque dispensa a gramática (Seção~\ref{sec:bracos}).
 
@@ -86,32 +86,191 @@ A Tabela~\ref{tab:res-falhas} classifica as saídas inválidas dos braços de DS
 \begin{table}[htb]
 	\Caption{\label{tab:res-falhas} Causas de invalidade nos braços de DSL}%
 	\IBGEtab{}{%
-		\begin{tabular}{lrrrrr}
+		\small
+		\begin{tabular}{lrrrrrr}
 			\toprule
-			Braço & Inválidas & Referência & Outra sintaxe & Bloco aberto & Truncada \\
+			 & & \multicolumn{2}{c}{Referência} & & & \\
+			\cmidrule(lr){3-4}
+			Braço & Inválidas & não declarada & fora de posição & Outra sintaxe & Bloco aberto & Truncada \\
 			\midrule \midrule
-			A2  & 52 & 38 & 14 & 0 & 0 \\
-			A2g & 65 & 41 & 23 & 1 & 0 \\
-			A2r & 18 & 8 & 10 & 0 & 0 \\
-			A3  & 57 & 0 & 57 & 0 & 0 \\
-			A3m & 138 & 0 & 57 & 0 & 81 \\
-			A4  & 18 & 12 & 0 & 6 & 0 \\
+			A2  & 52 & 26 & 12 & 14 & 0 & 0 \\
+			A2g & 65 & 21 & 20 & 23 & 1 & 0 \\
+			A2r & 18 & 8 & 0 & 10 & 0 & 0 \\
+			A3  & 57 & 0 & 0 & 57 & 0 & 0 \\
+			A3m & 138 & 0 & 0 & 57 & 0 & 81 \\
+			A4  & 18 & 12 & 0 & 0 & 6 & 0 \\
 			\bottomrule
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{Contagem sobre as 138 gerações de cada braço. Referência: referência a um identificador nunca declarado, ou marca de referência (\texttt{\#}) em posição que a gramática não aceita. Bloco aberto: a saída termina com um bloco sem fechamento. No A3m, todas as saídas são XML, e não DSL.}%
+	\Nota{Contagem sobre as 138 gerações de cada braço. Referência não declarada: referência a um identificador que nenhum elemento recebeu. Referência fora de posição: marca de referência (\texttt{\#}) onde a gramática não a aceita, em geral uma tentativa de declarar o identificador depois de já tê-lo usado. Bloco aberto: a saída termina com um bloco sem fechamento. No A3m, todas as saídas são XML, e não DSL.}%
 }
 \end{table}
 
-No A2 e no A2g, a referência é a principal causa de falha: 38 das 52 saídas inválidas do A2 e 41 das 65 do A2g. Em parte delas, o modelo referencia um identificador que nunca declarou. Nas demais, a marca de referência aparece onde a gramática não a aceita, em geral numa tentativa de declarar o identificador depois de já tê-lo usado. Nos dois casos, o problema é o mesmo: para voltar a um elemento, o modelo precisava tê-lo marcado com um identificador quando o escreveu pela primeira vez, antes de saber que voltaria a ele. Foi esse diagnóstico que motivou o A2r (Seção~\ref{sec:bracos}), e com a referência por rótulo as falhas de referência do mesmo modelo caíram de 38 para 8. As 8 que restaram são referências a identificadores nunca declarados, em 4 itens.
+No A2 e no A2g, a referência é a principal causa de falha: 38 das 52 saídas inválidas do A2 e 41 das 65 do A2g, somando as duas colunas de referência. Na primeira, o modelo referencia um identificador que nunca declarou, como em \verb|-> #detailedReview| sem nenhum elemento marcado com esse identificador. Na segunda, a marca de referência aparece onde a gramática não a aceita, em geral numa tentativa de declarar o destino depois de já tê-lo usado, como em \verb|#appoint: task "Appoint another date"| no meio do processo. O \textit{parser} rejeita o segundo caso como erro de sintaxe, mas a causa é a mesma do primeiro. Nos dois casos, o problema é o mesmo: para voltar a um elemento, o modelo precisava tê-lo marcado com um identificador quando o escreveu pela primeira vez, antes de saber que voltaria a ele. Foi esse diagnóstico que motivou o A2r (Seção~\ref{sec:bracos}), e com a referência por rótulo as falhas de referência do mesmo modelo caíram de 38 para 8. As 8 que restaram são referências a identificadores nunca declarados, em 4 itens.
 
 O A4 e o A2r têm 18 saídas inválidas cada, mas falham de formas diferentes. O A4 falha em 6 itens, sempre nas três repetições, o que é esperado da decodificação gulosa. Suas falhas são 12 referências a identificadores nunca declarados e 6 blocos não fechados. A referência continua sendo o principal problema do A4, o que é coerente com o treino, que só contém a referência por identificador (Seção~\ref{sec:transpilacao}). O A2r falha em 8 itens, a maioria em apenas uma ou duas das três repetições. Só um item, o pmo\_32, falha nos dois braços. Se os dois esbarrassem em uma construção que a DSL não consegue expressar, as falhas cairiam nos mesmos itens.
 
-O A3 não tem nenhuma falha de referência. Suas 57 saídas inválidas são erros de sintaxe de outra natureza, como palavras-chave inventadas e construções fora da gramática, o que indica que o modelo pequeno sem ajuste não domina a notação nem com a gramática no \textit{prompt}.
+O A3 não tem nenhuma falha de referência. Suas 57 saídas inválidas são erros de sintaxe de outra natureza: palavras-chave inventadas, como \texttt{choice} no lugar de \texttt{xor} e \texttt{parallel} no lugar de \texttt{and}, e construções fora da gramática, como colchetes depois de uma tarefa ou um evento solto depois do fim do processo. O modelo preenche o que não domina da notação com o vocabulário do BPMN que conhece do pré-treinamento. Isso indica que o modelo pequeno sem ajuste não domina a notação nem com a gramática no \textit{prompt}.
 
 \section{Custo}\label{sec:res-custo}
+
+\subsection{Custo por requisição e por saída válida}
+
+A Tabela~\ref{tab:res-custo} mostra os \textit{tokens} médios de cada braço e o custo calculado com os preços da Tabela~\ref{tab:precos}, por milhão de requisições e por milhão de saídas válidas, nos dois cenários de \textit{cache}.
+
+\begin{table}[htb]
+	\Caption{\label{tab:res-custo} \textit{Tokens} médios e custo por braço}%
+	\IBGEtab{}{%
+		\small
+		\begin{tabular}{lrrrrrr}
+			\toprule
+			 & \multicolumn{2}{c}{\textit{Tokens}} & \multicolumn{2}{c}{Por requisição} & \multicolumn{2}{c}{Por saída válida} \\
+			\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+			Braço & Entrada & Saída & Sem \textit{cache} & Com \textit{cache} & Sem \textit{cache} & Com \textit{cache} \\
+			\midrule \midrule
+			A1  & 1.316 & 935 & 5.441 & 4.079 & 5.561 & 4.170 \\
+			A1g & 1.316 & 938 & 5.969 & 4.665 & 6.386 & 4.990 \\
+			A2  & 1.520 & 172 & 2.686 & 1.082 & 4.311 & 1.737 \\
+			A2g & 1.520 & 178 & 2.912 & 1.375 & 5.505 & 2.600 \\
+			A3  & 1.520 & 189 & 513 & 513 & 874 & 874 \\
+			A3m & 922 & 1.750 & 802 & 802 & --- & --- \\
+			A4  & 922 & 220 & 514 & 514 & 591 & 591 \\
+			\midrule
+			A2r & 1.621 & 171 & 2.818 & 1.094 & 3.241 & 1.258 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Custos em US\$ por milhão. \textit{Tokens} contados com o tokenizador do Qwen2.5-Coder; a entrada inclui o \textit{prompt} e a descrição. Com \textit{cache}: a parte do \textit{prompt} anterior à descrição é cobrada a preço de \textit{cache}; o provedor não oferece \textit{cache} para o modelo pequeno, e por isso o A3, o A3m e o A4 têm o mesmo custo nos dois cenários. A4 no cenário com acréscimo de 50\% pelo adaptador; sem o acréscimo, US\$~343 por requisição e US\$~394 por saída válida. O A3m não teve saídas válidas.}%
+}
+\end{table}
+
+No A1, a saída responde por 68\% do custo sem \textit{cache}, média de 935 \textit{tokens} para XML, e o \textit{token} de saída custa três vezes o de entrada. Pedir a DSL ao mesmo modelo reduz a saída para cerca de 171 \textit{tokens}, uma redução de 82\%. Sem \textit{cache}, o A2r custa por requisição cerca de metade do A1, e não um quinto, pois a gramática do DSL vai no \textit{prompt} e eleva a entrada para 1.621 \textit{tokens}; no A2r, a entrada passa a responder por três quartos do custo. Com \textit{cache}, essa gramática é a parte fixa do \textit{prompt} e é cobrada a preço reduzido, e o custo do A2r cai para cerca de um quarto do A1.
+
+O custo por saída válida incorpora as gerações que não servem. É por isso que o A2, mais barato por requisição que o A2r, fica mais caro por saída válida: com 62,3\% de validade, cada saída aproveitável custa 4.311 dólares por milhão, contra 3.241 do A2r.
+
+O A4 tem o menor custo entre os braços com saídas válidas. Ele dispensa a gramática no \textit{prompt}, o que reduz a entrada para 922 \textit{tokens}, e usa um modelo de preço muito menor. Por saída válida, custa cerca de 5,5 vezes menos que o A2r sem \textit{cache} e 2,1 vezes menos com \textit{cache}; em relação ao A1, 9,4 e 7,1 vezes menos. O treino do adaptador custou US\$~0,47 (Seção~\ref{sec:sft}), um gasto único que se paga em menos de mil requisições em qualquer um dos cenários.
+
+A Figura~\ref{fig:custo} cruza o custo por requisição com a validade. O canto superior esquerdo, de alta validade e baixo custo, é ocupado pelo A4. Os braços de XML ficam no alto à direita, com validade maior e custo várias vezes superior, e os de DSL por \textit{prompt} ficam no meio, mais baratos que o XML, mas com validade menor.
+
+\input{figuras/custo}
+
+\subsection{Preço de equilíbrio}
+
+O preço do A4 é uma hipótese (Seção~\ref{subsec:custo}). A Tabela~\ref{tab:res-equilibrio} mostra até que preço por milhão de \textit{tokens}, igual na entrada e na saída, o A4 continuaria mais barato por saída válida que cada braço de grande porte.
+
+\begin{table}[htb]
+	\Caption{\label{tab:res-equilibrio} Preço de equilíbrio do A4}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrr}
+			\toprule
+			Comparado com & Sem \textit{cache} & Com \textit{cache} \\
+			\midrule \midrule
+			A2r & 2,47 & 0,96 \\
+			A1  & 4,23 & 3,17 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{US\$ por milhão de \textit{tokens}, mesmo preço na entrada e na saída do A4, sem \textit{cache} para o A4 e com os \textit{tokens} e a validade medidos de cada braço. Acima desse preço, o A4 deixaria de ser mais barato por saída válida.}%
+}
+\end{table}
+
+O caso mais apertado é a comparação com o A2r com \textit{cache}. Mesmo nele, o A4 só deixaria de ser mais barato acima de US\$~0,96 por milhão de \textit{tokens}, 2,1 vezes o preço adotado com o acréscimo pelo adaptador e 3,2 vezes o preço do modelo base. Contra a geração direta de XML, o A4 continuaria mais barato até cerca de US\$~3 a 4 por milhão, mais de sete vezes o preço adotado. A conclusão de que o A4 é o braço de menor custo por saída válida não depende, portanto, do valor exato atribuído ao adaptador, desde que ele não supere o dobro da hipótese adotada.
+
 \section{Compressão}\label{sec:res-compressao}
+
+A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas saídas válidas dos braços que emitem DSL. A TCR compara o número de \textit{tokens} da DSL com o do XML que o transpilador produz a partir dela, sem as coordenadas do leiaute (Seção~\ref{subsec:tcr}).
+
+\begin{table}[htb]
+	\Caption{\label{tab:res-tcr} Razão de compressão no corpus e nos braços de DSL}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrr}
+			\toprule
+			Conjunto & Saídas & TCR média & IC 95\% & Redução \\
+			\midrule \midrule
+			Corpus & 1.021 & 5,37 & [5,33; 5,41] & 81,4\% \\
+			\midrule
+			A2  & 86 & 6,46 & [6,34; 6,58] & 84,5\% \\
+			A2g & 73 & 6,15 & [6,01; 6,29] & 83,7\% \\
+			A3  & 81 & 6,01 & [5,77; 6,24] & 83,3\% \\
+			A4  & 120 & 5,78 & [5,67; 5,89] & 82,7\% \\
+			A2r & 120 & 6,25 & [6,16; 6,35] & 84,0\% \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{TCR: \textit{tokens} do XML sem leiaute divididos pelos \textit{tokens} da DSL, com o tokenizador do Qwen2.5-Coder. Redução: proporção de \textit{tokens} que deixam de ser emitidos, $1 - 1/\text{TCR}$. Nos braços, só as saídas válidas, que são as que têm XML. A TCR não se aplica aos braços que emitem XML nem ao A3m, que não teve saídas válidas.}%
+}
+\end{table}
+
+No corpus, a DSL tem em média 5,37 vezes menos \textit{tokens} que o XML equivalente, o que significa deixar de emitir 81,4\% dos \textit{tokens}. Nos braços, a razão fica entre 5,78 e 6,46. A diferença em relação ao corpus não indica que os modelos escrevam uma DSL mais compacta que a do conversor: os processos são outros, os do conjunto de teste, só entram as saídas válidas, e a razão varia com o tamanho e a composição de cada processo.
+
+A TCR é calculada sobre o XML que o transpilador gera, e não sobre o XML que um modelo escreveria. Os braços oferecem uma verificação independente disso, porque o A1 e o A2r usam o mesmo modelo e os mesmos itens e diferem só no formato pedido. O A1 emitiu em média 935 \textit{tokens} por saída, e o A2r, 171, uma razão de 5,5. Pela mediana, que é menos sensível às saídas muito longas, são 656 e 156 \textit{tokens}, uma razão de 4,2. Os dois valores estão na mesma ordem de grandeza da TCR do corpus: a compressão medida pelo transpilador corresponde, aproximadamente, à redução que se observa quando um modelo de grande porte troca o XML pela DSL.
+
 \section{Fidelidade (exploratória)}\label{sec:res-fidelidade}
+
+Os resultados desta seção são exploratórios, porque o juiz não passou nos critérios de validação fixados (Seção~\ref{subsec:fidelidade}), e nenhuma conclusão principal depende deles. O juiz foi aplicado às saídas válidas do A1, do A1g, do A2, do A2g, do A2r e do A4. A nota de um braço em um item é a média das notas das suas saídas válidas naquele item.
+
+\subsection{Notas por braço}
+
+A Tabela~\ref{tab:res-fidelidade} mostra a nota média de cada braço nos itens que ele cobre, no total e separada pela origem do texto.
+
+\begin{table}[htb]
+	\Caption{\label{tab:res-fidelidade} Fidelidade pelo juiz, por braço}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrrr}
+			\toprule
+			 & & \multicolumn{2}{c}{Todos os itens} & Zenodo & Demais \\
+			\cmidrule(lr){3-4}
+			Braço & Itens cobertos & Média & IC 95\% & Média & Média \\
+			\midrule \midrule
+			A1  & 46 & 3,77 & [3,47; 4,06] & 3,40 & 4,17 \\
+			A1g & 46 & 3,32 & [3,04; 3,61] & 3,06 & 3,61 \\
+			A2  & 34 & 3,67 & [3,32; 4,01] & 3,24 & 4,00 \\
+			A2g & 35 & 3,49 & [3,13; 3,84] & 3,19 & 3,83 \\
+			A4  & 40 & 2,78 & [2,50; 3,09] & 2,33 & 3,19 \\
+			\midrule
+			A2r & 43 & 3,85 & [3,54; 4,15] & 3,33 & 4,38 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Notas de 0 a 5, médias sobre os itens em que o braço tem ao menos uma saída válida. Zenodo: os 24 itens do PMo de origem do Zenodo, de textos vagos; Demais: os outros 22 itens. Intervalo de confiança por \textit{bootstrap} com 10.000 reamostragens. Medida exploratória.}%
+}
+\end{table}
+
+A comparação direta das médias tem um limite: cada braço é julgado só nos itens em que produziu saídas válidas. Um braço com validade baixa, como o A2, é julgado nos 34 itens em que acertou a sintaxe, que podem ser os mais fáceis, enquanto o A1 é julgado nos 46. As comparações da Tabela~\ref{tab:res-fidelidade-contrastes} reduzem esse problema, porque usam apenas os itens cobertos pelos dois braços.
+
+Em todos os braços, as notas são menores nos itens do Zenodo que nos demais, com diferenças de 0,6 a 1,0 ponto. Esses itens têm enunciados vagos, em que quem modela precisa completar o processo, e a rubrica do juiz penaliza o que o texto não sustenta (Seção~\ref{subsec:fidelidade}). A ordem entre os braços, porém, é praticamente a mesma nos dois grupos de itens.
+
+\subsection{Comparações com margem de equivalência}
+
+A Tabela~\ref{tab:res-fidelidade-contrastes} mostra os contrastes de fidelidade definidos na Seção~\ref{sec:protocolo}, com a margem de $\pm$0,5 ponto. A margem foi fixada depois de vistas as notas, o que torna esses vereditos exploratórios, além da própria medida.
+
+\begin{table}[htb]
+	\Caption{\label{tab:res-fidelidade-contrastes} Contrastes de fidelidade}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrrl}
+			\toprule
+			Contraste & Itens & Diferença & IC 95\% & $p$ & Veredito \\
+			\midrule \midrule
+			A2r $-$ A1 & 43 & 0,02 & [$-$0,24; 0,30] & 0,93 & equivalente \\
+			A2 $-$ A1  & 34 & $-$0,19 & [$-$0,54; 0,16] & 0,51 & inconclusivo \\
+			A4 $-$ A2r & 37 & $-$1,08 & [$-$1,43; $-$0,75] & $<$0,001 & diferente além da margem \\
+			A4 $-$ A1  & 40 & $-$1,03 & [$-$1,35; $-$0,70] & $<$0,001 & diferente além da margem \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Diferença média da nota por item, pareada nos itens cobertos pelos dois braços. Intervalo de confiança por \textit{bootstrap} com 10.000 reamostragens; $p$ do teste de Wilcoxon pareado bilateral. Margem de equivalência de $\pm$0,5 ponto, fixada depois de vistas as notas. Medida exploratória.}%
+}
+\end{table}
+
+O A2r e o A1 ficaram no mesmo nível: a diferença é de 0,02 ponto, e o intervalo inteiro está dentro da margem. Trocar o XML pela DSL com referência por rótulo, no mesmo modelo, não reduziu a fidelidade das saídas válidas. Para o A2, a diferença em relação ao A1 também é pequena, de $-$0,19 ponto, mas o intervalo, calculado sobre só 34 itens, ultrapassa a margem, e o resultado é inconclusivo.
+
+O A4 ficou cerca de um ponto abaixo do A2r e do A1, e nos dois casos o intervalo inteiro está além da margem. A diferença aparece com o mesmo sentido nos dois grupos de itens: em relação ao A2r, é de $-$0,88 ponto nos itens do Zenodo e de $-$1,25 nos demais; em relação ao A1, de $-$1,07 e $-$0,98. Nos grupos, que têm cerca de metade dos itens, alguns intervalos passam a cruzar a margem, mas nenhum muda de sentido. O modelo pequeno especializado produz, portanto, saídas válidas com a mesma frequência do A2r, mas que o juiz considera menos fiéis ao texto.
+
 \section{O modelo especializado}\label{sec:res-modelo-especializado}
 \section{Síntese}\label{sec:res-sintese}

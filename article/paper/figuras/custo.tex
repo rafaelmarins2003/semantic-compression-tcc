@@ -5,7 +5,7 @@
 % do prompt. Dados: `run_custo.custo_figura`, via `export_figuras`.
 % Rótulos posicionados um a um: `nodes near coords` colidia nos aglomerados.
 \begin{figure}[htb]
-	\Caption{\label{fig:custo} Custo por requisição contra validade sintática, por braço}
+	\Caption{\label{fig:custo} Custo por requisição contra validade, por braço}
 	\centering
 	\begin{tikzpicture}
 		\begin{axis}[
@@ -32,15 +32,15 @@
 				table[x=custo, y=xsd, col sep=comma] {figuras/dados/custo_sft.csv};
 			\addlegendentry{DSL, 7B com ajuste fino}
 
-			% Rótulos individuais, ancorados para evitar sobreposição
-			\node[font=\scriptsize, anchor=south]      at (axis cs:2626,99.5) {A1};
-			\node[font=\scriptsize, anchor=north]      at (axis cs:5713,92.0) {A1g};
-			\node[font=\scriptsize, anchor=east]       at (axis cs:470,86.8)  {\textbf{A4}};
-			\node[font=\scriptsize, anchor=south]      at (axis cs:1380,88.5) {A2r};
-			\node[font=\scriptsize, anchor=north]      at (axis cs:1313,62.0) {A2};
-			\node[font=\scriptsize, anchor=north]      at (axis cs:2867,54.0) {A2g};
-			\node[font=\scriptsize, anchor=east]       at (axis cs:470,58.5)  {A3};
-			\node[font=\scriptsize, anchor=south]      at (axis cs:769,2.5)   {A3m};
+			% Rótulos individuais, ancorados para evitar sobreposição (custos de 24/10/2026)
+			\node[font=\scriptsize, anchor=south]      at (axis cs:5441,99.5) {A1};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:5969,92.0) {A1g};
+			\node[font=\scriptsize, anchor=east]       at (axis cs:470,87.0)  {\textbf{A4}};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:2818,88.5) {A2r};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:2686,63.8) {A2};
+			\node[font=\scriptsize, anchor=north]      at (axis cs:2912,51.4) {A2g};
+			\node[font=\scriptsize, anchor=east]       at (axis cs:470,58.7)  {A3};
+			\node[font=\scriptsize, anchor=south]      at (axis cs:802,2.5)   {A3m};
 		\end{axis}
 	\end{tikzpicture}
 	\Fonte{Elaborado pelo autor}
@@ -51,5 +51,5 @@
 	preço do Qwen2.5-7B-Instruct, e o A4, o cenário mais caro (adaptador com
 	acréscimo de 50\%); nenhum provedor consultado oferece hoje esse adaptador por
 	\textit{token}. O cenário com cache é discutido na
-	Seção~\ref{subsec:res-economico}.}
+	Seção~\ref{sec:res-custo}.}
 \end{figure}
