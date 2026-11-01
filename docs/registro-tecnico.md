@@ -2790,3 +2790,68 @@ ordem de custo por saída válida entre os braços da tabela de custo.
 Método: a validade de um item num braço é a fração das 3 repetições válidas no
 XSD; diferença pareada por item nos 46 itens; IC95 por bootstrap sobre itens
 (10.000 reamostragens, semente fixa). Contrastes: A4 − A2r e A2r − A1.
+
+### T10 aplicada (2026-10-20, depois do commit 1f4805a)
+
+Código: `src/evaluation/run_validity.py` (novo, validade) e veredito acrescentado
+ao `run_fidelity`. Regra dos vereditos: IC95 inteiro dentro de ±margem →
+equivalente; IC95 inteiro fora → diferente além da margem; resto → inconclusivo.
+
+**Validade XSD (±10 p.p., pré-registrada), 46 itens pareados:**
+
+| contraste | dif. | IC95 | veredito |
+|---|---|---|---|
+| A4 − A2r | 0,0 p.p. | [−13,8; 13,0] | inconclusivo |
+| A2r − A1 | −10,9 p.p. | [−21,0; −1,4] | inconclusivo |
+
+O empate do A4 com o A2r (87,0% e 87,0%) **não é equivalência**: com 46 itens,
+o IC tem ±13 p.p., mais largo que a margem. O A2r é pior que o A1 (o IC exclui o
+zero), mas não dá para dizer que a perda passa de 10 p.p. A monografia não pode
+escrever "o A4 é tão válido quanto o A2r"; pode escrever que as proporções foram
+iguais e que o estudo não tem itens suficientes para afirmar equivalência.
+
+**Fidelidade pelo juiz (±0,5, fixada depois da T6, exploratória), 46 itens:**
+
+| contraste | veredito |
+|---|---|
+| A2r − A1 | equivalente |
+| A2 − A1 | inconclusivo |
+| A4 − A2r | diferente além da margem |
+| A4 − A1 | diferente além da margem |
+
+Nos estratos por tipo de texto (22 e 24 itens), os ICs ficam mais largos e
+alguns vereditos viram inconclusivos; nenhum muda de sentido. O veredito
+reportado é o dos 46 itens; os estratos servem só para mostrar que o sinal se
+repete.
+
+---
+
+## 2026-10-31 — X-a3x: declaração pré-execução
+
+**Pergunta.** O modelo pequeno, sem ajuste fino e sem DSL, escreve BPMN XML
+válido quando recebe as mesmas instruções do A1? Hoje a tese não tem esse braço.
+O A3m chega perto, mas não responde: o prompt dele pedia DSL, sem exemplo de XML,
+com teto de 2.048 tokens, e o modelo escreveu XML por conta própria nas 138
+gerações. Das 57 que terminaram dentro do teto, **0** passaram no XSD quando
+avaliadas como XML (verificado em 2026-10-31, só leitura). Isso é indício, não
+teste.
+
+**Desenho.** `X-a3x` = prompt `benchmark/xml_direct.md` e teto de 8.192 tokens
+(os do A1) com o modelo, a quantização, a decodificação gulosa e a máquina do A3
+(Qwen2.5-Coder-7B-Instruct base, 4 bits, RTX 2080 Ti). k = 3 como nos demais
+braços, embora a gulosa local tenda a repetir a mesma saída. Pontuação idêntica à
+dos braços de XML: a saída, sem cerca de código, vai direto ao XSD.
+
+**O que o braço NÃO responde.** Se um 7B **ajustado** para gerar XML alcançaria o
+A4. Essa é a comparação que isola o efeito da DSL no modelo pequeno, e exigiria
+um treino novo com contexto maior. Fica registrada como ameaça à validade e
+trabalho futuro, a menos que haja prazo para executá-la.
+
+**Compromisso.** O resultado entra no texto qualquer que seja, rotulado como
+exploratório. Se o X-a3x tiver validade comparável à do A4, o argumento de que a
+DSL é necessária no modelo pequeno enfraquece, e isso será escrito assim.
+
+**Custo esperado.** Se houver saídas válidas, o custo é calculado com o preço do
+7B sem adaptador (US$ 0,30 / 0,30). O XML de saída é cerca de 4 vezes maior que a
+DSL, mas, como no 7B o preço de entrada e saída é o mesmo, a diferença de custo
+para o A4 é modesta; a comparação será decidida pela validade.

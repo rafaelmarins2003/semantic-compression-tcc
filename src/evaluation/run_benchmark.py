@@ -88,6 +88,14 @@ ARMS: dict[str, Arm] = {
     # enquanto A4 vs A3 mede a intervenção inteira (pesos + dispensa da gramática).
     "A3m": Arm("benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local"),
     "A4": Arm("benchmark/dsl_minimal.md", SMALL_MODEL, "dsl", 2048, "local", SFT_ADAPTER),
+    # --- X-a3x: exploratório, declarado em 2026-10-31 antes de rodar ---
+    # Pergunta: o modelo pequeno, sem ajuste e sem DSL, escreve XML válido quando
+    # instruído como o A1? O A3m escreveu XML sem que fosse pedido (prompt de DSL,
+    # teto de 2.048) e 0 das 57 saídas completas passaram no XSD, mas isso não é
+    # teste justo. Aqui: prompt e teto do A1, modelo e execução do A3. Não
+    # responde se um 7B AJUSTADO em XML alcançaria o A4 (isso exigiria outro
+    # treino). Entra no texto qualquer que seja o resultado.
+    "X-a3x": Arm("benchmark/xml_direct.md", SMALL_MODEL, "xml", 8192, "local"),
     # --- Exploratórios, declarados em 2026-08-23, antes de executar ---
     # NÃO integram os sete braços pré-registrados nem qualquer contraste da spec
     # 003 §4; entram no texto rotulados como exploratórios. Respondem a duas
