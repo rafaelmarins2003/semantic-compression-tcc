@@ -1,0 +1,17 @@
+% Exemplo qualitativo (Seção 5.6.4). Item escolhido pela regra da nota, fixada
+% antes de olhar as saídas. Diagramas: uv run python -m src.evaluation.bpmn_grafo pmo_13
+% e lualatex em cada .tex de figuras/bpmn/.
+\begin{sidewaysfigure}
+	\Caption{\label{fig:qualitativa} O mesmo item (pmo\_13) na referência e em três braços}
+	\centering
+	% Mesma escala nos quatro painéis, para que o tamanho dos diagramas seja comparável.
+	\newcommand{\painel}[2]{%
+		{\small\textbf{#1}}\\[0.2em]
+		\includegraphics[scale=0.82]{figuras/bpmn/#2}\\[0.8em]}
+	\painel{(a) Referência do PMo}{pmo_13_gold}
+	\painel{(b) A1: XML direto, nota 2}{pmo_13_A1}
+	\painel{(c) A2r: DSL com referência por rótulo, nota 3}{pmo_13_A2r}
+	\painel{(d) A4: modelo pequeno especializado, nota 3}{pmo_13_A4}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Descrição: um cliente apresenta uma reclamação, que o atendimento registra e encaminha a um departamento; o departamento decide se a reclamação procede e se cabe reembolso e notifica o cliente; se o reembolso for aprovado, o financeiro o processa; o caso é encerrado e o cliente pode avaliar o atendimento. Item escolhido por uma regra fixada antes de ver as saídas: entre os itens em que o A1, o A2r e o A4 têm saída válida, o de referência com menos elementos (empate com o pmo\_21, desfeito pela numeração). Saídas da primeira repetição, todas válidas no esquema. Nota: mediana das três avaliações do juiz. Raias omitidas, porque o juiz não avalia atores.}
+\end{sidewaysfigure}

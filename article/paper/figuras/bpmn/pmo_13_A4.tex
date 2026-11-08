@@ -1,0 +1,46 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{graphs,graphdrawing,arrows.meta,shapes.geometric}
+\usegdlibrary{layered}
+\tikzset{
+  tarefa/.style={draw, rounded corners=2pt, align=center, text width=1.7cm,
+                 minimum height=0.8cm, font=\scriptsize},
+  inicio/.style={circle, draw, minimum size=0.45cm, inner sep=0pt},
+  fim/.style={circle, draw, very thick, minimum size=0.45cm, inner sep=0pt},
+  meio/.style={circle, draw, double, minimum size=0.45cm, inner sep=0pt},
+  decisao/.style={diamond, draw, minimum size=0.6cm, inner sep=0pt},
+  rotulo/.style={font=\tiny\itshape, align=center},
+  condicao/.style={font=\tiny\itshape, text=black, fill=white, inner sep=0.5pt},
+}
+\begin{document}
+\begin{tikzpicture}[>={Latex[length=1.4mm]}]
+\graph[layered layout, grow=right, level distance=2.0cm, sibling distance=1.3cm, edges={gray!70, ->}] {
+  n1[inicio, as={}];
+  n2[tarefa, as={File Complaint}];
+  n3[tarefa, as={Log Complaint}];
+  n4[tarefa, as={Assign Complaint to\\Department}];
+  n5[tarefa, as={Review Complaint\\Details}];
+  n6[decisao, as={$\times$}, label={[rotulo]above:Is the complaint\\valid?}];
+  n7[decisao, as={$\times$}, label={[rotulo]above:Is a refund justified?}];
+  n8[tarefa, as={Process Refund}];
+  n9[tarefa, as={Notify Customer of\\Decision}];
+  n10[tarefa, as={Receive Notification}];
+  n11[tarefa, as={Mark Case as Resolved}];
+  n12[tarefa, as={Provide Feedback}];
+  n13[fim, as={}, label={[rotulo]above:End Resolved}];
+  n1 -> n2;
+  n2 -> n3;
+  n3 -> n4;
+  n4 -> n5;
+  n7 ->[edge node={node[condicao] {refund is justified}}] n8;
+  n8 -> n9;
+  n9 -> n10;
+  n10 -> n11;
+  n11 -> n12;
+  n12 -> n13;
+  n7 ->[edge node={node[condicao] {refund is not justified}}] n9;
+  n6 ->[edge node={node[condicao] {complaint is valid}}] n7;
+  n6 ->[edge node={node[condicao] {complaint is not valid}}] n9;
+  n5 -> n6;
+};
+\end{tikzpicture}
+\end{document}

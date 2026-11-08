@@ -1,0 +1,42 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{graphs,graphdrawing,arrows.meta,shapes.geometric}
+\usegdlibrary{layered}
+\tikzset{
+  tarefa/.style={draw, rounded corners=2pt, align=center, text width=1.7cm,
+                 minimum height=0.8cm, font=\scriptsize},
+  inicio/.style={circle, draw, minimum size=0.45cm, inner sep=0pt},
+  fim/.style={circle, draw, very thick, minimum size=0.45cm, inner sep=0pt},
+  meio/.style={circle, draw, double, minimum size=0.45cm, inner sep=0pt},
+  decisao/.style={diamond, draw, minimum size=0.6cm, inner sep=0pt},
+  rotulo/.style={font=\tiny\itshape, align=center},
+  condicao/.style={font=\tiny\itshape, text=black, fill=white, inner sep=0.5pt},
+}
+\begin{document}
+\begin{tikzpicture}[>={Latex[length=1.4mm]}]
+\graph[layered layout, grow=right, level distance=2.0cm, sibling distance=1.3cm, edges={gray!70, ->}] {
+  n1[inicio, as={}];
+  n2[tarefa, as={File complaint}];
+  n3[tarefa, as={Log complaint and\\assign to department}];
+  n4[tarefa, as={Review details}];
+  n5[decisao, as={$\times$}, label={[rotulo]above:Refund justified?}];
+  n6[tarefa, as={Notify customer of\\decision}];
+  n7[tarefa, as={Process reimbursement}];
+  n8[fim, as={}];
+  n9[fim, as={}];
+  n10[tarefa, as={Provide feedback}];
+  n11[fim, as={}];
+  n1 -> n2;
+  n2 -> n3;
+  n3 -> n4;
+  n4 -> n5;
+  n5 ->[edge node={node[condicao] {yes}}] n6;
+  n5 ->[edge node={node[condicao] {no}}, bend right=35] n6;
+  n6 -> n7;
+  n7 -> n8;
+  n6 -> n9;
+  n8 -> n10;
+  n9 -> n10;
+  n10 -> n11;
+};
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,54 @@
+% Contrastes pareados com a margem de equivalência (Seções 5.2.2 e 5.5.2).
+% Dados: figuras/dados/contrastes_*.csv, gerados por
+% `uv run python -m src.evaluation.export_contrastes`, com o mesmo cálculo das
+% tabelas de contrastes. A faixa cinza é a margem; o veredito sai da posição do
+% intervalo em relação a ela, e é isso que a figura deixa visível.
+\begin{figure}[htb]
+	\Caption{\label{fig:contrastes} Contrastes pareados e margens de equivalência}
+	\centering
+	\pgfplotsset{
+		contraste/.style={
+			width=0.62\textwidth, height=#1, clip=false,
+			ytick=data, y dir=normal,
+			axis lines*=left, tick align=outside,
+			tick label style={font=\small}, label style={font=\small},
+			xmajorgrids, grid style={draw=black!10},
+			xticklabel style={/pgf/number format/use comma},
+		},
+		ponto/.style={only marks, mark=*, mark size=1.8pt, black,
+			error bars/.cd, x dir=both, x explicit, error bar style={thick}},
+		veredito/.style={only marks, mark=none, point meta=explicit symbolic,
+			nodes near coords, nodes near coords align={right},
+			every node near coord/.append style={font=\scriptsize\itshape, anchor=west}},
+	}
+	\pgfplotstableread[col sep=comma]{figuras/dados/contrastes_validade.csv}\tabvalidade
+	\pgfplotstableread[col sep=comma]{figuras/dados/contrastes_fidelidade.csv}\tabfidelidade
+	\begin{tikzpicture}
+		\begin{axis}[contraste=3.4cm, name=validade,
+				xmin=-25, xmax=25, ymin=0.4, ymax=2.6,
+				xlabel={Diferença de validade (pontos percentuais)},
+				yticklabels from table={\tabvalidade}{contraste},
+				title={\small (a) Validade, margem de $\pm$10 pontos}]
+			\fill[black!8] (axis cs:-10,0.4) rectangle (axis cs:10,2.6);
+			\draw[dashed, black!50] (axis cs:0,0.4) -- (axis cs:0,2.6);
+			\addplot[ponto] table[x=dif, y=y, x error minus=em, x error plus=ep, col sep=comma]
+				{figuras/dados/contrastes_validade.csv};
+			\addplot[veredito] table[x expr=26, y=y, meta=veredito, col sep=comma]
+				{figuras/dados/contrastes_validade.csv};
+		\end{axis}
+		\begin{axis}[contraste=5cm, at={(validade.south west)}, anchor=north west, yshift=-2.5cm,
+				xmin=-1.6, xmax=1.6, ymin=0.4, ymax=4.6,
+				xlabel={Diferença de nota do juiz (escala de 0 a 5)},
+				yticklabels from table={\tabfidelidade}{contraste},
+				title={\small (b) Fidelidade (exploratória), margem de $\pm$0,5 ponto}]
+			\fill[black!8] (axis cs:-0.5,0.4) rectangle (axis cs:0.5,4.6);
+			\draw[dashed, black!50] (axis cs:0,0.4) -- (axis cs:0,4.6);
+			\addplot[ponto] table[x=dif, y=y, x error minus=em, x error plus=ep, col sep=comma]
+				{figuras/dados/contrastes_fidelidade.csv};
+			\addplot[veredito] table[x expr=1.66, y=y, meta=veredito, col sep=comma]
+				{figuras/dados/contrastes_fidelidade.csv};
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{Ponto: diferença média pareada por item; barra: intervalo de confiança de 95\% por \textit{bootstrap}; faixa cinza: margem de equivalência. Intervalo inteiro dentro da faixa: equivalente; inteiro fora: diferente além da margem; nos demais casos, inconclusivo. A margem da validade foi fixada antes do cálculo dos intervalos; a da fidelidade, depois de vistas as notas.}
+\end{figure}

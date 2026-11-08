@@ -1,0 +1,54 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{graphs,graphdrawing,arrows.meta,shapes.geometric}
+\usegdlibrary{layered}
+\tikzset{
+  tarefa/.style={draw, rounded corners=2pt, align=center, text width=1.7cm,
+                 minimum height=0.8cm, font=\scriptsize},
+  inicio/.style={circle, draw, minimum size=0.45cm, inner sep=0pt},
+  fim/.style={circle, draw, very thick, minimum size=0.45cm, inner sep=0pt},
+  meio/.style={circle, draw, double, minimum size=0.45cm, inner sep=0pt},
+  decisao/.style={diamond, draw, minimum size=0.6cm, inner sep=0pt},
+  rotulo/.style={font=\tiny\itshape, align=center},
+  condicao/.style={font=\tiny\itshape, text=black, fill=white, inner sep=0.5pt},
+}
+\begin{document}
+\begin{tikzpicture}[>={Latex[length=1.4mm]}]
+\graph[layered layout, grow=right, level distance=2.0cm, sibling distance=1.3cm, edges={gray!70, ->}] {
+  n1[inicio, as={}];
+  n2[tarefa, as={File complaint}];
+  n3[tarefa, as={Log complaint}];
+  n4[tarefa, as={Assign to relevant\\department}];
+  n5[tarefa, as={Review details}];
+  n6[decisao, as={$\times$}, label={[rotulo]above:Complaint valid and\\refund justified?}];
+  n7[tarefa, as={Notify customer of\\approval}];
+  n8[tarefa, as={Notify customer of\\rejection}];
+  n9[decisao, as={$\times$}];
+  n10[decisao, as={$\times$}, label={[rotulo]above:Refund approved?}];
+  n11[tarefa, as={Process reimbursement}];
+  n12[decisao, as={$\times$}];
+  n13[tarefa, as={Mark complaint as\\resolved}];
+  n14[decisao, as={$\times$}, label={[rotulo]above:Customer provides\\feedback?}];
+  n15[tarefa, as={Provide feedback}];
+  n16[fim, as={}];
+  n17[fim, as={}];
+  n1 -> n2;
+  n2 -> n3;
+  n3 -> n4;
+  n4 -> n5;
+  n6 ->[edge node={node[condicao] {yes}}] n7;
+  n6 ->[edge node={node[condicao] {no}}] n8;
+  n7 -> n9;
+  n8 -> n9;
+  n5 -> n6;
+  n10 ->[edge node={node[condicao] {yes}}] n11;
+  n11 -> n12;
+  n10 ->[edge node={node[condicao] {no}}] n12;
+  n9 -> n10;
+  n12 -> n13;
+  n14 ->[edge node={node[condicao] {yes}}] n15;
+  n15 -> n16;
+  n14 ->[edge node={node[condicao] {no}}] n17;
+  n13 -> n14;
+};
+\end{tikzpicture}
+\end{document}

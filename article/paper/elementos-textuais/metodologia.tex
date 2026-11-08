@@ -1,8 +1,6 @@
 \chapter{Metodologia}\label{cap:metodologia}
 
-\section{Visão geral}\label{sec:visao-geral}
-
-Neste trabalho, o modelo de linguagem não escreve o XML do BPMN 2.0 diretamente. Ele gera uma representação compacta do processo, a BPMN-DSL, e um programa determinístico, o transpilador, expande essa representação para o XML completo. O experimento compara essa estratégia com a geração direta de XML e verifica se um modelo de pequeno porte, especializado na DSL, alcança os resultados de modelos de grande porte com uma fração do uso de tokens e do custo.
+Na abordagem proposta, o modelo de linguagem não escreve o XML do BPMN 2.0 diretamente. Ele gera uma representação compacta do processo, a BPMN-DSL, e um programa determinístico, o transpilador, expande essa representação para o XML completo. O experimento compara essa estratégia com a geração direta de XML e verifica se um modelo de pequeno porte, especializado na DSL, alcança os resultados de modelos de grande porte com uma fração do uso de tokens e do custo.
 
 O trabalho tem duas fases, resumidas na Figura~\ref{fig:pipeline}. Na construção do corpus, descrições textuais de processos, a maior parte extraída do \textit{handbook} público da GitLab, são padronizadas e depois convertidas em um JSON que descreve o processo, em duas chamadas a um modelo de grande porte. Um conversor determinístico transforma esse JSON na DSL, e o transpilador gera o XML correspondente (Seção~\ref{sec:dados}). Os pares formados pelo texto original e pela DSL treinam o modelo pequeno. Trata-se de uma destilação: o modelo pequeno aprende a partir dos dados que os modelos grandes produziram (Seção~\ref{sec:sft}). Na avaliação, cada braço experimental recebe o texto de um processo do conjunto de teste e gera XML ou DSL. A DSL passa pelo transpilador, e todas as saídas são medidas da mesma forma (Seções~\ref{sec:bracos} e~\ref{sec:medidas}).
 
@@ -35,7 +33,7 @@ Não existe um conjunto público, em escala e confiável, que associe descriçõ
 }
 \end{table}
 
-A principal fonte de volume foi o \textit{handbook} público da GitLab que é um manual operacional aberto com milhares de páginas. As páginas foram coletadas e divididas em seções, e cada seção recebeu uma pontuação procedural baseada na presença de passos numerados, decisões e atores. Foram mantidas as seções com passos e com decisões ou atores, que descrevem processos com alguma estrutura além de uma lista. As seções lineares, só com passos, foram separadas e não entram nos experimentos. O PET \cite{bellan2022pet} também entra no treino com 44 descrições de processos de outros domínios.
+A principal fonte de volume foi o \textit{handbook} público da GitLab que é um manual operacional aberto com milhares de páginas. As páginas foram coletadas e divididas em seções, e cada seção recebeu uma pontuação procedural baseada na presença de passos numerados, decisões e atores. Foram mantidas as seções com passos e com decisões ou atores, que descrevem processos com alguma estrutura além de uma lista. As seções lineares, só com passos, foram separadas e não entram nos experimentos. O PET \cite{bellan2022pet}, conjunto de descrições de processos anotadas com atividades, \textit{gateways}, atores e relações de fluxo, também entra no treino com 44 descrições de outros domínios. Só os textos são usados, e as anotações não.
 
 O conjunto de teste é o PMo \cite{brissard2025pmo}, que reúne 53 descrições de processos de fontes distintas, cada uma acompanhada de um modelo BPMN de referência. O Zenodo \cite{mangler2023textual} traz 24 descrições, as mesmas de 24 itens do PMo, cada uma com 8 a 11 modelos feitos por modeladores iniciantes e avaliados por um especialista com uma nota de 0 a 5. Essas notas são usadas na validação da medida de fidelidade (Seção~\ref{sec:medidas}). A sobreposição entre as duas fontes tem uma consequência para as referências do PMo: em pelo menos 10 desses 24 itens, a referência coincide, após normalização dos rótulos e fluxos, com um dos modelos feitos por iniciantes no Zenodo, e não é, portanto, um modelo de especialista. Por isso, a fidelidade das saídas é julgada contra o texto, e não contra a referência (Seção~\ref{sec:medidas}).
 
@@ -58,7 +56,7 @@ Para verificar se havia outras sobreposições, cada texto de avaliação foi co
 Uma limitação desta composição é que 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, de uma única empresa e com estilo próprio, enquanto o teste é feito sobre processos de outros domínios. Isso é discutido na Seção~\ref{sec:ameacas}.
 \section{A BPMN-DSL}\label{sec:dsl}
 
-A BPMN-DSL é a representação intermediária, criada de forma autoral, para este trabalho. Existem outras representações textuais de processos, comparadas por \citeonline{brissard2025pmr}, mas o foco aqui é específico: uma notação que um modelo de linguagem consiga gerar da esquerda para a direita, com poucos \textit{tokens}, e que tenha uma tradução determinística e completa para BPMN 2.0 XML.
+A BPMN-DSL é a representação intermediária, criada de forma autoral. Existem outras representações textuais de processos, comparadas por \citeonline{brissard2025pmr}, mas o foco aqui é específico: uma notação que um modelo de linguagem consiga gerar da esquerda para a direita, com poucos \textit{tokens}, e que tenha uma tradução determinística e completa para BPMN 2.0 XML.
 
 O Código~\ref{lst:dsl} mostra um processo com uma decisão e uma repetição usando o BPMN-DSL, e o Código~\ref{lst:xml} mostra o XML que o transpilador gera a partir dele. A DSL tem 286 caracteres e o XML, 1.833.
 
@@ -135,7 +133,7 @@ O transpilador lê a DSL com um analisador gerado a partir da gramática formal 
 
 O componente foi verificado de duas formas sobre as 1.021 amostras do corpus. Na primeira, o XML de todas as amostras foi validado contra o esquema XSD oficial do BPMN 2.0, e as 1.021 passaram. Na segunda, a estrutura do XML foi comparada com a do JSON originalmente gerado, pelos pares de atividades e eventos que se sucedem no fluxo. As estruturas ficaram idênticas em 1.020 amostras. Na amostra restante, o próprio JSON tem fluxos saindo de eventos de fim, que o transpilador não reproduz porque um evento de fim encerra o fluxo. Nas saídas dos braços experimentais, as 951 DSL que seguiram a gramática produziram XML válido. A falha de validade de uma saída em DSL vem, portanto, sempre da geração, e não da transpilação.
 
-O XML gerado contém só a lógica do processo. Para que seja possível abrir o modelo em uma ferramenta de modelagem, é necessário possuir um pós-processador que acrescenta as coordenadas de cada elemento, com um leiaute em camadas no estilo de \citeonline{sugiyama1981methods}: os laços são desconsiderados para ordenar os elementos, cada elemento é posicionado pela distância até o início, e as raias são respeitadas. O leiaute é determinístico e serve apenas à visualização. Nenhuma medida deste trabalho depende dele: a validade e a razão de compressão são medidas sobre o XML sem coordenadas.
+O XML gerado contém só a lógica do processo. Para que seja possível abrir o modelo em uma ferramenta de modelagem, é necessário possuir um pós-processador que acrescenta as coordenadas de cada elemento, com um \textit{layout} em camadas no estilo de \citeonline{sugiyama1981methods}: os laços são desconsiderados para ordenar os elementos, cada elemento é posicionado pela distância até o início, e as raias são respeitadas. O \textit{layout} é determinístico e serve apenas à visualização. Nenhuma das medidas usadas depende dele: a validade e a razão de compressão são medidas sobre o XML sem coordenadas.
 
 \section{Especialização do modelo}\label{sec:sft}
 
@@ -261,11 +259,11 @@ A razão de compressão de \textit{tokens} (TCR) mede quanto a DSL é menor que 
 \begin{equation}
 	\text{TCR} = \frac{\text{tokens}(\text{XML})}{\text{tokens}(\text{DSL})},
 \end{equation}
-com o tokenizador do Qwen2.5-Coder. O XML do numerador é o produzido pelo transpilador, sem as coordenadas do leiaute, que inflariam a razão sem acrescentar conteúdo ao processo (Seção~\ref{sec:transpilacao}). A TCR é calculada sobre o corpus e sobre as saídas dos braços que emitem DSL, considerando apenas as saídas que passam pela transpilação. Nos braços que emitem XML não há representação intermediária, e a razão não é definida.
+com o tokenizador do Qwen2.5-Coder. O XML do numerador é o produzido pelo transpilador, sem as coordenadas do \textit{layout}, que inflariam a razão sem acrescentar conteúdo ao processo (Seção~\ref{sec:transpilacao}). A TCR é calculada sobre o corpus e sobre as saídas dos braços que emitem DSL, considerando apenas as saídas que passam pela transpilação. Nos braços que emitem XML não há representação intermediária, e a razão não é definida.
 
 \subsection{Fidelidade}\label{subsec:fidelidade}
 
-A fidelidade é o quanto o modelo gerado representa o processo descrito no texto. Neste trabalho, ser fiel é representar o que o texto diz sem inventar conteúdo: um modelo que acrescenta atividades ou decisões que o texto não sustenta é penalizado, mesmo que o acréscimo seja plausível. Essa definição foi escolhida porque, nas saídas de um modelo de linguagem, inventar conteúdo é justamente o erro que importa detectar.
+A fidelidade é o quanto o modelo gerado representa o processo descrito no texto. Aqui, ser fiel é representar o que o texto diz sem inventar conteúdo: um modelo que acrescenta atividades ou decisões que o texto não sustenta é penalizado, mesmo que o acréscimo seja plausível. Essa definição foi escolhida porque, nas saídas de um modelo de linguagem, inventar conteúdo é justamente o erro que importa detectar.
 
 \subsubsection{O juiz}
 

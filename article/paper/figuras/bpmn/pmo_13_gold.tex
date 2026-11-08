@@ -1,0 +1,50 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{graphs,graphdrawing,arrows.meta,shapes.geometric}
+\usegdlibrary{layered}
+\tikzset{
+  tarefa/.style={draw, rounded corners=2pt, align=center, text width=1.7cm,
+                 minimum height=0.8cm, font=\scriptsize},
+  inicio/.style={circle, draw, minimum size=0.45cm, inner sep=0pt},
+  fim/.style={circle, draw, very thick, minimum size=0.45cm, inner sep=0pt},
+  meio/.style={circle, draw, double, minimum size=0.45cm, inner sep=0pt},
+  decisao/.style={diamond, draw, minimum size=0.6cm, inner sep=0pt},
+  rotulo/.style={font=\tiny\itshape, align=center},
+  condicao/.style={font=\tiny\itshape, text=black, fill=white, inner sep=0.5pt},
+}
+\begin{document}
+\begin{tikzpicture}[>={Latex[length=1.4mm]}]
+\graph[layered layout, grow=right, level distance=2.0cm, sibling distance=1.3cm, edges={gray!70, ->}] {
+  n1[tarefa, as={Resolve complaint}];
+  n2[tarefa, as={Approve and notify\\customer}];
+  n3[tarefa, as={Process reimbursement}];
+  n4[tarefa, as={Provide feedback}];
+  n5[tarefa, as={Log complaint}];
+  n6[tarefa, as={Assign complaint to\\relevant department}];
+  n7[tarefa, as={File complaint}];
+  n8[tarefa, as={Reject and notify\\customer}];
+  n9[tarefa, as={Review complaint\\details}];
+  n10[decisao, as={$\times$}];
+  n11[decisao, as={$\times$}];
+  n12[decisao, as={$\times$}];
+  n13[decisao, as={$\times$}];
+  n14[inicio, as={}];
+  n15[fim, as={}];
+  n14 -> n7;
+  n12 -> n1;
+  n1 -> n13;
+  n13 -> n4;
+  n10 -> n15;
+  n13 -> n10;
+  n11 -> n2;
+  n8 -> n12;
+  n5 -> n6;
+  n9 -> n11;
+  n4 -> n10;
+  n7 -> n5;
+  n11 -> n8;
+  n3 -> n12;
+  n2 -> n3;
+  n6 -> n9;
+};
+\end{tikzpicture}
+\end{document}

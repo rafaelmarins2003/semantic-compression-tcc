@@ -1,0 +1,32 @@
+% Curva de aprendizado (Seção 5.6.1). Dados: figuras/dados/curva.csv, gerado por
+% `uv run python -m src.evaluation.export_contrastes` (validade do banco, perda
+% dos logs de treino). Eixo x em escala logarítmica, porque cada ponto dobra o
+% anterior; painéis separados, porque as duas séries não têm escala comum.
+\begin{figure}[htb]
+	\Caption{\label{fig:curva} Perda na validação e validade com 25\%, 50\% e 100\% dos pares de treino}
+	\centering
+	\pgfplotsset{
+		painelcurva/.style={
+			width=0.43\textwidth, height=5cm,
+			xmin=130, xmax=860,
+			xtick={167,339,672}, xticklabels={167,339,672},
+			xlabel={Pares de treino},
+			axis lines*=left, tick align=outside, ymajorgrids, grid style={draw=black!12},
+			tick label style={font=\small}, label style={font=\small},
+			yticklabel style={/pgf/number format/fixed, /pgf/number format/use comma},
+		},
+	}
+	\begin{tikzpicture}
+		\begin{axis}[xmode=log, log basis x=2, painelcurva, name=perda, ymin=0.38, ymax=0.52, ylabel={Perda na validação},
+				ytick={0.40,0.44,0.48,0.52},
+				yticklabel style={/pgf/number format/precision=2, /pgf/number format/fixed zerofill}]
+			\addplot[corSFT, thick, mark=*] table[x=pares, y=perda, col sep=comma] {figuras/dados/curva.csv};
+		\end{axis}
+		\begin{axis}[xmode=log, log basis x=2, painelcurva, at={(perda.east)}, anchor=west, xshift=2.3cm,
+				ymin=0, ymax=100, ylabel={Saídas válidas no XSD (\%)}]
+			\addplot[corSFT, thick, mark=*] table[x=pares, y=validade, col sep=comma] {figuras/dados/curva.csv};
+		\end{axis}
+	\end{tikzpicture}
+	\Fonte{Elaborado pelo autor}
+	\Nota{X-lc25, X-lc50 e A4, com o mesmo modelo, \textit{prompt} e hiperparâmetros. Perda: a do adaptador mantido, sobre os mesmos 78 pares de validação. Validade: proporção das 138 gerações aceitas pelo esquema, 87,0\% nos três braços.}
+\end{figure}
