@@ -1,19 +1,144 @@
-% Apêndices. Os títulos e rótulos existem desde já para que as remissões do
-% corpo funcionem; o conteúdo de cada um é montado no fim, conforme a seção
-% "Apêndices" do guia de reescrita (configs/prompts/private/guia-reescrita-tcc.md).
 \begin{apendicesenv}
 \partapendices
 
+\lstdefinestyle{prompt}{
+	basicstyle=\ttfamily\scriptsize,
+	breaklines=true,
+	columns=fullflexible,
+	keepspaces=true,
+	showstringspaces=false,
+	frame=single,
+	literate=
+		{á}{{\'a}}1 {â}{{\^a}}1 {ã}{{\~a}}1 {à}{{\`a}}1
+		{é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+		{ó}{{\'o}}1 {ô}{{\^o}}1 {õ}{{\~o}}1 {ú}{{\'u}}1
+		{ç}{{\c{c}}}1 {Ã}{{\~A}}1 {É}{{\'E}}1
+		{—}{{---}}1 {→}{{$\rightarrow$}}1 {§}{{\S}}1
+}
+
 \chapter{Prompts dos braços experimentais}\label{ap:prompts-bracos}
-[A montar: regras comuns uma vez, depois a parte específica de cada braço, com o sha256 de cada prompt.]
+
+Os \textit{prompts} estão reproduzidos como foram enviados aos modelos. Cada arquivo começa por um comentário em português, entre \verb|<!--| e \verb|-->|, que registra decisões de desenho do estudo. O código que carrega os \textit{prompts} não remove esse comentário, e ele foi enviado aos modelos junto com as instruções, em todos os braços. Na geração, a descrição do processo substitui \texttt{\{description\}}.
+
+Os blocos \texttt{<role>}, \texttt{<language>}, \texttt{<modeling\_rules>} e \texttt{<output\_contract>} são idênticos, caractere a caractere, nos quatro \textit{prompts}. Eles aparecem por extenso apenas no \textit{prompt} de XML (Código~\ref{lst:ap-xml}), e a omissão nos demais é indicada por \texttt{[...]}. A Tabela~\ref{tab:ap-prompts} associa cada braço ao seu \textit{prompt} e ao \textit{hash} SHA-256 do texto enviado, gravado em cada geração. Todas as gerações de cada braço usaram o mesmo \textit{hash}.
+
+\begin{table}[htb]
+	\Caption{\label{tab:ap-prompts} \textit{Prompts} usados por braço}%
+	\IBGEtab{}{%
+		\begin{tabular}{llll}
+			\toprule
+			Braços & \textit{Prompt} & Código & SHA-256 (início) \\
+			\midrule \midrule
+			A1, A1g & XML & \ref{lst:ap-xml} & \texttt{0dbf1e014ff2} \\
+			A2, A2g, A3 & gramática & \ref{lst:ap-gramatica} & \texttt{c6bb757ea9b1} \\
+			A2r & gramática com rótulo & \ref{lst:ap-rotulo} & \texttt{b49d66cbcc41} \\
+			A3m, A4, X-lc25, X-lc50, X-gr, X-mi & mínimo & \ref{lst:ap-minimo} & \texttt{11eaf38e2435} \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Primeiros 12 caracteres do SHA-256 do texto completo enviado ao modelo, antes da inserção da descrição.}%
+}
+\end{table}
+
+O \textit{prompt} da gramática com rótulo é igual ao da gramática, inclusive no comentário inicial, exceto em dois trechos: a seção de referências, que descreve a referência pelo rótulo, e a linha de propriedades, que passou a indicar os elementos em que elas são aceitas. O Código~\ref{lst:ap-rotulo} mostra apenas esses dois trechos. O \textit{prompt} mínimo é também o usado no treino do modelo ajustado: cada par de treino foi formatado com ele, com o texto original no lugar de \texttt{\{description\}}.
+
+\lstinputlisting[style=prompt,caption={\textit{Prompt} de XML (braços A1 e A1g)},label={lst:ap-xml}]{apendices/prompts/xml_direct.txt}
+
+\lstinputlisting[style=prompt,caption={\textit{Prompt} da gramática (braços A2, A2g e A3), sem os blocos comuns},label={lst:ap-gramatica}]{apendices/prompts/dsl_grammar.txt}
+
+\lstinputlisting[style=prompt,caption={Trechos do \textit{prompt} da gramática com rótulo (braço A2r) que diferem do \textit{prompt} da gramática},label={lst:ap-rotulo}]{apendices/prompts/dsl_grammar_labelref.txt}
+
+\lstinputlisting[style=prompt,caption={\textit{Prompt} mínimo (braços A3m, A4 e exploratórios do modelo ajustado), sem os blocos comuns},label={lst:ap-minimo}]{apendices/prompts/dsl_minimal.txt}
 
 \chapter{Prompts do juiz de fidelidade e da paráfrase}\label{ap:prompts-juiz}
-[A montar: rubrica completa, modelo da mensagem e prompt da paráfrase, com o \textit{hash} da versão usada.]
+
+O juiz recebe uma instrução de sistema, com a rubrica (Código~\ref{lst:ap-juiz-sistema}), e uma mensagem com o texto do processo e o modelo gerado (Código~\ref{lst:ap-juiz-usuario}). Na mensagem, \texttt{\{description\}} é substituído pela descrição original e \texttt{\{model\}} pela lista neutra de elementos e fluxos descrita na Seção~\ref{subsec:fidelidade}. O Código~\ref{lst:ap-juiz-lista} mostra essa lista para o processo do Código~\ref{lst:dsl}. A resposta do juiz é restrita, pelo provedor, a um objeto JSON com o esquema do Código~\ref{lst:ap-juiz-esquema}: primeiro os problemas encontrados em cada critério, depois a nota.
+
+O SHA-256 da instrução de sistema e da mensagem, concatenadas, começa por \texttt{dd5177218c54}. Essa versão foi usada em todos os julgamentos dos braços, na validação por perturbação e na segunda tentativa de validação contra o Zenodo. A primeira tentativa no Zenodo usou uma versão anterior, de \textit{hash} \texttt{6d08d6e7ebee}, com a escala em passos de meio ponto (Seção~\ref{subsec:fidelidade}).
+
+\lstinputlisting[style=prompt,caption={Instrução de sistema do juiz (rubrica)},label={lst:ap-juiz-sistema}]{apendices/prompts/fidelity_system.txt}
+
+\lstinputlisting[style=prompt,caption={Modelo da mensagem enviada ao juiz},label={lst:ap-juiz-usuario}]{apendices/prompts/fidelity_user.txt}
+
+\lstinputlisting[style=prompt,caption={Lista neutra recebida pelo juiz para o processo do Código~\ref{lst:dsl}},label={lst:ap-juiz-lista}]{apendices/prompts/render_example.txt}
+
+\lstinputlisting[style=prompt,caption={Esquema JSON da resposta do juiz},label={lst:ap-juiz-esquema}]{apendices/prompts/judge_schema.txt}
+
+Os casos de paráfrase da validação por perturbação foram gerados pelo GLM~5.3, com temperatura zero, a partir do \textit{prompt} do Código~\ref{lst:ap-parafrase}. Nele, \texttt{\{labels\}} é substituído pela lista, em JSON, dos rótulos do modelo de referência do item. O SHA-256 desse \textit{prompt} começa por \texttt{a94d613ff406}.
+
+\lstinputlisting[style=prompt,caption={\textit{Prompt} da paráfrase dos rótulos},label={lst:ap-parafrase}]{apendices/prompts/paraphrase.txt}
 
 \chapter{Piloto de escolha do modelo gerador}\label{ap:piloto-gerador}
-[A montar: tabela das três configurações e das três medidas.]
+
+O piloto comparou três configurações para gerar os dados de treino (Seção~\ref{subsec:geracao_pares}), executando, para cada uma, todo o processo de construção dos pares: padronização do texto, geração do JSON, conversão para DSL, transpilação e validação do XML. Foram usadas 50 amostras sorteadas com semente fixa, 30 do \textit{handbook} da GitLab e 20 do PET, todas das partições de treino, para que a escolha não dependesse dos itens de teste. A Tabela~\ref{tab:ap-piloto} mostra os resultados.
+
+\begin{table}[htb]
+	\Caption{\label{tab:ap-piloto} Piloto de escolha do modelo gerador (50 amostras)}%
+	\IBGEtab{}{%
+		\begin{tabular}{lrrrr}
+			\toprule
+			Configuração & XML válido & JSON aproveitável & Falhas & Nós por modelo \\
+			\midrule \midrule
+			GLM~5.2 nas duas etapas & 96\% & 98\% & 1 & 18,4 \\
+			Kimi~K2.6 e DeepSeek~V4~Pro & 92\% & 94\% & 4 & 18,1 \\
+			DeepSeek~V4~Flash nas duas etapas & 88\% & 88\% & 6 & 17,9 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{XML válido: amostras cujo XML final foi aceito pelo esquema XSD. JSON aproveitável: amostras em que o JSON gerado pôde ser lido. Falhas: amostras em que alguma etapa falhou. Na segunda configuração, o Kimi~K2.6 padroniza o texto e o DeepSeek~V4~Pro gera o JSON.}%
+}
+\end{table}
+
+A vantagem do GLM~5.2 sobre a segunda configuração em XML válido corresponde a 2 amostras em 50. A configuração com o DeepSeek~V4~Flash foi executada duas vezes sobre as mesmas amostras, com temperatura zero, e a validade do XML mudou entre as duas execuções em 7 das 50 amostras. Uma diferença de 2 amostras está, portanto, dentro da variação entre repetições, e a escolha se apoiou no fato de o GLM~5.2 ter ficado à frente nas três medidas ao mesmo tempo.
 
 \chapter{Resultados das hipóteses originais}\label{ap:hipoteses-originais}
-[A montar: H1 a H3 em DF-F1, como foram registradas.]
+
+O protocolo inicial, congelado antes da primeira execução, registrou as hipóteses da Tabela~\ref{tab:ap-hipoteses}. Três delas eram decididas pelo DF-F1, a medida de fidelidade que depois foi substituída por não ter passado nas validações (Seção~\ref{subsec:dff1}). Os resultados abaixo seguem a análise registrada e são apresentados apenas para documentar o protocolo inicial. As conclusões do trabalho não se apoiam neles.
+
+\begin{table}[htb]
+	\Caption{\label{tab:ap-hipoteses} Hipóteses do protocolo inicial e desfechos}%
+	\IBGEtab{}{%
+		\small
+		\begin{tabular}{l>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{2.8cm}}
+			\toprule
+			 & Enunciado & Resultado & Desfecho \\
+			\midrule \midrule
+			H1 & A2 $\geq$ A1 em DF-F1 & A2 abaixo do A1, $p$ corrigido 0,032 & refutada \\
+			H1g & A2g $\geq$ A1g em DF-F1, replicação de H1 & A2g abaixo do A1g, $p$ corrigido 0,008 & refutada \\
+			H2 & A2 $>$ A1 em validade & 62,3\% contra 97,8\% & refutada \\
+			H3 & A4 $\geq$ A2 em DF-F1 & sem diferença significativa, $p$ corrigido 0,283 & não refutada nem demonstrada \\
+			H4 & TCR $\geq$ 2 nos braços de DSL & TCR entre 5,78 e 6,46 & confirmada \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{$n = 46$ itens. O $p$ corrigido é o do teste de Wilcoxon com a correção de Holm sobre os três contrastes em DF-F1. Os valores da validade e da TCR são os das Tabelas~\ref{tab:res-panorama} e~\ref{tab:res-tcr}.}%
+}
+\end{table}
+
+Na análise registrada, o valor de um braço em um item é a mediana do DF-F1 das três repetições, e uma saída inválida recebe DF-F1 igual a zero. Os contrastes em DF-F1 foram testados com o teste de Wilcoxon pareado bilateral, com correção de Holm sobre os três, e a diferença foi resumida pela mediana das diferenças por item, com intervalo de confiança de 95\% por \textit{bootstrap} sobre os itens, com 10.000 reamostragens e semente fixa. O tamanho de efeito é a correlação bisserial de postos ($r_b$), que vai de $-1$ a $1$. A Tabela~\ref{tab:ap-contrastes} mostra os três contrastes.
+
+\begin{table}[htb]
+	\Caption{\label{tab:ap-contrastes} Contrastes registrados em DF-F1}%
+	\IBGEtab{}{%
+		\small
+		\begin{tabular}{lrrrcrrr}
+			\toprule
+			Contraste & Mediana a & Mediana b & Diferença & IC 95\% & $r_b$ & $p$ & $p$ corrigido \\
+			\midrule \midrule
+			A2 $-$ A1 & 0,058 & 0,192 & $-$0,025 & [$-$0,081; 0] & $-$0,35 & 0,016 & 0,032 \\
+			A2g $-$ A1g & 0,000 & 0,160 & $-$0,054 & [$-$0,145; 0] & $-$0,35 & 0,003 & 0,008 \\
+			A4 $-$ A2 & 0,121 & 0,058 & $-$0,005 & [$-$0,048; 0] & $-$0,21 & 0,283 & 0,283 \\
+			\bottomrule
+		\end{tabular}%
+	}{%
+	\Fonte{Elaborado pelo autor}%
+	\Nota{Mediana a e mediana b: mediana, entre os itens, do DF-F1 de cada braço do contraste. Diferença: mediana das diferenças por item, que não é igual à diferença entre as medianas dos braços.}%
+}
+\end{table}
+
+Como as saídas inválidas valem zero, os contrastes de H1 e H1g misturam validade e fidelidade, e a refutação de H1 decorre em boa parte das saídas inválidas do A2. Com a referência por rótulo, que reduziu essas falhas, a diferença em DF-F1 entre o A2r e o A1 é nula, com intervalo de [$-$0,042; 0,035] e $p = 0{,}66$. Pelo mesmo motivo, H3 compara o A4 com um braço que perdia mais de um terço das saídas: contra o A2r, o A4 fica abaixo em DF-F1, com diferença de $-$0,089, intervalo de [$-$0,145; $-$0,010] e $p < 0{,}001$. Essas duas comparações são exploratórias, foram feitas depois de vistos os resultados e usam uma medida sem validação, mas apontam na mesma direção que a fidelidade medida pelo juiz (Seção~\ref{sec:res-fidelidade}).
 
 \end{apendicesenv}

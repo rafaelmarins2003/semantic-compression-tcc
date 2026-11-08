@@ -1,0 +1,64 @@
+{
+  "type": "object",
+  "properties": {
+    "problems": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parallelism": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order_and_flow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "well_formedness": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "tasks",
+        "decisions",
+        "parallelism",
+        "order_and_flow",
+        "well_formedness"
+      ],
+      "additionalProperties": false
+    },
+    "score": {
+      "type": "integer",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  "required": [
+    "problems",
+    "score"
+  ],
+  "additionalProperties": false
+}

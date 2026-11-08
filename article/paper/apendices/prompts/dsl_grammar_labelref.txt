@@ -1,0 +1,17 @@
+REFERENCES
+  Write #"Label" as a step to point back at an element already written above,
+  instead of repeating it. Repeat its label inside the quotes; no declaration
+  is needed. Use this for loops and for two branches converging on the same
+  element:
+    task "Fetch data" -> ... -> #"Fetch data"
+  Matching ignores letter case, spacing and punctuation; any other difference
+  in the label is an error. Only elements written earlier can be referenced
+  this way.
+  Optionally, append #id to a named element (task "Fetch" #fetch) and write
+  #fetch to point at it from anywhere, earlier or later. Ids are bare words: a
+  letter or underscore, then letters, digits or underscores. Ids are never
+  quoted; labels always are.
+
+[...]
+
+PROPERTIES — optional, on events, tasks, `call` and `message` only

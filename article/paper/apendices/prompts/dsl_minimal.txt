@@ -1,0 +1,35 @@
+<!--
+Braço A4 (modelo finetunado) E prompt de treino do SFT. Spec 003 §4.
+
+Sem gramática, de propósito. Duas razões:
+
+ 1. Restrição dura de SFT: o prefixo de instrução na inferência tem de ser
+    idêntico ao do treino. Este arquivo é o prompt de AMBOS — mudar um sem o
+    outro coloca o modelo fora da distribuição em que foi ajustado.
+
+ 2. É a tese. O argumento é econômico; carregar ~1.000 tokens de gramática a
+    cada inferência moveria custo da saída para a entrada, que é exatamente o
+    que dizemos resolver. Internalizar a linguagem nos pesos É a especialização.
+    Se o A4 precisasse do preâmbulo, ele não teria entregado o que promete.
+
+CONFUNDIMENTO DECLARADO: A3 usa `dsl_grammar.md` e A4 usa este. Os dois diferem
+em pesos E em prompt, então A4 vs A3 mede a intervenção inteira, não só o efeito
+do finetuning. Aceitável porque A4 vs A3 NÃO é um dos três contrastes
+pré-registrados (§6.3). Para isolar, rodar o A3 também com este prompt: +159
+gerações. Decisão em aberto no TODO.
+
+O bloco <modeling_rules> permanece idêntico ao dos demais: o que a especialização
+dispensa é a SINTAXE, não a instrução de tarefa.
+-->
+
+[...] blocos <role>, <language> e <modeling_rules> idênticos aos do prompt de XML [...]
+
+<output_format>
+Emit BPMN-DSL.
+</output_format>
+
+[...] bloco <output_contract> idêntico ao do prompt de XML [...]
+
+<input>
+{description}
+</input>

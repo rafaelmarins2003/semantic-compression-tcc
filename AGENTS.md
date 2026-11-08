@@ -71,6 +71,8 @@ Validação empírica com BPMN 2.0. Projeto de pesquisa acadêmica (TCC).
 - tabelas complementares (condicional, MF-F1, teto): uv run python -m src.evaluation.run_tabelas
 - custo por requisição (preço de API, com/sem cache): uv run --with transformers python -m src.evaluation.run_custo
 - regerar dados das figuras: uv run --with transformers python -m src.evaluation.export_figuras
+- dados das figuras de contrastes e da curva de aprendizado: uv run python -m src.evaluation.export_contrastes
+- diagramas qualitativos (leiaute em camadas): uv run python -m src.evaluation.bpmn_grafo pmo_13 --arms A1,X-a2r,A4 e depois lualatex em cada .tex de article/paper/figuras/bpmn/
 - instalar deps de inferência local (A3/A4): uv sync --extra training
 - diagnóstico de VRAM: uv run python -c "from src.evaluation.local_model import vram_report; print(vram_report())"
 

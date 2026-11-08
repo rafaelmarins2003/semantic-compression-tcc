@@ -129,3 +129,6 @@ experiments/sft/adapter-*/
 !experiments/sft/sft_*.log
 
 configs/prompts/private/
+
+# Experimentos locais de apresentação e protótipos descartáveis.
+/internal_tests/

@@ -1,0 +1,18 @@
+Elements:
+  N1: start event
+  N2: activity "Fetch data"
+  N3: activity "Validate"
+  N4: decision (exclusive) "Valid?"
+  N5: activity "Process"
+  N6: decision (exclusive) "Retry?"
+  N7: end event
+  N8: end event [error] "Invalid"
+Sequence flows:
+  N1 -> N2
+  N2 -> N3
+  N3 -> N4
+  N4 -> N5  [if "yes"]
+  N4 -> N6  [if "no"]
+  N5 -> N7
+  N6 -> N2  [if "yes"]
+  N6 -> N8  [if "no"]
