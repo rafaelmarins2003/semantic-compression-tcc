@@ -116,7 +116,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % TODO: confirmar titulação do orientador (Me./Dr.)
-\orientador{Prof. Caio Marques}
+\orientador{Prof. Me. Caio Marques Silva}
 \orientadories{Universidade de Fortaleza - UNIFOR}
 \orientadorcentro{Centro de Ciências Tecnológicas - CCT}
 \orientadorfeminino{nao} % Coloque 'sim' se for do sexo feminino
@@ -142,25 +142,25 @@
 % \membrodabancadois{Prof. Dr. Fulano de Tal}
 % \membrodabancadoisies{Universidade Estadual do Ceará - UECE}
 
-\membrodabancadois{Membro da Banca Dois}
+\membrodabancadois{Prof. Me. André Wescley Oliveira de Aguiar}
 \membrodabancadoiscentro{Centro de Ciências e Tecnologia - CCT}
-\membrodabancadoisies{Universidade do Membro da Banca Dois - SIGLA}
+\membrodabancadoisies{Universidade de Fortaleza - UNIFOR}
 
-\membrodabancatres{Membro da Banca Três}
-\membrodabancatrescentro{Centro de Ciências e Tecnologia - CCT}
-\membrodabancatresies{Universidade do Membro da Banca Três - SIGLA}
+\membrodabancatres{Prof. Dr. Pedro Pedrosa Rebouças Filho}
+\membrodabancatrescentro{AI Lab for Processing Images, Signals and Computer Science - LAPISCO}
+\membrodabancatresies{Instituto Federal de Educação, Ciência e Tecnologia do Ceará - IFCE}
 
-\membrodabancaquatro{Membro da Banca Quatro}
-\membrodabancaquatrocentro{Centro de Ciências e Tecnologia - CCT}
-\membrodabancaquatroies{Universidade do Membro da Banca Quatro - SIGLA}
+% \membrodabancaquatro{Membro da Banca Quatro}
+% \membrodabancaquatrocentro{Centro de Ciências e Tecnologia - CCT}
+% \membrodabancaquatroies{Universidade do Membro da Banca Quatro - SIGLA}
 
-\membrodabancacinco{Membro da Banca Cinco}
-\membrodabancacincocentro{Centro de Ciências e Tecnologia - CCT}
-\membrodabancacincoies{Universidade do Membro da Banca Cinco - SIGLA}
+% \membrodabancacinco{Membro da Banca Cinco}
+% \membrodabancacincocentro{Centro de Ciências e Tecnologia - CCT}
+% \membrodabancacincoies{Universidade do Membro da Banca Cinco - SIGLA}
 
-\membrodabancaseis{Membro da Banca Seis}
-\membrodabancaseiscentro{Centro de Ciências e Tecnologia - CCT}
-\membrodabancaseisies{Universidade do Membro da Banca Seis - SIGLA}
+% \membrodabancaseis{Membro da Banca Seis}
+% \membrodabancaseiscentro{Centro de Ciências e Tecnologia - CCT}
+% \membrodabancaseisies{Universidade do Membro da Banca Seis - SIGLA}
 
 \begin{document}
 
@@ -202,9 +202,17 @@
 	% O texto emprega as siglas em forma literal, sem marcação \gls, de modo que
 	% nenhuma seria registrada como "usada" e a lista sairia vazia. \glsaddall
 	% inclui todas as declaradas — e a lista declara apenas siglas que ocorrem
-	% no texto, conferidas por contagem.
-	\glsaddall
+	% no texto, conferidas por contagem. Chamado entre parágrafos, o \glsadd abre
+	% um parágrafo vazio (\mbox{}) para registrar a página, e esse parágrafo saía
+	% como uma página em branco antes da lista. O grupo desliga esse ajuste.
+	\makeatletter
+	{\let\@gls@adjustmode\relax\glsaddall}%
+	\makeatother
 	\imprimirlistadeabreviaturasesiglas
+	% A lista de siglas é impressa com longtable (estilo `long` do glossaries), que
+	% avança o contador de tabelas. Sem isto, a primeira tabela do texto sai como
+	% "Tabela 2".
+	\setcounter{table}{0}
 	\imprimirlistadesimbolos{elementos-pre-textuais/lista-de-simbolos}
 	\imprimirsumario
 

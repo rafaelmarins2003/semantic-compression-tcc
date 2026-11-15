@@ -2,37 +2,44 @@
 %%   Atencao! A lista nao ordena automaticamente   %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Ordenada por tema, na sequência em que os símbolos aparecem no texto:
-% métrica de fidelidade, desenho experimental, análise estatística, função de
-% recompensa e, por fim, o símbolo grego. Contém apenas símbolos efetivamente
-% empregados — as siglas das métricas (DF-F1, MF-F1, TCR, XSD-Val) figuram na
+% Ordenada pela sequência em que os símbolos aparecem no texto: modelos de
+% linguagem, ajuste, avaliação e análise estatística, custo. Contém apenas
+% símbolos efetivamente empregados; as siglas (TCR, DF-F1 etc.) figuram na
 % Lista de Abreviaturas e Siglas, não aqui.
 
 \begin{simbolos} \itemsep -1pt
-	% Métrica de fidelidade topológica
-	\item[$ \mathcal{R} $] Multiconjunto \textit{direct-follows} do modelo de referência
-	\item[$ \mathcal{C} $] Multiconjunto \textit{direct-follows} do modelo candidato
-	\item[$ P $] Precisão sobre o multiconjunto \textit{direct-follows}
-	\item[$ R $] Revocação sobre o multiconjunto \textit{direct-follows}
-	\item[$ (a,b) $] Par de atividades em que $a$ é diretamente seguida por $b$
+	% Modelos de linguagem (Fundamentação Teórica)
+	\item[$ Q, K, V $] Consultas, chaves e valores do mecanismo de atenção
+	\item[$ d_k $] Dimensão das chaves no mecanismo de atenção
+	\item[$ x $] Entrada de um modelo de linguagem
+	\item[$ y $] Saída de um modelo de linguagem, com \textit{tokens} $y_1, \ldots, y_T$
+	\item[$ T $] Número de \textit{tokens} da saída
+	\item[$ \tau $] Temperatura da amostragem
+	\item[$ z_i $] Pontuação atribuída pelo modelo ao \textit{token} $i$ do vocabulário
 
-	% Desenho experimental
-	\item[$ n $] Número de itens do conjunto de avaliação
-	\item[$ k $] Número de repetições de geração por item
+	% Ajuste de modelos
+	\item[$ \theta $] Pesos do modelo
+	\item[$ \mathcal{L} $] Perda do ajuste supervisionado
+	\item[$ W_0 $] Matriz de pesos congelada do modelo base
+	\item[$ A, B $] Matrizes de baixo posto treinadas no LoRA
+	\item[$ r $] Posto das matrizes do LoRA
+	\item[$ \alpha $] Fator de escala do LoRA
 
-	% Análise estatística
+	% Avaliação e análise estatística
+	\item[$ G $] Conjunto de itens do modelo gerado
+	\item[$ E $] Conjunto de itens do modelo de referência
+	\item[$ P $] Precisão
+	\item[$ R $] Revocação
+	\item[$ F_1 $] Medida F1, média harmônica da precisão e da revocação
+	\item[$ \rho $] Correlação de postos de Spearman
+	\item[$ d_i $] Diferença entre os postos ou entre os valores comparados no item $i$
+	\item[$ n $] Número de itens
+	\item[$ \Delta $] Margem de equivalência
 	\item[$ p $] Valor-$p$ do teste de Wilcoxon pareado
-	\item[$ p_{Holm} $] Valor-$p$ após correção de Holm para múltiplas comparações
-	\item[$ r_{rb} $] Tamanho de efeito \textit{rank-biserial}
+	\item[$ r_b $] Correlação bisserial de postos, usada como tamanho de efeito
 
-	% Função de recompensa da etapa opcional de aprendizado por reforço
-	\item[$ r $] Recompensa composta
-	\item[$ r' $] Recompensa restrita a componentes verificáveis sem referência
-	\item[$ r_{\text{sint}} $] Componente de validade sintática da recompensa
-	\item[$ r_{\text{sem}} $] Componente de adequação semântica da recompensa
-	\item[$ r_{\text{topo}} $] Componente de coerência topológica da recompensa
-	\item[$ r_{\text{comp}} $] Componente de economia de \textit{tokens} da recompensa
-
-	% Símbolo grego
-	\item[$ \alpha $] Algoritmo $\alpha$ de descoberta de processos
+	% Custo
+	\item[$ C $] Custo de uma requisição
+	\item[$ t_{\text{in}}, t_{\text{out}} $] Números médios de \textit{tokens} de entrada e de saída
+	\item[$ p_{\text{in}}, p_{\text{out}} $] Preços por \textit{token} de entrada e de saída
 \end{simbolos}

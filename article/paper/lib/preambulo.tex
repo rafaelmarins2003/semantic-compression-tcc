@@ -94,8 +94,11 @@
 \usepackage{amsmath}                                % Usar equacoes matematicas
 
 % Organiza e gera a lista de abreviaturas, simbolos e glossario
-% (o arquivo de siglas já é carregado por lib/unifortex2.sty)
-\makeglossaries
+% (o arquivo de siglas já é carregado por lib/unifortex2.sty).
+% \makenoidxglossaries: a lista é ordenada pelo próprio LaTeX, sem o programa
+% makeglossaries. Assim ela sai igual no build local (pdflatex ou latexmk) e no
+% Overleaf; basta compilar duas vezes.
+\makenoidxglossaries
 
 % Gera o Indice do documento
 \makeindex

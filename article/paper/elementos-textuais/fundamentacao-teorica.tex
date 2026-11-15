@@ -1,15 +1,12 @@
 \chapter{Fundamentação Teórica}
 \label{cap:fundamentacao-teorica}
 
-Os objetivos definidos na Seção~\ref{sec:objetivos-especificos} apoiam-se em três grupos de conceitos. O projeto da linguagem e do transpilador depende da notação BPMN 2.0, da sua gravação em XML e das gramáticas formais. O ajuste do modelo pequeno depende do funcionamento dos modelos de linguagem e dos métodos de ajuste que treinam poucos parâmetros. A comparação entre as abordagens depende de medidas de validade, de custo e de fidelidade, do uso de modelos de linguagem como avaliadores e de métodos estatísticos para comparar configurações avaliadas sobre os mesmos itens.
+Este capítulo reúne os conceitos necessários para acompanhar a proposta e a sua avaliação. A Seção~\ref{sec:bpmn} apresenta a modelagem de processos e a notação BPMN 2.0, que é o formato de saída dos experimentos. A Seção~\ref{sec:llms} trata dos modelos de linguagem, de como geram texto e de por que o custo de uso depende do número de \textit{tokens}. A Seção~\ref{sec:dsl-compressao} apresenta as linguagens de domínio específico, as gramáticas formais e a transpilação, que são a base da BPMN-DSL e do transpilador. A Seção~\ref{sec:adaptacao} descreve o ajuste de modelos a uma tarefa, usado para especializar o modelo de pequeno porte. A Seção~\ref{sec:nl-bpmn} trata da extração de modelos de processo a partir de texto e das medidas e dos métodos estatísticos usados para avaliar e comparar as abordagens.
 
 \section{Modelagem de Processos de Negócio e a Notação BPMN 2.0}
-\label{sec:bpmn}
+\label{sec:bpmn}\label{subsec:bpm}
 
-Um modelo de processo descreve quais atividades uma organização executa, em que ordem, sob quais condições e por quem. Esta seção apresenta a área que trata desses modelos, a notação BPMN 2.0, que é a linguagem de saída dos experimentos, e a forma como um modelo nessa notação é gravado em arquivo. É esse arquivo, e não o desenho, que um modelo de linguagem precisa produzir.
-
-\subsection{Gerenciamento de Processos de Negócio}
-\label{subsec:bpm}
+Um modelo de processo descreve quais atividades uma organização executa, em que ordem, sob quais condições e por quem. Esta seção apresenta a área que trata desses modelos, a notação BPMN 2.0, que é a linguagem de saída dos experimentos, e a forma como um modelo nessa notação é gravado em arquivo.
 
 O Gerenciamento de Processos de Negócio (BPM, do inglês \textit{Business Process Management}) trata os processos de uma organização como objetos que podem ser descritos, analisados, executados e melhorados de forma sistemática \cite{dumas2018fundamentals}. A área reúne contribuições da administração, da engenharia de software e da pesquisa operacional, e ganha importância quando o processo deixa de ser uma prática informal e passa a ser um artefato que pode ser verificado \cite{weske2019business}.
 
@@ -20,14 +17,7 @@ Essa formalização é necessária porque a automação, a auditoria e a verific
 
 A \textit{Business Process Model and Notation}, em sua versão 2.0, é mantida pelo \textit{Object Management Group} (OMG) e é a principal referência para a representação de processos de negócio \cite{omg2011bpmn}. A especificação define duas coisas: os símbolos gráficos usados pelos analistas e um modelo formal dos mesmos elementos, com uma forma de gravação em XML. Com isso, um mesmo modelo pode ser lido por pessoas, no desenho, e processado por ferramentas, no arquivo.
 
-Os elementos da notação são agrupados em quatro categorias \cite{omg2011bpmn}:
-
-\begin{alineascomponto}
-	\item objetos de fluxo (\textit{flow objects}): eventos, atividades e \textit{gateways}, que são os nós do processo;
-	\item objetos de conexão (\textit{connecting objects}): fluxos de sequência, fluxos de mensagem e associações, que ligam os nós;
-	\item raias (\textit{swimlanes}): \textit{pools} e \textit{lanes}, que indicam participantes, setores ou responsáveis;
-	\item artefatos (\textit{artifacts}): grupos, anotações textuais e objetos de dados, que acrescentam informação complementar.
-\end{alineascomponto}
+A especificação agrupa os elementos da notação em quatro categorias \cite{omg2011bpmn}. Os objetos de fluxo (\textit{flow objects}) são os nós do processo: eventos, atividades e \textit{gateways}. Os objetos de conexão (\textit{connecting objects}) ligam esses nós e compreendem os fluxos de sequência, os fluxos de mensagem e as associações. As raias (\textit{swimlanes}), divididas em \textit{pools} e \textit{lanes}, indicam os participantes, os setores ou os responsáveis por cada parte do processo. Os artefatos (\textit{artifacts}), como grupos, anotações textuais e objetos de dados, acrescentam informação complementar sem alterar o fluxo. Os parágrafos seguintes detalham os objetos de fluxo, que concentram a lógica do processo e são o que um modelo gerado precisa acertar.
 
 Os eventos marcam o início, o fim ou um ponto intermediário do processo e podem ter um gatilho, como o recebimento de uma mensagem, um temporizador ou um erro. As atividades são o trabalho executado e se dividem em tarefas, que não são decompostas no modelo, e subprocessos, que contêm um fluxo próprio. As tarefas têm tipos que indicam como são executadas, como a tarefa de usuário, feita por uma pessoa com apoio de um sistema, a tarefa de serviço, feita por um sistema, e as tarefas de envio e de recebimento de mensagens.
 
@@ -51,8 +41,8 @@ A gravação em XML favorece a troca de modelos entre ferramentas, mas produz ar
 
 Os modelos de linguagem de grande escala (LLMs, do inglês \textit{Large Language Models}) usados nos experimentos, tanto os de grande quanto os de pequeno porte, compartilham a mesma arquitetura e o mesmo modo de gerar texto. Esta seção descreve essa arquitetura, a divisão do texto em \textit{tokens}, que é a unidade em que os provedores cobram o uso dos modelos, e as dificuldades de gerar textos que precisam obedecer a regras formais.
 
-\subsection{Arquitetura Transformer e Geração Autorregressiva}
-\label{subsec:transformer}
+\subsection{Arquitetura Transformer, Geração Autorregressiva e Tokenização}
+\label{subsec:transformer}\label{subsec:tokenizacao}
 
 A arquitetura Transformer, proposta por \citeonline{vaswani2017attention}, substituiu o processamento sequencial das redes recorrentes por um mecanismo de atenção que relaciona diretamente todas as posições de uma sequência. Cada posição é representada por um vetor, do qual se obtêm uma consulta ($Q$), uma chave ($K$) e um valor ($V$). A saída da atenção é
 \begin{equation}
@@ -60,16 +50,17 @@ A arquitetura Transformer, proposta por \citeonline{vaswani2017attention}, subst
 \end{equation}
 em que $d_k$ é a dimensão das chaves. Cada posição recebe, assim, uma combinação dos valores de todas as outras, ponderada pela semelhança entre a sua consulta e as chaves delas. Como essas operações são multiplicações de matrizes, uma sequência inteira pode ser processada em paralelo, o que permitiu treinar modelos em escala muito maior que a das arquiteturas anteriores.
 
-Os modelos de linguagem atuais usam essa arquitetura de forma autorregressiva. Dada uma entrada $x$, a probabilidade de uma saída $y = (y_1, \ldots, y_T)$ é decomposta em
+Os modelos de linguagem atuais, como o GPT-3 \cite{brown2020language} e o Qwen2.5-Coder \cite{hui2024qwen25coder}, usam a parte decodificadora dessa arquitetura de forma autorregressiva. Dada uma entrada $x$, a probabilidade de uma saída $y = (y_1, \ldots, y_T)$ é decomposta em
 \begin{equation}
 	p(y \mid x) = \prod_{t=1}^{T} p(y_t \mid y_{<t}, x),
 \end{equation}
-isto é, o modelo estima cada \textit{token} a partir da entrada e dos \textit{tokens} já gerados. Na geração, o \textit{token} escolhido a cada passo é acrescentado à sequência e passa a fazer parte do contexto do passo seguinte. A escolha depende da estratégia de decodificação: na decodificação gulosa, toma-se sempre o \textit{token} mais provável; na amostragem, sorteia-se um \textit{token} segundo a distribuição, que pode ser concentrada ou espalhada por um parâmetro de temperatura \cite{holtzman2020curious}. Com temperatura zero, a amostragem equivale à decodificação gulosa, mas, em serviços de terceiros, detalhes de execução ainda podem fazer o mesmo pedido produzir saídas diferentes.
+isto é, o modelo estima cada \textit{token} a partir da entrada e dos \textit{tokens} já gerados. Na geração, o \textit{token} escolhido a cada passo é acrescentado à sequência e passa a fazer parte do contexto do passo seguinte. A escolha depende da estratégia de decodificação: na decodificação gulosa, toma-se sempre o \textit{token} mais provável; na amostragem, sorteia-se um \textit{token} segundo a distribuição. A temperatura $\tau$ controla o quanto essa distribuição é concentrada. O modelo produz, para cada \textit{token} $i$ do vocabulário, uma pontuação $z_i$, e a probabilidade de escolha é
+\begin{equation}
+	p_i = \frac{\exp(z_i / \tau)}{\sum_j \exp(z_j / \tau)}.
+\end{equation}
+Com $\tau = 1$, usa-se a distribuição do próprio modelo. Com $\tau < 1$, as diferenças entre as pontuações aumentam e a escolha se concentra nos \textit{tokens} mais prováveis, e com $\tau > 1$ a distribuição se achata e \textit{tokens} menos prováveis passam a ser sorteados com mais frequência \cite{holtzman2020curious}. No limite em que a temperatura tende a zero, toda a probabilidade fica no \textit{token} de maior pontuação, e a amostragem equivale à decodificação gulosa, mas, em serviços de terceiros, detalhes de execução ainda podem fazer o mesmo pedido produzir saídas diferentes.
 
 Treinados sobre grandes coleções de texto, esses modelos passam a executar tarefas descritas apenas por instruções e exemplos colocados na entrada, sem alteração dos pesos, o que \citeonline{brown2020language} chamam de aprendizado em contexto. É essa capacidade que permite pedir a um modelo de grande porte que escreva em uma notação que ele nunca viu, desde que a descrição da notação esteja no \textit{prompt}. O modo de geração tem também uma consequência para formatos estruturados. O modelo gera da esquerda para a direita e não revisa o que já emitiu, de modo que um formato que exija declarar, em um ponto do texto, uma informação que só se determina adiante obriga o modelo a antecipar uma decisão que ainda não tomou.
-
-\subsection{Tokenização e Custo de Inferência}
-\label{subsec:tokenizacao}
 
 Os modelos de linguagem não operam sobre palavras, mas sobre \textit{tokens}, que são fragmentos de texto definidos por um tokenizador. O método mais comum, o \textit{Byte-Pair Encoding} (BPE), começa com caracteres isolados e une repetidamente os pares mais frequentes no texto de treino, até atingir o tamanho de vocabulário desejado \cite{sennrich2016neural}. Palavras comuns da língua viram um único \textit{token}, e sequências raras são quebradas em vários. Identificadores gerados por programa, nomes de atributos e símbolos de marcação tendem a cair no segundo caso, o que torna o XML caro em \textit{tokens} em relação ao conteúdo que carrega. Como cada família de modelos tem seu próprio tokenizador, o mesmo texto pode ter números de \textit{tokens} diferentes em modelos diferentes.
 
@@ -89,15 +80,12 @@ As referências cruzadas são um caso particular de dificuldade. Em formatos em 
 
 Uma forma de reduzir o que o modelo precisa gerar é pedir uma notação mais curta que o formato final e convertê-la depois por programa. Esta seção apresenta as linguagens de domínio específico, que são o tipo de notação usado para isso, as gramáticas formais, que definem essas linguagens com precisão suficiente para que um programa as leia, e a ideia de compressão semântica, que orienta o que a notação curta deve conter.
 
-\subsection{Linguagens de Domínio Específico}
-\label{subsec:dsl}
+\subsection{Linguagens de Domínio Específico, Gramáticas e Transpilação}
+\label{subsec:dsl}\label{subsec:gramaticas}
 
 Para \citeonline{fowler2010domain}, uma linguagem de domínio específico (DSL, do inglês \textit{Domain-Specific Language}) é uma linguagem de computador de expressividade limitada, voltada a um domínio particular. A limitação é intencional: por não precisar expressar qualquer programa, a linguagem pode usar os conceitos do próprio domínio e omitir detalhes que uma linguagem de propósito geral exigiria. \citeonline{mernik2005domain} apontam como benefícios recorrentes das DSLs a elevação do nível de abstração, a redução de código repetitivo e a facilidade de verificação e de análise. \citeonline{fowler2010domain} distingue ainda as DSLs internas, escritas dentro de uma linguagem de programação existente, das externas, que têm sintaxe própria e exigem um programa para lê-las.
 
 A serialização XML da BPMN já é uma linguagem formal, mas foi concebida para a troca de arquivos entre ferramentas, e não para ser escrita por pessoas ou por modelos de linguagem. Grande parte do que ela contém, como os identificadores, os elementos de ligação e as declarações de espaços de nomes, pode ser derivada de uma descrição mais curta do processo por regras fixas. Uma DSL externa para processos pode, portanto, conter só o que não é derivável, e deixar o restante para um programa.
-
-\subsection{Gramáticas Formais e Transpilação}
-\label{subsec:gramaticas}
 
 A sintaxe de uma linguagem de computador é definida por uma gramática formal. Nas gramáticas livres de contexto, usadas na maior parte das linguagens de programação, cada regra diz como um símbolo da linguagem pode ser decomposto em uma sequência de outros símbolos e de trechos literais de texto \cite{aho2006compilers}. A notação EBNF (\textit{Extended Backus-Naur Form}), padronizada pela ISO/IEC~14977 \cite{iso1996ebnf}, escreve essas regras de forma compacta, com operadores para repetição, opção e alternativa. A regra ilustrativa
 \begin{equation*}
@@ -123,12 +111,9 @@ O ganho é medido pela razão entre o número de \textit{tokens} da forma comple
 Uma razão de 5, por exemplo, significa que a forma comprimida tem um quinto dos \textit{tokens}, ou seja, 80\% a menos. A forma como a razão é calculada nos experimentos está na Seção~\ref{subsec:tcr}. A razão, sozinha, não mede qualidade. Uma forma comprimida só tem valor se o modelo a gerar corretamente, e uma notação mais curta pode ser mais difícil de gerar do que o formato original, por exemplo se for mais distante dos textos vistos no treino do modelo. Por isso a compressão precisa ser avaliada junto com a validade das saídas.
 
 \section{Adaptação de Modelos de Linguagem a Tarefas Específicas}
-\label{sec:adaptacao}
+\label{sec:adaptacao}\label{subsec:sft}\label{subsec:lora}
 
 Há duas formas de fazer um modelo de linguagem executar uma tarefa nova. Na primeira, a tarefa é descrita no \textit{prompt}, e o modelo a executa pelo aprendizado em contexto, sem alteração dos pesos (Seção~\ref{subsec:transformer}). Na segunda, os pesos são ajustados com exemplos da tarefa. A segunda forma permite usar um modelo menor e um \textit{prompt} mais curto, o que reduz o custo de cada requisição, e \citeonline{belcak2025small} argumentam que modelos pequenos ajustados são suficientes para tarefas repetitivas e bem delimitadas. Esta seção descreve o ajuste supervisionado e os métodos que o tornam viável com pouca memória.
-
-\subsection{Ajuste Supervisionado e Destilação}
-\label{subsec:sft}
 
 No ajuste supervisionado (SFT, do inglês \textit{Supervised Fine-Tuning}), o treino de um modelo já treinado continua sobre pares de entrada e saída esperada. Para um par $(x, y)$, a perda é o negativo do logaritmo da probabilidade que o modelo atribui à saída esperada,
 \begin{equation}
@@ -138,9 +123,6 @@ em que $\theta$ são os pesos do modelo. A soma percorre só os \textit{tokens} 
 
 Quando as saídas dos pares são geradas por um modelo maior, o ajuste é uma forma de destilação. \citeonline{hinton2015distilling} propuseram treinar um modelo menor, o aluno, para reproduzir as distribuições de saída de um modelo maior, o professor. \citeonline{kim2016sequence} mostraram que, em modelos que geram sequências, basta treinar o aluno sobre as sequências produzidas pelo professor, sem acesso às suas distribuições, o que chamaram de destilação no nível da sequência. Esse é o caso quando os dados de treino são gerados por um modelo de grande porte acessado por um provedor. Nesse caso, o aluno herda também os erros do professor, e por isso os pares precisam ser filtrados antes do treino.
 
-\subsection{Ajuste com Poucos Parâmetros: LoRA e QLoRA}
-\label{subsec:lora}
-
 Ajustar todos os pesos de um modelo com bilhões de parâmetros exige guardar, para cada peso, o gradiente e o estado do otimizador, o que multiplica a memória necessária. O LoRA (\textit{Low-Rank Adaptation}), de \citeonline{hu2022lora}, congela os pesos originais e treina apenas uma correção de posto baixo para algumas matrizes do modelo. Para uma matriz de pesos $W_0 \in \mathbb{R}^{d \times k}$, a saída da camada passa a ser
 \begin{equation}
 	h = W_0 x + \frac{\alpha}{r} B A x,
@@ -149,8 +131,8 @@ em que $B \in \mathbb{R}^{d \times r}$ e $A \in \mathbb{R}^{r \times k}$ são as
 
 O QLoRA, de \citeonline{dettmers2023qlora}, reduz ainda mais a memória ao guardar os pesos congelados do modelo base em 4 \textit{bits}, em um formato próprio chamado \textit{NormalFloat}, e ao quantizar também as constantes da própria quantização, o que os autores chamam de dupla quantização. Os cálculos são feitos em 16 \textit{bits}, com os pesos convertidos no momento do uso, e só o adaptador é mantido e treinado em precisão maior. Os autores relatam desempenho próximo ao do ajuste completo em 16 \textit{bits}, com uma fração da memória.
 
-\section{Extração de Modelos de Processo a partir de Texto}
-\label{sec:nl-bpmn}
+\section{Extração de Modelos de Processo a partir de Texto e sua Avaliação}
+\label{sec:nl-bpmn}\label{sec:metricas}
 
 A maior parte do conhecimento sobre os processos de uma organização está em textos, como manuais e descrições de procedimentos, e não em modelos. A conversão automática desses textos em modelos de processo é estudada desde antes dos modelos de linguagem atuais. \citeonline{friedrich2011process} geravam modelos BPMN a partir de texto com técnicas tradicionais de Processamento de Linguagem Natural (PLN), como a análise sintática das frases, a resolução de correferências e regras que mapeavam as construções da língua em elementos do modelo. Os resultados mostraram que a tarefa é viável, mas também que os textos de processo deixam muita informação implícita.
 
@@ -158,10 +140,7 @@ Entre as dificuldades da tarefa, \citeonline{vanderaa2018challenges} apontam a a
 
 Como consequência, um modelo de referência feito por uma pessoa é uma interpretação possível do texto, e não o único resultado correto. Um modelo gerado que difere da referência pode estar errado ou pode ser outra interpretação válida, e uma medida que compara o modelo gerado apenas com a referência não distingue os dois casos. Quando o texto é vago, quem modela precisa acrescentar detalhes que o texto não dá, e modeladores diferentes acrescentam detalhes diferentes. Os conjuntos de dados usados nos experimentos e os modelos de referência que eles oferecem estão descritos na Seção~\ref{sec:dados}.
 
-\section{Avaliação de Modelos de Processo Gerados}
-\label{sec:metricas}
-
-A avaliação de um modelo de processo gerado responde a duas perguntas diferentes: se a saída é um arquivo correto e se ela representa o processo descrito no texto. A primeira pode ser respondida por programa. A segunda exige julgamento, feito por comparação com um modelo de referência ou por um avaliador, humano ou não. Além disso, quando várias configurações são avaliadas sobre os mesmos itens, é preciso decidir se as diferenças observadas entre elas são maiores que a variação do acaso. Esta seção apresenta essas três partes da avaliação.
+A avaliação de um modelo de processo gerado responde a duas perguntas diferentes: se a saída é um arquivo correto e se ela representa o processo descrito no texto. A primeira pode ser respondida por programa. A segunda exige julgamento, feito por comparação com um modelo de referência ou por um avaliador, humano ou não. Além disso, quando várias configurações são avaliadas sobre os mesmos itens, é preciso decidir se as diferenças observadas entre elas são maiores que a variação do acaso. As subseções seguintes apresentam essas três partes da avaliação.
 
 \subsection{Validade e Comparação com Modelos de Referência}
 \label{subsec:precisao-recall}
@@ -178,7 +157,7 @@ A precisão penaliza o que o modelo gerado tem a mais, a revocação penaliza o 
 
 Medidas mais elaboradas comparam a estrutura ou o comportamento dos modelos. \citeonline{dijkman2011similarity} comparam modelos de processo pela semelhança dos rótulos, pela estrutura do grafo e pelo comportamento que os modelos permitem. A comparação estrutural usa a distância de edição em grafos (GED, do inglês \textit{Graph Edit Distance}), definida como o custo mínimo de uma sequência de inserções, remoções e substituições de nós e de arestas que transforma um grafo no outro \cite{sanfeliu1983distance}. O cálculo exato da GED é computacionalmente difícil, e na prática usam-se aproximações \cite{gao2010graph}. \citeonline{weidlich2011behavioral} propõem comparar os modelos pelas relações de ordem entre pares de atividades, como precedência estrita, exclusão e intercalação, o que torna a medida indiferente a formas diferentes de desenhar o mesmo comportamento.
 
-Todas essas medidas dependem do modelo de referência e herdam o problema descrito na Seção~\ref{sec:nl-bpmn}: um modelo gerado que represente outra interpretação válida do texto é penalizado como se estivesse errado. Dependem também do alinhamento dos rótulos, e uma paráfrase como ``Verify invoice'' no lugar de ``Check invoice'' pode ser contada como uma atividade a mais e outra a menos.
+Todas essas medidas dependem do modelo de referência e herdam o problema descrito no início desta seção: um modelo gerado que represente outra interpretação válida do texto é penalizado como se estivesse errado. Dependem também do alinhamento dos rótulos, e uma paráfrase como ``Verify invoice'' no lugar de ``Check invoice'' pode ser contada como uma atividade a mais e outra a menos.
 
 \subsection{Modelos de Linguagem como Avaliadores}
 \label{subsec:juiz}

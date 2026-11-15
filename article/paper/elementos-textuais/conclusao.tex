@@ -1,4 +1,4 @@
-\chapter{Conclusões e Trabalhos Futuros}\label{chap:conclusoes-e-trabalhos-futuros}
+\chapter{Conclusões}\label{chap:conclusoes-e-trabalhos-futuros}
 
 Investigou-se se gerar uma representação comprimida do processo, expandida depois por um programa determinístico, produz modelos BPMN 2.0 válidos de forma mais confiável e mais econômica que a geração direta de XML (Seção~\ref{sec:objetivo-geral}). Para isso, foram construídos uma linguagem de domínio específico, a BPMN-DSL, um transpilador dessa linguagem para o XML do BPMN 2.0, um conjunto de pares de texto e DSL e um modelo pequeno especializado nessa notação, comparados com a geração direta de XML por modelos de grande porte em 46 processos do conjunto de teste.
 
@@ -18,27 +18,31 @@ O modelo pequeno especializado, por fim, não substitui os de grande porte, mas 
 
 \textbf{Uma condição para notações destinadas a modelos de linguagem.} Uma notação que será gerada da esquerda para a direita não deve exigir que o gerador anuncie, ao escrever um elemento, que ele será referenciado depois. A referência deve poder apontar para o que já está escrito, usando o que está no contexto do gerador, como o rótulo. A condição não depende da BPMN e vale para qualquer notação com referências cruzadas, embora tenha sido testada aqui de forma exploratória e em um único modelo.
 
-\textbf{Uma avaliação que declara os limites das próprias medidas.} As duas medidas de fidelidade usadas foram submetidas a critérios de validação fixados antes de sua aplicação, e nenhuma passou: a comparação com a referência não concordou com as notas de especialista e foi sensível a paráfrases dos rótulos; o juiz também não concordou com essas notas e, embora insensível a paráfrases, não separou com segurança os modelos corretos dos alterados (Seção~\ref{subsec:fidelidade}). Por isso, as conclusões principais se apoiam na validade e no custo, a fidelidade é reportada como exploratória, e os empates são afirmados apenas com margem de equivalência (Seção~\ref{sec:protocolo}). Os desvios do protocolo inicial estão listados com a data e a direção em que poderiam mover os resultados (Seção~\ref{sec:desvios}).
+\textbf{Um procedimento de validação para medidas de fidelidade.} Antes de ser usada, a medida de fidelidade foi submetida a dois testes com critérios fixados de antemão: a concordância com notas de especialista e a resposta a defeitos inseridos de propósito em modelos de referência. O procedimento mostrou que a comparação com a referência é sensível a paráfrases dos rótulos e que o juiz, embora insensível a elas, não atinge os limiares fixados (Seção~\ref{subsec:fidelidade}). Por isso, as conclusões principais se apoiam na validade e no custo, a fidelidade é reportada como exploratória, e os empates são afirmados apenas com margem de equivalência (Seção~\ref{sec:protocolo}).
 
 \section{Limitações}\label{sec:limitacoes}
 
-As ameaças à validade estão detalhadas na Seção~\ref{sec:ameacas}. As que mais limitam as conclusões são cinco.
+As conclusões devem ser lidas com as seguintes limitações.
 
-\textbf{Fidelidade sem medida validada.} Nenhuma medida de fidelidade passou nos critérios de validação. As diferenças de fidelidade entre os braços são indicações, e não confirmações, e a escala do juiz não tem tradução conhecida em número de defeitos.
+\textbf{Medida de fidelidade.} Nenhuma das duas medidas de fidelidade testadas atingiu todos os critérios de validação (Seção~\ref{subsec:fidelidade}). Por isso, as diferenças de fidelidade entre os braços são indicações, e não confirmações, e a escala do juiz não tem tradução conhecida em número de defeitos. Parte dos itens de teste tem, além disso, modelos de referência feitos por iniciantes e textos vagos, o que afeta qualquer julgamento de fidelidade.
 
-\textbf{Poucos itens de teste.} Com 46 itens, o intervalo das diferenças de validade é mais largo que a margem de equivalência. Por isso, a igualdade de validade entre o modelo pequeno e o método no modelo de grande porte não pôde ser afirmada como equivalência. Parte dos itens, além disso, tem modelos de referência feitos por iniciantes e textos vagos.
+\textbf{Resultados exploratórios.} O braço com a referência por rótulo foi definido depois de analisadas as falhas do braço original, e as comparações de fidelidade e dos braços exploratórios não receberam correção para comparações múltiplas. Esses resultados indicam uma direção e precisam ser confirmados em um experimento planejado para isso.
 
-\textbf{Dados de treino de uma única fonte.} 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, e o teste é feito sobre processos de outros domínios. O desenho não separa o efeito dessa mudança de domínio do efeito do tamanho do modelo na fidelidade mais baixa do modelo pequeno.
+\textbf{Poucos itens de teste.} Com 46 itens, o intervalo das diferenças de validade é mais largo que a margem de equivalência. Por isso, a igualdade de validade entre o modelo pequeno e o método no modelo de grande porte não pôde ser afirmada como equivalência.
 
-\textbf{Custo com preço hipotético.} Nenhum provedor consultado oferecia o modelo pequeno com adaptador cobrando por \textit{token}, e o preço usado é uma hipótese. O preço de equilíbrio mostra que a conclusão se mantém até cerca do dobro desse valor, mas não elimina a dependência.
+\textbf{Dados de treino.} 94,4\% dos pares de treino vêm do \textit{handbook} da GitLab, e o teste é feito sobre processos de outros domínios. O desenho não separa o efeito dessa mudança de domínio do efeito do tamanho do modelo na fidelidade mais baixa do modelo pequeno. Os pares foram gerados por um modelo de grande porte e filtrados pela consistência entre as representações, sem conferência humana do conteúdo, de modo que erros do gerador podem ter sido aprendidos.
 
-\textbf{Alcance.} O estudo cobre uma linguagem de saída, uma língua, um \textit{prompt} por formato e uma família de modelo pequeno no braço principal. A generalização para outras linguagens XML, que motivou o método, não foi testada.
+\textbf{Preço do modelo ajustado.} Os \textit{tokens} e a validade de cada braço foram medidos, e o preço do modelo pequeno sem o adaptador é o preço público, no mesmo provedor, de um modelo de mesma arquitetura e porte. Só o acréscimo pelo adaptador é uma estimativa, porque os provedores consultados não ofereciam mais esse serviço com cobrança por \textit{token} (Seção~\ref{subsec:custo}). O preço de equilíbrio mostra que o modelo ajustado continuaria sendo o de menor custo por saída válida até cerca do dobro do preço adotado.
+
+\textbf{Comparação com os modelos de grande porte.} Cada formato foi testado com um único \textit{prompt}, e esses modelos foram acessados por provedores, cujas versões podem mudar. Como os conjuntos de avaliação são públicos, eles podem estar nos dados de pré-treinamento dos modelos de grande porte, o que favoreceria esses braços na comparação com o modelo pequeno.
+
+\textbf{Alcance.} O estudo cobre uma linguagem de saída, uma língua e uma família de modelo pequeno no braço principal. A generalização para outras linguagens XML, que motivou o método, não foi testada.
 
 \section{Trabalhos futuros}\label{sec:trabalhos-futuros}
 
 \textbf{Referência por rótulo no modelo especializado.} É a extensão mais diretamente sustentada pelos resultados. A maior parte das falhas dos modelos pequenos ajustados é de referência a identificadores nunca declarados, a classe de falha que a referência por rótulo reduziu no modelo de grande porte. O corpus pode ser reescrito nessa forma de maneira determinística, sem dado novo, e o modelo, retreinado.
 
-\textbf{Uma medida de fidelidade validada.} A avaliação humana cega de uma amostra de saídas, por mais de um avaliador, permitiria calibrar o juiz e verificar se a diferença de fidelidade do modelo pequeno se mantém. A validação por perturbação também pode ser repetida apenas sobre referências confiáveis, o que corrige o erro de desenho registrado na Seção~\ref{sec:desvios}.
+\textbf{Uma medida de fidelidade validada.} A avaliação humana cega de uma amostra de saídas, por mais de um avaliador, permitiria calibrar o juiz e verificar se a diferença de fidelidade do modelo pequeno se mantém. A validação por perturbação também pode ser repetida apenas sobre referências confiáveis, já que parte das usadas aqui foi feita por iniciantes.
 
 \textbf{Mais itens de teste.} Um conjunto de teste maior estreitaria os intervalos e permitiria decidir se a validade do modelo pequeno é equivalente à do método no modelo de grande porte, o que hoje é inconclusivo.
 

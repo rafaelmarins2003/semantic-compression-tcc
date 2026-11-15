@@ -55,7 +55,7 @@ O \textit{prompt} da gramática com rótulo é igual ao da gramática, inclusive
 
 O juiz recebe uma instrução de sistema, com a rubrica (Código~\ref{lst:ap-juiz-sistema}), e uma mensagem com o texto do processo e o modelo gerado (Código~\ref{lst:ap-juiz-usuario}). Na mensagem, \texttt{\{description\}} é substituído pela descrição original e \texttt{\{model\}} pela lista neutra de elementos e fluxos descrita na Seção~\ref{subsec:fidelidade}. O Código~\ref{lst:ap-juiz-lista} mostra essa lista para o processo do Código~\ref{lst:dsl}. A resposta do juiz é restrita, pelo provedor, a um objeto JSON com o esquema do Código~\ref{lst:ap-juiz-esquema}: primeiro os problemas encontrados em cada critério, depois a nota.
 
-O SHA-256 da instrução de sistema e da mensagem, concatenadas, começa por \texttt{dd5177218c54}. Essa versão foi usada em todos os julgamentos dos braços, na validação por perturbação e na segunda tentativa de validação contra o Zenodo. A primeira tentativa no Zenodo usou uma versão anterior, de \textit{hash} \texttt{6d08d6e7ebee}, com a escala em passos de meio ponto (Seção~\ref{subsec:fidelidade}).
+O SHA-256 da instrução de sistema e da mensagem, concatenadas, começa por \texttt{dd5177218c54}. Essa versão foi usada em todos os julgamentos dos braços, na validação por perturbação e na validação contra as notas do Zenodo. A versão anterior da rubrica, com a escala em passos de meio ponto (Seção~\ref{subsec:fidelidade}), tem \textit{hash} \texttt{6d08d6e7ebee}.
 
 \lstinputlisting[style=prompt,caption={Instrução de sistema do juiz (rubrica)},label={lst:ap-juiz-sistema}]{apendices/prompts/fidelity_system.txt}
 
@@ -95,10 +95,10 @@ A vantagem do GLM~5.2 sobre a segunda configuração em XML válido corresponde 
 
 \chapter{Resultados das hipóteses originais}\label{ap:hipoteses-originais}
 
-O protocolo inicial, congelado antes da primeira execução, registrou as hipóteses da Tabela~\ref{tab:ap-hipoteses}. Três delas eram decididas pelo DF-F1, a medida de fidelidade que depois foi substituída por não ter passado nas validações (Seção~\ref{subsec:dff1}). Os resultados abaixo seguem a análise registrada e são apresentados apenas para documentar o protocolo inicial. As conclusões do trabalho não se apoiam neles.
+O planejamento inicial do estudo, fixado antes da primeira execução, registrou as hipóteses da Tabela~\ref{tab:ap-hipoteses}. Três delas eram decididas pelo DF-F1, a medida baseada no modelo de referência que não passou nas validações (Seção~\ref{subsec:fidelidade}). Os resultados abaixo seguem a análise registrada e são apresentados apenas para documentar esse planejamento. As conclusões do trabalho não se apoiam neles.
 
 \begin{table}[htb]
-	\Caption{\label{tab:ap-hipoteses} Hipóteses do protocolo inicial e desfechos}%
+	\Caption{\label{tab:ap-hipoteses} Hipóteses do planejamento inicial e desfechos}%
 	\IBGEtab{}{%
 		\small
 		\begin{tabular}{l>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{2.8cm}}

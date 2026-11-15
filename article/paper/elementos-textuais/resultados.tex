@@ -27,15 +27,9 @@ Este capítulo segue a ordem das medidas da Seção~\ref{sec:medidas}. Primeiro 
 }
 \end{table}
 
-A geração direta de XML teve a maior validade: 97,8\% no A1 e 93,5\% no A1g. Com os mesmos modelos, pedir a DSL no lugar do XML reduziu a validade para 62,3\% e 52,9\%, o contrário do que o protocolo inicial previa. A maioria dessas falhas estava nas referências a elementos já escritos, e o A2r, que acrescenta a referência por rótulo, elevou a validade do mesmo modelo para 87,0\%. Mesmo assim, ele continua abaixo da geração direta (Seção~\ref{sec:res-validade}).
-
-O modelo pequeno especializado, o A4, teve a mesma validade do A2r, 87,0\%, sem a gramática no \textit{prompt}. A igualdade, porém, é uma coincidência: dos itens em que algum dos dois falhou, só um é comum aos dois braços, de modo que eles não esbarram em uma mesma limitação da notação (Seção~\ref{sec:res-validade}). Ela também não permite afirmar que os dois são equivalentes, porque com 46 itens a incerteza da diferença é maior que a margem fixada (Seção~\ref{sec:protocolo}). O custo por saída válida do A4 é de US\$~591 por milhão, contra US\$~3.241 do A2r e US\$~5.561 do A1, mesmo no cenário de preço mais desfavorável ao A4 (Seção~\ref{sec:res-custo}).
-
-Na fidelidade, que é exploratória, o A2r e o A1 ficaram no mesmo nível, e o A4 ficou cerca de um ponto abaixo de ambos, uma diferença maior que a margem fixada (Seção~\ref{sec:res-fidelidade}). O resultado do A4 é, portanto, uma troca: a mesma validade do método no modelo de grande porte, a um custo várias vezes menor, com menor fidelidade.
+Em resumo, a geração direta de XML teve a maior validade, e pedir a DSL aos mesmos modelos a reduziu, o contrário do esperado. A maioria dessas falhas estava nas referências a elementos já escritos, e o A2r, que acrescenta a referência por rótulo, recuperou a maior parte da perda. O modelo pequeno especializado, o A4, teve a mesma validade do A2r sem a gramática no \textit{prompt}, com o menor custo por saída válida entre os braços e a menor nota de fidelidade. As seções seguintes detalham cada medida, e a Seção~\ref{sec:res-sintese} reúne as respostas.
 
 \section{Validade}\label{sec:res-validade}
-
-\subsection{Validade por braço}
 
 A Figura~\ref{fig:validade} mostra a validade de cada braço, isto é, a proporção das 138 gerações que produziram um XML aceito pelo esquema. Os braços se dividem em três grupos. A geração direta de XML ficou acima de 90\%, com 97,8\% no A1 e 93,5\% no A1g. O A4 e o A2r ficaram em 87,0\%. Os braços que pedem a DSL pela gramática no \textit{prompt}, sem a referência por rótulo, ficaram entre 52,9\% e 62,3\%: o A2, o A2g e o A3.
 
@@ -45,14 +39,12 @@ O A3m não produziu nenhuma saída válida, e o motivo não teve relação com a
 
 Entre os três braços do modelo pequeno, a validade passa de 0\% sem a notação, a 58,7\% com a gramática no \textit{prompt} (A3) e a 87,0\% com a notação aprendida no ajuste (A4). O A4 ainda usa um \textit{prompt} 598 \textit{tokens} menor que o do A3, porque dispensa a gramática (Seção~\ref{sec:bracos}).
 
-\subsection{Comparações com margem de equivalência}
-
 A Tabela~\ref{tab:res-validade-contrastes} mostra os dois contrastes de validade definidos na Seção~\ref{sec:protocolo}, com a margem de $\pm$10 pontos percentuais, e o painel (a) da Figura~\ref{fig:contrastes}, na Seção~\ref{sec:res-fidelidade}, mostra os mesmos intervalos em relação à margem.
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-validade-contrastes} Contrastes de validade}%
 	\IBGEtab{}{%
-		\begin{tabular}{lrrl}
+		\begin{tabular}{p{3.6cm}rrl}
 			\toprule
 			Contraste & Diferença & IC 95\% & Veredito \\
 			\midrule \midrule
@@ -62,13 +54,11 @@ A Tabela~\ref{tab:res-validade-contrastes} mostra os dois contrastes de validade
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{Diferença média da validade por item, em pontos percentuais, pareada nos 46 itens. Intervalo de confiança por \textit{bootstrap} com 10.000 reamostragens. Margem de equivalência de $\pm$10 pontos, fixada antes do cálculo dos intervalos.}%
+	\Nota{Diferença média da validade por item, em pontos percentuais, pareada nos 46 itens, com intervalo de confiança por \textit{bootstrap}. Margem de equivalência de $\pm$10 pontos.}%
 }
 \end{table}
 
 Os dois contrastes são inconclusivos, mas por motivos diferentes. Entre o A4 e o A2r não há diferença observada, mas o intervalo vai de $-$13,8 a 13,0 pontos e ultrapassa a margem dos dois lados, de modo que não é possível afirmar que os dois são equivalentes. Entre o A2r e o A1, o intervalo inteiro está abaixo de zero: o A2r é menos válido que a geração direta de XML. A perda pode, porém, ser menor que 10 pontos, porque o intervalo começa em $-$21,0 e termina em $-$1,4, e por isso também não é possível afirmar que ela ultrapassa a margem.
-
-\subsection{Causas de invalidade}
 
 A Tabela~\ref{tab:res-falhas} classifica as saídas inválidas dos braços de DSL pela causa da rejeição.
 
@@ -103,8 +93,6 @@ O A4 e o A2r têm 18 saídas inválidas cada, mas falham de formas diferentes. O
 O A3 não tem nenhuma falha de referência. Suas 57 saídas inválidas são erros de sintaxe de outra natureza: palavras-chave inventadas, como \texttt{choice} no lugar de \texttt{xor} e \texttt{parallel} no lugar de \texttt{and}, e construções fora da gramática, como colchetes depois de uma tarefa ou um evento solto depois do fim do processo. O modelo preenche o que não domina da notação com o vocabulário do BPMN que conhece do pré-treinamento. Isso indica que o modelo pequeno sem ajuste não domina a notação nem com a gramática no \textit{prompt}.
 
 \section{Custo}\label{sec:res-custo}
-
-\subsection{Custo por requisição e por saída válida}
 
 A Tabela~\ref{tab:res-custo} mostra os \textit{tokens} médios de cada braço e o custo calculado com os preços da Tabela~\ref{tab:precos}, por milhão de requisições e por milhão de saídas válidas, nos dois cenários de \textit{cache}.
 
@@ -145,16 +133,14 @@ A Figura~\ref{fig:custo} cruza o custo por requisição com a validade. O canto 
 
 \input{figuras/custo}
 
-\subsection{Preço de equilíbrio}
-
-O preço do A4 é uma hipótese (Seção~\ref{subsec:custo}). A Tabela~\ref{tab:res-equilibrio} mostra até que preço por milhão de \textit{tokens}, igual na entrada e na saída, o A4 continuaria mais barato por saída válida que cada braço de grande porte.
+O preço do A4 inclui um acréscimo estimado pelo adaptador (Seção~\ref{subsec:custo}). A Tabela~\ref{tab:res-equilibrio} mostra o preço de equilíbrio, isto é, até que preço por milhão de \textit{tokens}, igual na entrada e na saída, o A4 continuaria mais barato por saída válida que cada braço de grande porte, mantidos os \textit{tokens} e a validade medidos de cada braço e sem \textit{cache} para o A4.
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-equilibrio} Preço de equilíbrio do A4}%
 	\IBGEtab{}{%
-		\begin{tabular}{lrr}
+		\begin{tabular}{p{5.2cm}rr}
 			\toprule
-			Comparado com & Sem \textit{cache} & Com \textit{cache} \\
+			Braço de comparação & Sem \textit{cache} & Com \textit{cache} \\
 			\midrule \midrule
 			A2r & 2,47 & 0,96 \\
 			A1  & 4,23 & 3,17 \\
@@ -162,15 +148,15 @@ O preço do A4 é uma hipótese (Seção~\ref{subsec:custo}). A Tabela~\ref{tab:
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{US\$ por milhão de \textit{tokens}, mesmo preço na entrada e na saída do A4, sem \textit{cache} para o A4 e com os \textit{tokens} e a validade medidos de cada braço. Acima desse preço, o A4 deixaria de ser mais barato por saída válida.}%
+	\Nota{US\$ por milhão de \textit{tokens}. Acima desse preço, o A4 deixaria de ser o mais barato por saída válida.}%
 }
 \end{table}
 
-O caso mais apertado é a comparação com o A2r com \textit{cache}. Mesmo nele, o A4 só deixaria de ser mais barato acima de US\$~0,96 por milhão de \textit{tokens}, 2,1 vezes o preço adotado com o acréscimo pelo adaptador e 3,2 vezes o preço do modelo base. Contra a geração direta de XML, o A4 continuaria mais barato até cerca de US\$~3 a 4 por milhão, mais de sete vezes o preço adotado. A conclusão de que o A4 é o braço de menor custo por saída válida não depende, portanto, do valor exato atribuído ao adaptador, desde que ele não supere o dobro da hipótese adotada.
+O caso mais apertado é a comparação com o A2r com \textit{cache}. Mesmo nele, o A4 só deixaria de ser mais barato acima de US\$~0,96 por milhão de \textit{tokens}, 2,1 vezes o preço adotado com o acréscimo pelo adaptador e 3,2 vezes o preço do modelo base. Contra a geração direta de XML, o A4 continuaria mais barato até cerca de US\$~3 a 4 por milhão, mais de sete vezes o preço adotado. A conclusão de que o A4 é o braço de menor custo por saída válida não depende, portanto, do valor exato atribuído ao adaptador, desde que o preço não supere o dobro do adotado.
 
 \section{Compressão}\label{sec:res-compressao}
 
-A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas saídas válidas dos braços que emitem DSL. A TCR compara o número de \textit{tokens} da DSL com o do XML que o transpilador produz a partir dela, sem as coordenadas do layout (Seção~\ref{subsec:tcr}).
+A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas saídas válidas dos braços que emitem DSL. A TCR compara o número de \textit{tokens} da DSL com o do XML que o transpilador produz a partir dela, sem as coordenadas do \textit{layout} (Seção~\ref{subsec:tcr}).
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-tcr} Razão de compressão no corpus e nos braços de DSL}%
@@ -190,7 +176,7 @@ A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas 
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{TCR: \textit{tokens} do XML sem layout divididos pelos \textit{tokens} da DSL, com o tokenizador do Qwen2.5-Coder. Redução: proporção de \textit{tokens} que deixam de ser emitidos, $1 - 1/\text{TCR}$. Nos braços, só as saídas válidas, que são as que têm XML. A TCR não se aplica aos braços que emitem XML nem ao A3m, que não teve saídas válidas.}%
+	\Nota{TCR: \textit{tokens} do XML sem \textit{layout} divididos pelos \textit{tokens} da DSL. Redução: proporção de \textit{tokens} que deixam de ser emitidos, $1 - 1/\text{TCR}$. Nos braços, só as saídas válidas.}%
 }
 \end{table}
 
@@ -201,8 +187,6 @@ A TCR é calculada sobre o XML que o transpilador gera, e não sobre o XML que u
 \section{Fidelidade (exploratória)}\label{sec:res-fidelidade}
 
 Os resultados desta seção são exploratórios, porque o juiz não passou nos critérios de validação fixados (Seção~\ref{subsec:fidelidade}), e nenhuma conclusão principal depende deles. O juiz foi aplicado às saídas válidas do A1, do A1g, do A2, do A2g, do A2r e do A4. A nota de um braço em um item é a média das notas das suas saídas válidas naquele item.
-
-\subsection{Notas por braço}
 
 A Tabela~\ref{tab:res-fidelidade} mostra a nota média de cada braço nos itens que ele cobre, no total e separada pela origem do texto.
 
@@ -226,15 +210,13 @@ A Tabela~\ref{tab:res-fidelidade} mostra a nota média de cada braço nos itens 
 		\end{tabular}%
 	}{%
 	\Fonte{Elaborado pelo autor}%
-	\Nota{Notas de 0 a 5, médias sobre os itens em que o braço tem ao menos uma saída válida. Zenodo: os 24 itens do PMo de origem do Zenodo, de textos vagos; Demais: os outros 22 itens. Intervalo de confiança por \textit{bootstrap} com 10.000 reamostragens. Medida exploratória.}%
+	\Nota{Notas de 0 a 5, médias sobre os itens cobertos. Zenodo: os 24 itens do PMo de origem do Zenodo; Demais: os outros 22. Intervalo de confiança por \textit{bootstrap}. Medida exploratória.}%
 }
 \end{table}
 
 A comparação direta das médias tem um limite: cada braço é julgado só nos itens em que produziu saídas válidas. Um braço com validade baixa, como o A2, é julgado nos 34 itens em que acertou a sintaxe, que podem ser os mais fáceis, enquanto o A1 é julgado nos 46. As comparações da Tabela~\ref{tab:res-fidelidade-contrastes} reduzem esse problema, porque usam apenas os itens cobertos pelos dois braços.
 
 Em todos os braços, as notas são menores nos itens do Zenodo que nos demais, com diferenças de 0,6 a 1,0 ponto. Esses itens têm enunciados vagos, em que quem modela precisa completar o processo, e a rubrica do juiz penaliza o que o texto não sustenta (Seção~\ref{subsec:fidelidade}). A ordem entre os braços, porém, é praticamente a mesma nos dois grupos de itens.
-
-\subsection{Comparações com margem de equivalência}
 
 A Tabela~\ref{tab:res-fidelidade-contrastes} mostra os contrastes de fidelidade definidos na Seção~\ref{sec:protocolo}, com a margem de $\pm$0,5 ponto. A Figura~\ref{fig:contrastes} reúne esses contrastes e os de validade, cada um com a sua margem, de modo que o veredito pode ser lido pela posição do intervalo em relação à faixa. A margem foi fixada depois de vistas as notas, o que torna esses vereditos exploratórios, além da própria medida.
 
@@ -289,15 +271,11 @@ A validade dos três braços do modelo pequeno foi apresentada na Seção~\ref{s
 }
 \end{table}
 
-\subsection{Volume de dados de treino}
-
 O X-lc25, o X-lc50 e o A4 foram treinados com 167, 339 e 672 pares, vindos de 51, 96 e 207 documentos de origem. A perda na validação caiu a cada aumento, de 0,495 para 0,449 e 0,416, mas a validade não acompanhou: os três braços produziram saídas válidas em 40 dos 46 itens. Os itens que falharam não são os mesmos nos três, e só o pmo\_46 falhou em todos. A igualdade, portanto, não vem de um mesmo grupo de itens difíceis. A Figura~\ref{fig:curva} mostra as duas séries.
 
 \input{figuras/curva}
 
-Mais pares melhoraram a previsão dos pares de validação, mas não aumentaram a proporção de saídas válidas. O resultado tem dois limites. Cada ponto da curva é um único treino, sem repetição com outras sementes, e uma diferença de um ou dois itens estaria dentro da variação esperada entre treinos. Além disso, os dados acrescentados são quase só seções do \textit{handbook} da GitLab: o resultado indica que mais seções dessa fonte não elevariam a validade, mas não diz nada sobre dados de fontes diferentes (Seção~\ref{sec:ameacas}).
-
-\subsection{Outras famílias de modelos}
+Mais pares melhoraram a previsão dos pares de validação, mas não aumentaram a proporção de saídas válidas. O resultado tem dois limites. Cada ponto da curva é um único treino, sem repetição com outras sementes, e uma diferença de um ou dois itens estaria dentro da variação esperada entre treinos. Além disso, os dados acrescentados são quase só seções do \textit{handbook} da GitLab: o resultado indica que mais seções dessa fonte não elevariam a validade, mas não diz nada sobre dados de fontes diferentes (Seção~\ref{sec:limitacoes}).
 
 O X-gr e o X-mi repetem o treino do A4, com os mesmos pares e hiperparâmetros, no Granite~4.1~8B e no MiMo-7B-RL. A validade foi de 82,6\% e 84,8\%, contra 87,0\% do A4, uma diferença de dois itens e de um item, respectivamente. O patamar alcançado pelo A4 não é, portanto, particular ao Qwen. Os braços sem o adaptador, porém, só foram executados com o Qwen, e por isso o efeito do ajuste nas outras duas famílias não foi medido separadamente.
 
@@ -363,11 +341,11 @@ Na fidelidade, que é exploratória, o A4 ficou cerca de um ponto abaixo do A2r 
 
 Em relação ao A2r, o A4 tem quase quatro vezes mais problemas de tarefas, quase três vezes mais de decisões e mais que o dobro de ordem e fluxo. Na boa formação, ao contrário, tem menos problemas que os dois braços de grande porte. O modelo especializado escreve processos bem formados, mas que representam pior o que o texto descreve: deixa de fora ou inventa tarefas, erra decisões e liga os elementos na ordem errada.
 
-A Figura~\ref{fig:qualitativa} mostra um item com a referência e as saídas do A1, do A2r e do A4. O texto descreve uma reclamação que é registrada, encaminhada e avaliada; o cliente é notificado da decisão, o reembolso aprovado é processado pelo financeiro, e o caso é encerrado. As três saídas foram aceitas pelo esquema, mas os erros são de natureza diferente. No A1, a decisão leva os dois ramos à mesma tarefa, e depois da notificação o processo segue por dois caminhos ao mesmo tempo, de modo que o reembolso ocorre mesmo quando é negado; há ainda eventos de fim com fluxos de saída. O A2r reproduz a sequência do texto, mas acrescenta uma segunda decisão, que repete a primeira e permite reembolsar uma reclamação rejeitada; em uma das três avaliações, o juiz não apontou nenhum problema. O A4 tem a estrutura correta das decisões, mas processa o reembolso antes de notificar o cliente, o contrário do texto, e acrescenta uma tarefa de recebimento da notificação que o texto não menciona. O exemplo ilustra os dois pontos desta seção: o A4 erra mais na ordem e nas tarefas do que na forma, e a validade no esquema não garante que o processo esteja correto, como mostra o A1 (Seção~\ref{sec:ameacas}).
+A Figura~\ref{fig:qualitativa} mostra um item com a referência e as saídas do A1, do A2r e do A4. O texto descreve uma reclamação que é registrada, encaminhada e avaliada; o cliente é notificado da decisão, o reembolso aprovado é processado pelo financeiro, e o caso é encerrado. As três saídas foram aceitas pelo esquema, mas os erros são de natureza diferente. No A1, a decisão leva os dois ramos à mesma tarefa, e depois da notificação o processo segue por dois caminhos ao mesmo tempo, de modo que o reembolso ocorre mesmo quando é negado; há ainda eventos de fim com fluxos de saída. O A2r reproduz a sequência do texto, mas acrescenta uma segunda decisão, que repete a primeira e permite reembolsar uma reclamação rejeitada; em uma das três avaliações, o juiz não apontou nenhum problema. O A4 tem a estrutura correta das decisões, mas processa o reembolso antes de notificar o cliente, o contrário do texto, e acrescenta uma tarefa de recebimento da notificação que o texto não menciona. O exemplo ilustra os dois pontos desta seção: o A4 erra mais na ordem e nas tarefas do que na forma, e a validade no esquema não garante que o processo esteja correto, como mostra o A1 (Seção~\ref{subsec:validade}).
 
 \input{figuras/qualitativa}
 
-O desenho não permite separar as causas dessa diferença. Ela pode vir do tamanho do modelo, da destilação, em que o modelo pequeno só aprende o que os modelos de grande porte extraíram dos textos (Seção~\ref{sec:sft}), ou da mudança de domínio, já que 94,4\% dos pares de treino vêm do \textit{handbook} e o teste é feito sobre processos de outros domínios (Seção~\ref{sec:ameacas}). O juiz não foi aplicado aos braços exploratórios, e por isso também não se sabe se a fidelidade varia com o volume de dados ou com a família do modelo.
+O desenho não permite separar as causas dessa diferença. Ela pode vir do tamanho do modelo, da destilação, em que o modelo pequeno só aprende o que os modelos de grande porte extraíram dos textos (Seção~\ref{sec:sft}), ou da mudança de domínio, já que 94,4\% dos pares de treino vêm do \textit{handbook} e o teste é feito sobre processos de outros domínios (Seção~\ref{sec:limitacoes}). O juiz não foi aplicado aos braços exploratórios, e por isso também não se sabe se a fidelidade varia com o volume de dados ou com a família do modelo.
 
 % A figura deitada do exemplo (5.6.4) ocupa uma página inteira e, sem a barreira,
 % flutuava para o meio da Síntese.
@@ -392,7 +370,7 @@ O objetivo geral do trabalho (Seção~\ref{sec:objetivo-geral}) faz duas pergunt
 			\midrule
 			O modelo pequeno ajustado alcança a validade do método no modelo de grande porte? & Mesma proporção, 87,0\%, mas a equivalência não pôde ser afirmada com 46 itens & inconclusivo \\
 			\midrule
-			Qual braço tem o menor custo por saída válida? & O A4: 5,5 vezes menos que o A2r e 9,4 vezes menos que o A1, sem \textit{cache}, e mantém a posição até cerca do dobro do preço adotado & principal, com preço hipotético \\
+			Qual braço tem o menor custo por saída válida? & O A4: 5,5 vezes menos que o A2r e 9,4 vezes menos que o A1, sem \textit{cache}, e mantém a posição até cerca do dobro do preço adotado & principal, com preço estimado \\
 			\midrule
 			A troca de formato reduz a fidelidade? & No A2r, não: equivalente ao A1. O A4 fica cerca de um ponto abaixo de ambos & exploratório \\
 			\midrule

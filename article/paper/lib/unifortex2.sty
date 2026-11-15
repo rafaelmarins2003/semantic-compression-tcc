@@ -1254,7 +1254,7 @@
 \setlength{\glsdescwidth}{\linewidth}
 
 \newcommand{\imprimirlistadeabreviaturasesiglas}{ %
-	\printglossary[type=\acronymtype,style=long,nonumberlist,title={Lista de Abreviaturas e Siglas\vspace{-0.3cm}}] %
+	\printnoidxglossary[type=\acronymtype,style=long,nonumberlist,sort=word,title={Lista de Abreviaturas e Siglas\vspace{-0.3cm}}] %
 	\pagebreak %
 }
 
@@ -1295,7 +1295,7 @@
 
 \newcommand{\imprimirglossario}{ %
 	\setglossarystyle{glossario-unifor} % (\glossarystyle foi removido do pacote glossaries moderno)
-	\printglossary[title=GLOSSÁRIO,toctitle=GLOSSÁRIO] %
+	\printnoidxglossary[sort=word,title=GLOSSÁRIO,toctitle=GLOSSÁRIO] % (\makenoidxglossaries no preâmbulo)
 	\addcontentsline{toc}{chapter}{GLOSSÁRIO}
 }
 
