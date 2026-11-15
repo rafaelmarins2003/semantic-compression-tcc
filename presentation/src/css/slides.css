@@ -1,0 +1,373 @@
+/* Estilos específicos de cada slide, na ordem da apresentação. */
+
+/* ── 1. capa ──────────────────────────────────────────────────────────── */
+.cover { position: absolute; left: 110px; right: 110px; top: 138px; }
+.cover-title {
+  font: 500 86px/1.02 var(--f-display); letter-spacing: -0.02em; margin: 40px 0 0;
+  max-width: 1560px; text-wrap: balance;
+}
+.cover-sub { font: 400 36px/1.2 var(--f-sans); color: var(--ink-2); margin: 30px 0 0; }
+.morph {
+  position: absolute; left: 110px; top: 682px; height: 60px; display: flex; align-items: center; gap: 22px;
+  font: 500 24.5px/1 var(--f-mono); white-space: pre;
+}
+.morph .tag { height: 36px; font-size: 17px; min-width: 84px; }
+.morph-line { display: flex; align-items: baseline; }
+.morph-line span { display: inline-block; overflow: hidden; white-space: pre; }
+.m-pre, .m-post { color: var(--xml-ink); }
+.m-kw { color: var(--dsl-ink); font-weight: 700; }
+.m-mid { color: var(--ink); }
+.morph-n { font: 400 20px/1 var(--f-sans); color: var(--ink-3); }
+.cover-by { position: absolute; left: 110px; bottom: 104px; display: flex; flex-direction: column; gap: 12px; }
+.cover-by b { font: 600 32px/1 var(--f-sans); }
+.cover-by span { font: 400 24px/1 var(--f-sans); color: var(--ink-2); }
+
+/* ── 2. do texto ao BPMN ──────────────────────────────────────────────── */
+.doc {
+  position: absolute; left: 0; top: 46px; width: 610px; padding: 34px 44px 40px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow);
+}
+.doc-k, .dia-k { font: 500 18px/1 var(--f-sans); color: var(--ink-3); }
+.doc p { font: 400 33px/1.52 var(--f-display); color: var(--ink-2); margin: 22px 0 0; }
+.ph {
+  white-space: nowrap; padding: 0 2px; margin: 0 -2px; border-radius: 3px;
+  background: linear-gradient(var(--hl), var(--hl)) no-repeat 0 86% / 0% 42%;
+  transition: background-size 0.55s ease, color 0.3s;
+}
+.ph.lit { background-size: 100% 42%; color: var(--ink); }
+.dia-k { position: absolute; left: 742px; top: 46px; }
+.arc { fill: none; stroke: var(--ink-2); stroke-width: 1.8; stroke-linecap: round; }
+
+/* ── 3. XML verboso ───────────────────────────────────────────────────── */
+.xmlp .xml { font-size: 15px; line-height: 22.3px; padding-top: 12px; }
+.xmlp .ln { transition: opacity 0.22s; }
+.xmlp .tk { transition: opacity 0.7s, color 0.7s; }
+.xmlp.focus .tk:not(.info) { opacity: 0.2; }
+.xmlp.focus .tk.info { color: var(--ink); font-weight: 700; }
+.x-cap { position: absolute; left: 0; top: 500px; width: 670px; margin: 0; font: 400 27px/1.42 var(--f-sans); color: var(--ink-2); }
+.x-cap b { color: var(--ink); font-weight: 600; }
+
+/* ── 4. orçamento ─────────────────────────────────────────────────────── */
+.bud { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: stretch; height: auto; top: 280px; }
+.bcard { padding: 8px 0; }
+.bcard + .bcard { border-left: 1px solid var(--line); padding-left: 70px; }
+.bk { font: 600 24px/1 var(--f-sans); color: var(--ink); }
+.bk span { font-weight: 400; color: var(--ink-3); margin-left: 10px; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 9px; margin-top: 46px; height: 190px; }
+.mo { position: relative; border: 1.5px solid var(--line-2); border-radius: 7px; overflow: hidden; transition: opacity 0.4s, border-color 0.4s; }
+.mo b { position: absolute; inset: 0; background: var(--xml); transform-origin: 50% 100%; transform: scaleY(0); }
+.mo span { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font: 500 17px/1 var(--f-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.mo.gone { opacity: 0.42; border-style: dashed; }
+.mo-cap { display: flex; justify-content: space-between; margin-top: 14px; font: 400 19px/1 var(--f-sans); color: var(--ink-3); }
+.gone-l { color: var(--ink-2); }
+.bt { font: 400 40px/1.24 var(--f-display); margin: 46px 0 0; color: var(--ink-2); text-wrap: balance; }
+.bt b { color: var(--ink); font-weight: 600; }
+.bs { font: 400 24px/1.4 var(--f-sans); color: var(--ink-3); margin: 22px 0 0; }
+.swap { display: flex; align-items: center; gap: 22px; margin-top: 46px; height: 190px; }
+.sbox {
+  flex: 1; height: 190px; padding: 0 16px; border: 1.5px solid var(--line-2); border-radius: 12px; display: grid; place-items: center;
+  font: 500 26px/1.2 var(--f-sans); color: var(--ink); text-align: center; transition: all 0.5s;
+}
+.sbox span { padding: 0 4px; background: linear-gradient(var(--ink-2), var(--ink-2)) no-repeat 0 56% / 0% 2.5px; transition: background-size 0.5s ease; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.sbox.out.cut { opacity: 0.55; border-style: dashed; }
+.sbox.out.cut span { background-size: 100% 2.5px; }
+.sbox.in.lit { border-color: var(--ink); background: var(--surface-2); }
+.sarrow { fill: none; stroke: var(--ink-2); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── 5. duas alavancas ────────────────────────────────────────────────── */
+.formula { position: absolute; left: 0; top: 34px; font: 700 70px/1 var(--f-sans); letter-spacing: -0.02em; white-space: nowrap; }
+.formula i { font-style: normal; font-weight: 400; color: var(--ink-3); margin: 0 6px; }
+.formula span { position: relative; }
+.formula span::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -12px; height: 6px; border-radius: 3px; transition: right 0.6s ease; }
+.formula .f1::after { background: var(--dsl); } .formula .f2::after { background: var(--slm); }
+.formula span.on::after { right: 0; }
+.lrow { position: absolute; left: 0; display: flex; gap: 22px; align-items: flex-start; opacity: 0.22; transition: opacity 0.6s; width: 660px; }
+.lrow.on { opacity: 1; }
+.lrow.l1 { top: 214px; } .lrow.l2 { top: 372px; }
+.lrow .sw { width: 20px; height: 20px; margin-top: 10px; }
+.lrow b { display: block; font: 600 38px/1.1 var(--f-sans); }
+.lrow span { display: block; font: 400 25px/1.35 var(--f-sans); color: var(--ink-2); margin-top: 10px; }
+.lfact { position: absolute; left: 0; top: 560px; width: 620px; margin: 0; font: 400 22px/1.4 var(--f-sans); color: var(--ink-3); }
+.ax { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
+.ax-l { fill: var(--ink-3); font: 500 20px var(--f-sans); text-anchor: middle; }
+.ghost { fill: none; stroke: var(--ink-3); stroke-width: 1.5; opacity: 0; }
+.area { opacity: 0; }
+.a-xml { fill: var(--xml); } .a-dsl { fill: var(--dsl); } .a-slm { fill: var(--slm); }
+.area-l { fill: #fff; font: 700 44px var(--f-sans); text-anchor: middle; dominant-baseline: central; }
+.lev-a { fill: none; stroke: var(--c); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.ghost-l { fill: var(--ink-3); font: 500 20px var(--f-sans); }
+.mm { left: 1452px; top: 196px; opacity: 0.9; }
+
+/* ── figuras de fluxo (6 e 10) ────────────────────────────────────────── */
+.card { fill: var(--surface); stroke: var(--line-2); stroke-width: 1.5; }
+.card.solid { stroke: var(--ink); stroke-width: 2.4; fill: var(--surface-2); }
+.card.k-dsl { stroke: var(--dsl); stroke-width: 2.4; }
+.card.k-xml { stroke: var(--xml); stroke-width: 2.4; }
+.tline { fill: var(--ink-3); opacity: 0.55; }
+.b-dsl { fill: var(--dsl); } .b-xml { fill: var(--xml); }
+.prob { fill: var(--surface-2); stroke: var(--ink); stroke-width: 2.4; stroke-dasharray: 9 9; stroke-linecap: round; }
+.slide.active .prob { animation: dash 9s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -180; } }
+.big-l { fill: var(--ink); font: 700 38px var(--f-sans); text-anchor: middle; dominant-baseline: central; letter-spacing: -0.01em; }
+.cap-n { fill: var(--ink); font: 600 24px var(--f-sans); text-anchor: middle; }
+.cap-s { fill: var(--ink-3); font: 400 19px var(--f-sans); text-anchor: middle; }
+.gear { fill: none; stroke: var(--ink); stroke-width: 2.6; stroke-linejoin: round; }
+.gear-h { fill: none; stroke: var(--ink); stroke-width: 2.6; }
+.xsd { fill: var(--surface-2); stroke: var(--good); stroke-width: 3; }
+.xsd-c { fill: none; stroke: var(--good); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.brace { fill: none; stroke: var(--c); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.brace-t { fill: var(--ink); font: 500 26px var(--f-sans); text-anchor: middle; }
+.pdot { fill: var(--c, var(--ink-2)); opacity: 0; }
+
+/* ── 7. DSL ao vivo ───────────────────────────────────────────────────── */
+.dslp .dsl { font-size: 24.5px; line-height: 43px; padding-top: 20px; }
+.chips { position: absolute; left: 0; top: 628px; display: flex; gap: 14px; opacity: 0; }
+.chips span { display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 16px 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: 400 20px/1 var(--f-sans); color: var(--ink-2); white-space: nowrap; }
+.chips code { font: 600 19px/1 var(--f-mono); color: var(--ink); background: var(--surface-2); padding: 7px 10px; border-radius: 6px; }
+
+/* ── 8. transpilador ──────────────────────────────────────────────────── */
+.tp-dsl .dsl { font-size: 19.5px; line-height: 32px; }
+.tp-xml .xml { font-size: 15px; line-height: 22px; padding-top: 12px; }
+.tp-xml .ln { transition: opacity 0.22s, background 0.5s; }
+.tp-xml .ln.hot { background: color-mix(in srgb, var(--xml) 26%, transparent); box-shadow: inset 4px 0 0 var(--xml); }
+.tp-ar { fill: none; stroke: var(--ink-2); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.scan { position: absolute; left: 0; right: 0; top: 44px; height: 3px; background: var(--good); box-shadow: 0 0 22px 3px var(--good); opacity: 0; }
+.stamp { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); opacity: 0; margin-left: auto; margin-right: 26px; font-weight: 600; transform-origin: 50% 50%; }
+.stamp .ic { color: var(--good); width: 20px; height: 20px; stroke-width: 3.2; }
+.corpus { position: absolute; left: 0; top: 508px; width: 560px; opacity: 0; }
+.corpus p { margin: 12px 0 0; font: 400 24px/1.3 var(--f-sans); color: var(--ink-2); }
+.corpus p b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cd0 { fill: var(--ink-3); opacity: 0.4; } .cd1 { fill: var(--good); }
+
+/* ── 9. compressão ────────────────────────────────────────────────────── */
+.w0 { fill: none; stroke: var(--line-2); stroke-width: 1.2; }
+.w1 { fill: var(--xml); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.w2 { fill: var(--dsl); opacity: 0; }
+.waf-cap { position: absolute; left: 0; top: 566px; width: 540px; margin: 0; font: 400 22px/1.3 var(--f-sans); color: var(--ink-2); opacity: 0; }
+.cmp .hero { position: absolute; left: 660px; top: 0; }
+.cmp .hero .num { font-size: 210px; }
+.cmp .hero .num i { font-style: normal; font-weight: 600; font-size: 130px; color: var(--ink-2); margin-left: 8px; }
+.cmp .hero p { margin: 16px 0 0; font: 400 30px/1.3 var(--f-sans); color: var(--ink-2); max-width: 760px; }
+.cbars { position: absolute; left: 660px; top: 410px; width: 1040px; opacity: 0; border-top: 1px solid var(--line); padding-top: 30px; }
+.cbars p { margin: 0 0 24px; font: 400 22px/1.3 var(--f-sans); color: var(--ink-3); }
+.cb { display: flex; align-items: center; gap: 16px; height: 50px; }
+.cb span { width: 64px; font: 600 22px/1 var(--f-sans); color: var(--ink-2); }
+.cb i { display: block; height: 24px; width: 0; background: var(--c); border-radius: 0 4px 4px 0; }
+.cb b { font: 700 28px/1 var(--f-sans); font-variant-numeric: tabular-nums; }
+
+/* ── 10. destilação ───────────────────────────────────────────────────── */
+.split { stroke: var(--line-2); stroke-width: 1.5; }
+.stu-bg { fill: var(--surface-2); stroke: var(--line-2); stroke-width: 6; }
+.stu-ring { fill: none; stroke: var(--slm); stroke-width: 6; stroke-linecap: round; }
+.loss { fill: none; stroke: var(--slm); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.part { opacity: 0; }
+.p-doc { fill: var(--ink-2); } .p-pair { fill: var(--dsl); }
+.stats { position: absolute; left: 0; right: 0; top: 470px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; border-top: 1px solid var(--line); padding-top: 34px; }
+.stats > div { opacity: 0; }
+.stats b { display: block; font: 800 96px/1 var(--f-sans); letter-spacing: -0.03em; white-space: nowrap; }
+.stats span { display: block; margin-top: 14px; font: 400 25px/1.3 var(--f-sans); color: var(--ink-2); }
+.stats b span { display: inline; font: inherit; color: inherit; margin: 0; }
+
+/* ── tiras de resultado (12, 13, 15, 16) ──────────────────────────────── */
+.gh { position: absolute; left: 0; font: 600 22px/1 var(--f-sans); color: var(--ink); white-space: nowrap; }
+.gh span { font-weight: 400; color: var(--ink-3); margin-left: 14px; }
+.gh.g2 { opacity: 0; }
+.srow { position: absolute; left: 0; width: 1700px; height: 78px; display: grid; grid-template-columns: 318px 1196px 1fr; align-items: center; opacity: 0; }
+.srow-l { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-right: 22px; }
+.srow-l b { font: 600 26px/1.14 var(--f-sans); }
+.srow-v { text-align: right; white-space: nowrap; }
+.srow-v b { font: 800 58px/1 var(--f-sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.srow-v i { font: 600 30px/1 var(--f-sans); font-style: normal; color: var(--ink-2); margin-left: 3px; }
+.srow-u { position: absolute; left: 318px; top: 90px; font: 400 21px/1.2 var(--f-sans); color: var(--ink-3); white-space: nowrap; }
+.c-ink { --c: var(--ink-2); }
+.callout { position: absolute; left: 318px; top: 494px; display: flex; align-items: center; gap: 16px; font: 500 25px/1.3 var(--f-sans); color: var(--ink); opacity: 0; }
+.callout .sw { width: 16px; height: 16px; }
+
+/* ── 11. experimento ──────────────────────────────────────────────────── */
+.xp-top { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 36px; }
+.xp-top p { margin: 0; font: 400 28px/1 var(--f-sans); color: var(--ink-2); opacity: 0; white-space: nowrap; }
+.xp-top p b { color: var(--ink); font-weight: 700; font-size: 34px; }
+.xp-top p i { font-style: normal; color: var(--ink-3); margin: 0 8px; }
+.xp-grid { position: absolute; left: 0; top: 112px; width: 1700px; display: grid; grid-template-columns: 316px 350px 1fr; gap: 24px 18px; }
+.xp-grid > * { opacity: 0; }
+.xh { display: flex; align-items: center; gap: 12px; height: 46px; font: 600 22px/1 var(--f-sans); color: var(--ink); border-bottom: 2px solid var(--c); }
+.xm { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.xm b { font: 600 26px/1.1 var(--f-sans); }
+.xm span { font: 400 19px/1.25 var(--f-sans); color: var(--ink-3); }
+.xc { display: flex; gap: 16px; }
+.arm { width: 322px; height: 116px; padding: 0 20px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-2); display: flex; flex-direction: column; justify-content: center; gap: 9px; }
+.arm b { font: 700 27px/1 var(--f-mono); }
+.arm span { font: 400 19px/1.2 var(--f-sans); color: var(--ink-2); }
+.arm.slm { border: 2.5px solid var(--slm); }
+.enc { position: absolute; border: 2.5px solid var(--ink); border-radius: 20px; opacity: 0; pointer-events: none; }
+.enc span { position: absolute; font: 500 23px/1.25 var(--f-sans); color: var(--ink); white-space: nowrap; }
+.e1 span { left: calc(100% + 24px); top: 50%; transform: translateY(-50%); }
+.e2 span { left: 4px; top: calc(100% + 14px); }
+
+/* ── 13. onde a DSL falha ─────────────────────────────────────────────── */
+.cz-l { position: absolute; left: 0; top: 14px; width: 318px; height: 78px; }
+.cz-r { position: absolute; right: 0; top: 14px; height: 78px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; font: 400 20px/1.2 var(--f-sans); color: var(--ink-2); }
+.cz-r b { font: 800 58px/1 var(--f-sans); letter-spacing: -0.03em; color: var(--ink); }
+.fly { opacity: 0; stroke-width: 1.8; }
+.fly.ref { fill: var(--bad); stroke: var(--bad); }
+.fly.oth { fill: var(--ink-3); stroke: var(--ink-3); }
+.cz-g { position: absolute; top: 208px; display: flex; align-items: baseline; gap: 16px; white-space: nowrap; }
+.cz-g b { font: 800 76px/1 var(--f-sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; opacity: 0; }
+.cz-g span { font: 500 28px/1 var(--f-sans); color: var(--ink-2); opacity: 0; }
+.cz-g.g1 { left: 318px; } .cz-g.g2 { left: 1264px; }
+.cz-s { position: absolute; top: 456px; display: flex; flex-direction: column; gap: 14px; opacity: 0; }
+.cz-s.s1 { left: 318px; width: 390px; } .cz-s.s2 { left: 772px; width: 350px; }
+.cz-s code { align-self: flex-start; font: 600 19px/1 var(--f-mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line-2); padding: 10px 13px; border-radius: 7px; }
+.cz-s span { font: 400 22px/1.32 var(--f-sans); color: var(--ink-2); }
+.cz-s span b { color: var(--ink); font-weight: 700; }
+
+/* ── 14. mecanismo ────────────────────────────────────────────────────── */
+.mec .dsl { font-size: 22px; line-height: 37px; padding-top: 20px; }
+.mR { opacity: 0; }
+.ghostref { color: var(--bad); border: 1.5px dashed var(--bad); border-radius: 5px; padding: 1px 6px; opacity: 0; font-weight: 600; }
+.think { position: absolute; font: italic 400 26px/1 var(--f-display); color: var(--ink); background: var(--raise); border: 1px solid var(--line-2); padding: 11px 16px 12px; border-radius: 12px 12px 12px 3px; opacity: 0; white-space: nowrap; box-shadow: var(--shadow); }
+.refarc { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.refarc.bad { stroke: var(--bad); } .refarc.good { stroke: var(--good); }
+.tk.tgt { background: color-mix(in srgb, var(--good) 34%, transparent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 34%, transparent); border-radius: 3px; }
+.vd { position: absolute; top: 446px; width: 800px; display: flex; gap: 22px; align-items: flex-start; opacity: 0; }
+.vL { left: 0; } .vR { left: 880px; }
+.vd .ic { width: 54px; height: 54px; stroke-width: 3; }
+.vd code { display: block; font: 600 25px/1.25 var(--f-mono); color: var(--ink); margin-top: 8px; }
+.vd span { display: block; margin-top: 14px; font: 400 25px/1.36 var(--f-sans); color: var(--ink-2); max-width: 690px; }
+
+/* ── 15. referência por rótulo ────────────────────────────────────────── */
+.rfx { position: absolute; left: 318px; top: 276px; display: flex; align-items: center; gap: 18px; opacity: 0; font: 400 24px/1 var(--f-sans); color: var(--ink-2); }
+.rfx b { font: 800 46px/1 var(--f-sans); letter-spacing: -0.02em; color: var(--ink); }
+.rfx .ic { width: 30px; height: 30px; color: var(--ink-3); }
+
+.cover-k { margin: 0; font: 400 22px/1 var(--f-sans); color: var(--ink-3); }
+
+/* ── eixos e marcas comuns dos gráficos (17, 18, 21) ──────────────────── */
+.hair { fill: none; stroke: var(--line); stroke-width: 1; }
+.base { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
+.hair-t { fill: var(--ink-3); font: 400 19px var(--f-sans); text-anchor: end; }
+.tick { fill: var(--ink-3); font: 400 19px var(--f-sans); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.tick.r { text-anchor: end; } .tick.l { text-anchor: start; }
+.lgd { position: absolute; right: 0; top: -6px; display: flex; gap: 26px; font: 400 19px/1 var(--f-sans); color: var(--ink-2); opacity: 0; }
+.lgd span { display: flex; align-items: center; gap: 9px; }
+.lgd.in { position: static; opacity: 1; margin-top: 18px; }
+.sw.open { background: none; border: 2.5px solid var(--c); }
+
+/* ── 17. anatomia do custo ────────────────────────────────────────────── */
+.fp { fill: var(--c); }
+.fp-in { opacity: 0.5; }
+.fp-t { fill: #fff; font: 600 19px var(--f-sans); opacity: 0; }
+.fp-o { fill: var(--ink-2); font: 600 19px var(--f-sans); text-anchor: middle; opacity: 0; }
+.fp-a { fill: var(--ink-2); font: 400 21px var(--f-sans); opacity: 0; }
+.cst-key { position: absolute; left: 0; top: 78px; margin: 0; font: 400 20px/1.5 var(--f-sans); color: var(--ink-3); opacity: 0; }
+.cst-b { position: absolute; top: 462px; opacity: 0; }
+.cst-b p { margin: 0; display: inline-flex; align-items: center; gap: 12px; font: 500 22px/1.2 var(--f-sans); color: var(--ink-2); white-space: nowrap; }
+.cst-b b { display: block; margin-top: 14px; font: 800 66px/1 var(--f-sans); letter-spacing: -0.03em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cst-b em { display: block; margin-top: 8px; font: 400 20px/1.2 var(--f-sans); font-style: normal; color: var(--ink-3); white-space: nowrap; }
+.cst-x { position: absolute; right: 0; top: 636px; text-align: right; font: 400 21px/1.5 var(--f-sans); color: var(--ink-2); white-space: nowrap; opacity: 0; }
+.cst-x b { color: var(--ink); font-weight: 700; }
+
+/* ── 18. custo × validade ─────────────────────────────────────────────── */
+.pt { opacity: 0; }
+.pt-hit { fill: transparent; }
+.pt-dot { fill: var(--c); stroke: var(--bg); stroke-width: 2.5; }
+.pt.open .pt-dot { fill: var(--bg); stroke: var(--c); stroke-width: 3.5; }
+.pt-l { fill: var(--ink); font: 500 21px var(--f-sans); white-space: pre; }
+.sct-link { fill: none; stroke: var(--ink); stroke-width: 2; opacity: 0; }
+.sct-lt { fill: var(--ink); font: 600 22px var(--f-sans); text-anchor: middle; opacity: 0; }
+
+/* ── 19. válido não quer dizer fiel ───────────────────────────────────── */
+.fl blockquote { position: absolute; left: 0; top: 0; margin: 0; max-width: 1040px; font: 400 34px/1.3 var(--f-display); color: var(--ink); opacity: 0; }
+.fl cite { display: block; margin-top: 12px; font: 400 19px/1 var(--f-sans); font-style: normal; color: var(--ink-3); }
+.fl-b { position: absolute; right: 0; top: 6px; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; font: 500 23px/1 var(--f-sans); color: var(--ink); opacity: 0; }
+.fl-b span { display: flex; align-items: center; gap: 10px; }
+.fl-b .ic { width: 28px; height: 28px; stroke-width: 3; }
+.fl-w { position: absolute; left: 1090px; top: 140px; width: 480px; display: flex; gap: 14px; align-items: flex-start; font: 500 23px/1.3 var(--f-sans); color: var(--ink); opacity: 0; }
+.fl-w .ic { width: 34px; height: 34px; stroke-width: 3; flex: none; }
+.bp-flow.hot .bp-edge { stroke: var(--ink); stroke-width: 3.4; }
+.bp-flow.hot .bp-head { fill: var(--ink); }
+.bp-flow.hot .bp-cond { fill: var(--ink); font-weight: 700; }
+.bp-node.bad .bp-shape { stroke: var(--bad); stroke-width: 4; }
+
+/* ── 20. validação da medida de fidelidade ────────────────────────────── */
+.rg-h, .rg-r { display: grid; grid-template-columns: 1fr 200px 240px 240px; align-items: center; column-gap: 20px; }
+.rg-h { height: 46px; font: 500 20px/1 var(--f-sans); color: var(--ink-3); border-bottom: 1px solid var(--line-2); opacity: 0; }
+.rg-h span:nth-child(n+2), .rg-t, .rg-v { text-align: right; justify-content: flex-end; }
+.rg-r { height: 112px; border-bottom: 1px solid var(--line); opacity: 0; }
+.rg-r b { display: block; font: 500 31px/1.15 var(--f-display); }
+.rg-r span { display: block; margin-top: 8px; font: 400 20px/1 var(--f-sans); color: var(--ink-3); }
+.rg-t { font: 400 26px/1 var(--f-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rg-v { display: flex; align-items: center; gap: 16px; font: 700 34px/1 var(--f-sans); font-variant-numeric: tabular-nums; }
+.rg-v .ic { width: 34px; height: 34px; stroke-width: 3.2; opacity: 0; }
+.rg-c { margin: 34px 0 0; max-width: 1300px; font: 400 28px/1.36 var(--f-sans); color: var(--ink); }
+
+/* ── 21. fidelidade ───────────────────────────────────────────────────── */
+.fd-n { fill: var(--ink); font: 500 25px var(--f-sans); }
+.fd-id { fill: var(--ink-3); font: 600 18px var(--f-mono); text-anchor: end; }
+.fd-ci { fill: none; stroke: var(--c); stroke-width: 3; stroke-linecap: round; }
+.fd-dot { fill: var(--c); stroke: var(--bg); stroke-width: 2.5; }
+.fd-v { fill: var(--ink); font: 700 32px var(--f-sans); }
+.fd-br { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fd-a { fill: var(--ink); font: 500 22px var(--f-sans); }
+.fd-a.mid { text-anchor: middle; }
+.fd-p { position: absolute; left: 0; top: 410px; width: 1700px; border-top: 1px solid var(--line); padding-top: 26px; opacity: 0; }
+.fd-p p { margin: 0 0 22px; font: 500 22px/1 var(--f-sans); color: var(--ink-2); }
+.fd-g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+.pb span { display: block; font: 500 22px/1 var(--f-sans); color: var(--ink); margin-bottom: 12px; }
+.pb div { display: flex; align-items: center; gap: 12px; height: 34px; }
+.pb i { display: block; height: 20px; width: 0; background: var(--c); border-radius: 0 4px 4px 0; }
+.pb b { font: 600 21px/1 var(--f-sans); font-variant-numeric: tabular-nums; }
+
+/* ── 22. a resposta é dividida ────────────────────────────────────────── */
+.ans { display: grid; grid-template-columns: 1fr 1fr; column-gap: 90px; align-content: start; }
+.an { opacity: 0; }
+.an + .an { border-left: 1px solid var(--line); padding-left: 90px; }
+.an h2 { margin: 0; font: 500 40px/1 var(--f-display); color: var(--ink-2); }
+.an-v { display: flex; align-items: center; gap: 22px; margin: 22px 0 44px; transform-origin: 0 50%; opacity: 0; }
+.an-v .ic { width: 84px; height: 84px; stroke-width: 3; }
+.an-v b { font: 800 112px/1 var(--f-sans); letter-spacing: -0.03em; }
+.an-m { margin-top: 26px; }
+.an-m p { margin: 12px 0 0; font: 400 25px/1.2 var(--f-sans); color: var(--ink-2); }
+.an-m p b { color: var(--ink); font-weight: 700; }
+.an-s { display: flex; align-items: center; gap: 26px; margin-top: 24px; opacity: 0; }
+.an-s b { font: 800 76px/1 var(--f-sans); letter-spacing: -0.03em; min-width: 250px; }
+.an-s p { margin: 0; font: 400 25px/1.3 var(--f-sans); color: var(--ink-2); }
+.an-f { grid-column: 1 / -1; margin: 58px 0 0; padding-top: 30px; border-top: 1px solid var(--line); font: 500 34px/1.3 var(--f-display); color: var(--ink); opacity: 0; max-width: 1500px; }
+
+/* ── 23. a lição de projeto ───────────────────────────────────────────── */
+.chip { fill: var(--surface); stroke: var(--line-2); stroke-width: 1.5; }
+.chip-t { fill: var(--dsl-ink); font: 600 24px var(--f-mono); text-anchor: middle; dominant-baseline: central; }
+.chip-t.s { fill: var(--ink); }
+.chip-t.q { fill: var(--bad); font-size: 34px; opacity: 0; }
+g.hit .chip { stroke: var(--good); stroke-width: 3.5; }
+.cursor { fill: var(--ink-2); opacity: 0; }
+.slot { fill: none; stroke: var(--line-2); stroke-width: 1.5; stroke-dasharray: 6 7; }
+.tp-b { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
+.tp-l { position: absolute; display: flex; align-items: center; gap: 16px; font: 500 27px/1.3 var(--f-sans); color: var(--ink); opacity: 0; }
+.tp-l .ic { width: 40px; height: 40px; stroke-width: 3; }
+.tp-l.good { left: 300px; top: 10px; }
+.tp-l.bad { left: 300px; top: 596px; }
+
+/* ── 24. contribuições ────────────────────────────────────────────────── */
+.ctb { top: 226px; }
+.ct-r { display: grid; grid-template-columns: 76px 760px 1fr; align-items: center; height: 124px; border-top: 1px solid var(--line); opacity: 0; }
+.ct-r .ic { width: 42px; height: 42px; stroke-width: 1.8; color: var(--ink-2); }
+.ct-r b { font: 500 36px/1.12 var(--f-display); padding-right: 30px; }
+.ct-r span { font: 400 25px/1.3 var(--f-sans); color: var(--ink-2); }
+
+/* ── 25. limitações e próximos passos ─────────────────────────────────── */
+.nx { top: 226px; }
+.nx-h, .nx-r { display: grid; grid-template-columns: 700px 110px 1fr; align-items: center; }
+.nx-h { height: 44px; font: 500 20px/1 var(--f-sans); color: var(--ink-3); opacity: 0; }
+.nx-r { height: 122px; border-top: 1px solid var(--line); opacity: 0; }
+.nx-r span { font: 400 28px/1.25 var(--f-sans); color: var(--ink-2); padding-right: 20px; }
+.nx-r .ic { width: 40px; height: 40px; color: var(--ink-3); stroke-width: 2; }
+.nx-r b { font: 500 33px/1.18 var(--f-display); }
+
+/* ── 26. encerramento ─────────────────────────────────────────────────── */
+.end .cover-title { font-size: 150px; margin: 0; }
+.end-s { display: flex; gap: 80px; margin-top: 70px; }
+.end-s div { max-width: 360px; }
+.end-s b { display: block; font: 800 84px/1 var(--f-sans); letter-spacing: -0.03em; }
+.end-s span { display: block; margin-top: 12px; font: 400 24px/1.3 var(--f-sans); color: var(--ink-2); }
+.s-fim .morph { top: 730px; }
