@@ -2,13 +2,13 @@
 
 Um modelo BPMN é entregue às ferramentas de modelagem como um arquivo XML, e é esse arquivo, e não o desenho do diagrama, que um modelo de linguagem precisa produzir. Na abordagem proposta, o modelo de linguagem não escreve esse XML diretamente. Ele gera uma representação compacta do processo, a BPMN-DSL, e um programa determinístico, o transpilador, expande essa representação para o XML completo. O experimento compara essa estratégia com a geração direta de XML e verifica se um modelo de pequeno porte, especializado na DSL, alcança os resultados de modelos de grande porte com uma fração dos \textit{tokens} e do custo.
 
-O trabalho tem duas fases, resumidas na Figura~\ref{fig:pipeline}. Na construção do corpus, descrições textuais de processos, a maior parte extraída do \textit{handbook} público da GitLab, são padronizadas e depois convertidas em um JSON que descreve o processo, em duas chamadas a um modelo de grande porte. Um conversor determinístico transforma esse JSON na DSL, e o transpilador gera o XML correspondente (Seção~\ref{sec:dados}). Os pares formados pelo texto original e pela DSL treinam o modelo pequeno. Trata-se de uma destilação: o modelo pequeno aprende a partir dos dados que os modelos grandes produziram (Seção~\ref{sec:sft}). Na avaliação, cada braço experimental recebe o texto de um processo do conjunto de teste e gera XML ou DSL. A DSL passa pelo transpilador, e todas as saídas são medidas da mesma forma (Seções~\ref{sec:bracos} e~\ref{sec:medidas}).
+O trabalho tem duas fases, resumidas na Figura~\ref{fig:pipeline}. Na construção do corpus, descrições textuais de processos, a maior parte extraída do \textit{handbook} público da GitLab, são padronizadas e depois convertidas em um JSON que descreve o processo, em duas chamadas a um modelo de grande porte. Um conversor determinístico transforma esse JSON na DSL, e o transpilador gera o XML correspondente (Seção~\ref{sec:dados}). Os pares formados pelo texto original e pela DSL treinam o modelo pequeno. Trata-se de uma destilação: o modelo pequeno aprende a partir dos dados que os modelos grandes produziram (Seção~\ref{sec:sft}). Na avaliação, cada braço experimental recebe o texto de um processo do conjunto de teste e gera XML ou DSL. A DSL passa pelo transpilador, e todas as saídas são medidas da mesma forma (Seções~\ref{sec:bracos} a~\ref{sec:protocolo}).
 
 \input{figuras/pipeline}
 
 A divisão de responsabilidades entre as partes define o que precisa ser medido. O transpilador garante que toda DSL sintaticamente correta produza um XML válido segundo o esquema oficial do BPMN 2.0, o que foi verificado nas 1.021 amostras do corpus (Seção~\ref{sec:transpilacao}). O modelo continua responsável pela sintaxe da DSL e pelo conteúdo do processo, e pode errar em qualquer um dos dois. Por isso a validade e a fidelidade são medidas separadamente. A validade é verificada por programa, contra o esquema XSD. A fidelidade, isto é, se o modelo representa o processo descrito no texto, exige julgamento e foi medida por um modelo de linguagem usado como juiz. Como a validação desse juiz foi apenas parcial (Seção~\ref{subsec:fidelidade}), as conclusões principais se apoiam na validade e no custo, e a fidelidade é reportada como exploratória.
 
-\section{Dados}\label{sec:dados}
+\section{Dados}\label{sec:dados}\label{subsec:contaminacao}
 
 A notação proposta é nova, e nenhum conjunto de dados traz processos escritos nela. Entre os conjuntos públicos que associam descrições textuais a modelos BPMN, os que foram modelados ou anotados por pessoas são pequenos, com algumas dezenas de processos, como o PMo \cite{brissard2025pmo} e o PET \cite{bellan2022pet}. O MaD \cite{li2023mad}, com cerca de 30 mil pares, é maior, mas as suas descrições se concentram em 15 categorias de processos, e ele foi deixado como alternativa para o caso de o volume coletado se mostrar insuficiente. Por isso, só o lado da entrada foi coletado, de fontes públicas, e o lado da saída foi gerado (Seção~\ref{subsec:geracao_pares}).
 
@@ -24,7 +24,7 @@ A Tabela~\ref{tab:fontes} lista as fontes, o número de descrições de cada uma
 			\textit{Handbook} da GitLab, seções com decisões ou atores & 728 & treino \\
 			\textit{Handbook} da GitLab, seções lineares & 172 & só verificação do transpilador \\
 			PET \cite{bellan2022pet} & 44 & treino \\
-			PMo \cite{brissard2025pmo} & 53 & avaliação ($n = 46$, ver Seção~\ref{subsec:contaminacao}) \\
+			PMo \cite{brissard2025pmo} & 53 & avaliação ($n = 46$; ver texto) \\
 			Zenodo \cite{mangler2023textual} & 24 & validação da medida de fidelidade \\
 			\bottomrule
 		\end{tabular}%
@@ -33,17 +33,15 @@ A Tabela~\ref{tab:fontes} lista as fontes, o número de descrições de cada uma
 }
 \end{table}
 
-\subsection{Fontes de treino e de avaliação}\label{subsec:contaminacao}
-
 A principal fonte de treino é o \textit{handbook} público da GitLab, um manual operacional aberto com milhares de páginas. As páginas foram coletadas e divididas em seções, e cada seção recebeu uma pontuação procedural baseada na presença de passos numerados, decisões e atores. Entraram no treino as 728 seções que têm passos e também decisões ou atores. As 172 seções lineares, que têm apenas uma sequência de passos, ficaram fora do treino porque resultam em processos sem decisão nem paralelismo, e são essas as construções que mais exigem da notação e que aparecem nos modelos de referência de todos os itens do conjunto de teste. Elas foram usadas apenas na verificação do transpilador. O PET \cite{bellan2022pet} acrescenta ao treino 44 descrições de outros domínios. Ele traz anotações de atividades, \textit{gateways}, atores e relações de fluxo, marcadas sobre trechos do texto, mas só os textos foram usados. As anotações não formam modelos BPMN completos, e convertê-las exigiria um segundo processo de geração, com convenções de modelagem diferentes das do restante dos pares.
 
-O conjunto de teste é o PMo \cite{brissard2025pmo}, do qual são usadas 53 descrições de processos, cada uma acompanhada de um modelo BPMN de referência. O treino e o teste vêm de fontes diferentes de propósito. O PMo é um conjunto público, com descrições de várias origens e modelos de referência feitos por terceiros. Avaliar em uma parte separada do próprio \textit{handbook} mediria o desempenho em textos com o mesmo estilo dos de treino, e não em descrições de outras organizações, que é o uso pretendido. Além disso, os modelos de grande porte não passam por treino, e um conjunto externo coloca todos os braços diante dos mesmos textos. A consequência é que o modelo pequeno é avaliado fora do domínio em que foi treinado, o que tende a desfavorecê-lo (Seção~\ref{sec:limitacoes}).
+O conjunto de teste é o PMo \cite{brissard2025pmo}, do qual são usadas 53 das 55 descrições de processos, cada uma acompanhada de um modelo BPMN de referência. As duas restantes, de números 22 e 24, ficaram fora desde a importação dos dados, antes de qualquer experimento. O treino e o teste vêm de fontes diferentes de propósito. O PMo é um conjunto público, com descrições de várias origens e modelos de referência feitos por terceiros. Avaliar em uma parte separada do próprio \textit{handbook} mediria o desempenho em textos com o mesmo estilo dos de treino, e não em descrições de outras organizações, que é o uso pretendido. Além disso, os modelos de grande porte não passam por treino, e um conjunto externo coloca todos os braços diante dos mesmos textos. A consequência é que o modelo pequeno é avaliado fora do domínio em que foi treinado, o que tende a desfavorecê-lo (Seção~\ref{sec:limitacoes}).
 
 O Zenodo \cite{mangler2023textual} traz 24 descrições, as mesmas de 24 itens do PMo, cada uma com 8 a 11 modelos feitos por modeladores iniciantes e avaliados por um especialista com uma nota de 0 a 5. Essas notas são usadas na validação da medida de fidelidade (Seção~\ref{subsec:fidelidade}). A sobreposição entre as duas fontes tem uma consequência para as referências do PMo: em pelo menos 10 desses 24 itens, a referência coincide, após normalização dos rótulos e fluxos, com um dos modelos feitos por iniciantes, e não é, portanto, um modelo de especialista. Por isso, a fidelidade das saídas é julgada contra o texto, e não contra a referência.
 
 Como o PMo foi montado a partir de coleções anteriores, parte das suas descrições também existe em outras fontes. Para garantir que nenhum texto de avaliação estivesse entre os de treino, cada um dos 77 textos de avaliação, 53 do PMo e 24 do Zenodo, foi comparado com os 944 textos do \textit{handbook} e do PET, incluídas as seções lineares. A comparação conta as sequências de oito palavras consecutivas que dois textos têm em comum, depois de normalizadas a caixa e a pontuação. Sete itens do PMo compartilham entre 87\% e 100\% dessas sequências com um documento do PET: os seis que o próprio PMo incorporou de um subconjunto do PET e um sétimo cuja descrição é a mesma de outro documento desse conjunto. Como o PET está no treino, esses sete itens foram excluídos, e a avaliação usa os 46 restantes em todos os braços. Nenhum dos outros 70 textos compartilha sequência alguma de oito palavras com os textos de treino. Com sequências de cinco palavras, a maior sobreposição é de cerca de 2\%, formada por expressões comuns da língua, como ``if you do not have'' e ``at the end of the''.
 
-\subsection{Geração e partição dos pares de treino}\label{subsec:geracao_pares}
+\section{Geração e partição dos pares de treino}\label{subsec:geracao_pares}
 
 Cada descrição do corpus passa por duas chamadas a um modelo de grande porte, o GLM~5.2. A primeira padroniza o texto: reorganiza a descrição em atores, passos, decisões e atividades paralelas, sem acrescentar informação. A segunda converte o texto padronizado em um JSON com os elementos, os fluxos e as raias do processo. Nos casos em que o GLM~5.2 falhou na geração do JSON, foi usado o Kimi~K2.6 como alternativa, o que ocorreu em 32 das 1.021 amostras. O GLM~5.2 foi escolhido em um teste piloto com 50 amostras de treino, no qual ficou à frente de duas outras configurações de modelos geradores nas três medidas observadas, embora por margens pequenas (Apêndice~\ref{ap:piloto-gerador}).
 
@@ -53,7 +51,7 @@ Os 768 pares foram divididos em treino (690) e validação (78). A divisão é f
 
 Não foi aplicada outra técnica de aumento de dados, como a paráfrase das descrições. Os pares já são sintéticos no lado da saída, e paráfrases de seções do mesmo \textit{handbook} aumentariam o volume sem diversificar a origem dos textos, que é a principal limitação do conjunto: 94,4\% dos pares vêm dessa fonte (Seção~\ref{sec:limitacoes}). Se o volume é suficiente é verificado por dois braços exploratórios, que repetem o treino com 25\% e 50\% dos pares (Seção~\ref{sec:bracos}).
 
-\section{A BPMN-DSL}\label{sec:dsl}
+\section{A BPMN-DSL e o transpilador}\label{sec:dsl}\label{sec:transpilacao}
 
 A BPMN-DSL é a representação intermediária, criada de forma autoral. Existem outras representações textuais de processos, comparadas por \citeonline{brissard2025pmr}, mas o foco aqui é específico: uma notação que um modelo de linguagem consiga gerar da esquerda para a direita, com poucos \textit{tokens}, e que tenha uma tradução determinística e completa para BPMN 2.0 XML.
 
@@ -121,8 +119,6 @@ O desenho da notação segue quatro princípios:
 Um elemento que já apareceu no fluxo é referenciado com \texttt{\#}, o que permite escrever repetições e convergências. Existem duas formas de referência, equivalentes para o transpilador. Na primeira, o elemento recebe um identificador quando aparece (\verb|service "Fetch data"|\allowbreak\ \verb|#fetch|) e é referenciado por ele (\verb|#fetch|), como no Código~\ref{lst:dsl}. Na segunda, a referência repete o rótulo do elemento (\verb|#"Fetch data"|), sem declaração prévia. A comparação de rótulos ignora diferenças de caixa, espaçamento e pontuação, e só alcança elementos que já apareceram. As duas formas produzem o mesmo XML. A diferença entre elas é para quem gera: a primeira exige decidir, ao escrever o elemento, que ele será referenciado mais adiante; a segunda não.
 
 A DSL cobre eventos iniciais, intermediários e finais, com gatilhos de mensagem, temporizador, erro, sinal e escalonamento; oito tipos de tarefa; \textit{gateways} exclusivos, paralelos, inclusivos e baseados em eventos; subprocessos; chamadas a outros processos; raias; \textit{pools} com fluxos de mensagem entre eles; e anotações. Ficam fora desta versão os eventos de borda, a compensação e as atividades de múltiplas instâncias.
-
-\section{Transpilação}\label{sec:transpilacao}
 
 Existem dois programas determinísticos que fazem as conversões entre representações. O primeiro converte o JSON do processo para DSL e é usado só na construção do corpus. O segundo é o transpilador, que transforma a DSL em BPMN 2.0 XML e é usado tanto no corpus quanto na avaliação.
 
@@ -209,17 +205,13 @@ Os demais braços são exploratórios: foram definidos depois, e os seus resulta
 
 Os outros quatro braços exploratórios foram definidos antes de serem executados e respondem a duas perguntas sobre o A4. X-lc25 e X-lc50 repetem o treino do A4 com 25\% e 50\% dos pares de treino, selecionados por documento de origem e aninhados (os documentos de 25\% estão contidos nos de 50\%), para verificar se a qualidade ainda cresce com mais dados ou se já estabilizou; o ponto de 100\% é o próprio A4. X-gr e X-mi repetem o treino com os mesmos dados e hiperparâmetros em modelos de outras famílias, o Granite~4.1~8B, da IBM, e o MiMo-7B-RL, da Xiaomi, para verificar se o resultado do A4 é do método ou do Qwen. Antes da execução, ficou registrado que todo braço treinado entraria no texto, qualquer que fosse o resultado. Um quinto braço, com o DeepSeek-Coder-6.7B, foi descartado sem que seus resultados fossem usados: o tokenizador desse modelo apaga os espaços do texto, de modo que o braço media o tokenizador, e não o método.
 
-\section{Medidas e análise}\label{sec:medidas}
+\section{Validade, custo e compressão}\label{sec:medidas}\label{subsec:validade}\label{subsec:custo}\label{subsec:tcr}
 
-Os braços são comparados por quatro medidas: a validade, o custo por requisição, a razão de compressão e a fidelidade. As três primeiras são calculadas por programa, sem julgamento. A fidelidade exige julgamento e foi medida por um modelo de linguagem usado como juiz. Esta seção define cada medida e descreve, ao final, a execução dos braços e a análise estatística.
-
-\subsection{Validade}\label{subsec:validade}
+Os braços são comparados por quatro medidas: a validade, o custo por requisição, a razão de compressão e a fidelidade. As três primeiras, definidas nesta seção, são calculadas por programa, sem julgamento. A fidelidade exige julgamento e foi medida por um modelo de linguagem usado como juiz (Seção~\ref{subsec:fidelidade}). A execução dos braços e a análise estatística estão na Seção~\ref{sec:protocolo}.
 
 Uma saída é válida quando produz um BPMN 2.0 XML aceito pelo esquema XSD oficial. Nos braços que emitem XML, a saída é validada diretamente. Nos que emitem DSL, a saída precisa ser aceita pela gramática e ter todas as referências resolvidas, isto é, cada fluxo deve apontar para um elemento definido; só então é transpilada. Como o esquema aceitou todos os XMLs produzidos pelo transpilador, tanto no corpus quanto nas saídas dos braços (Seção~\ref{sec:transpilacao}), a validade desses braços equivale, na prática, à taxa de saídas que o transpilador consegue ler e converter. Saídas truncadas pelo limite de \textit{tokens}, respostas com erro, saídas fora da gramática e saídas com referências a elementos inexistentes contam como inválidas.
 
 A validade de um braço é a proporção de saídas válidas entre as suas gerações, e a de um braço em um item, a fração das três repetições que são válidas. Ela é uma condição necessária, e não suficiente: um XML válido pode descrever o processo errado, e por isso a fidelidade é medida à parte.
-
-\subsection{Custo por requisição e razão de compressão}\label{subsec:custo}\label{subsec:tcr}
 
 Os provedores cobram o uso de um modelo por \textit{token} processado, com preços diferentes para os \textit{tokens} de entrada, que o modelo lê, e para os de saída, que ele gera (Seção~\ref{subsec:tokenizacao}). O custo de uma requisição é, assim, a soma de duas parcelas,
 \begin{equation}
@@ -252,7 +244,7 @@ O preço do modelo base é um preço observado: o Qwen2.5-7B-Instruct é ofereci
 
 A razão de compressão de \textit{tokens} (TCR, Seção~\ref{subsec:compressao-semantica}) é o número de \textit{tokens} do XML dividido pelo número de \textit{tokens} da DSL que o produz, com o tokenizador do Qwen2.5-Coder. O XML é o produzido pelo transpilador, sem as coordenadas do \textit{layout}, que inflariam a razão sem acrescentar conteúdo ao processo. A TCR é calculada sobre o corpus e sobre as saídas válidas dos braços que emitem DSL. O custo e a razão de compressão são descritivos: reportam-se os valores de cada braço, sem teste estatístico.
 
-\subsection{Fidelidade}\label{subsec:fidelidade}
+\section{Fidelidade}\label{subsec:fidelidade}
 
 A fidelidade é o quanto o modelo gerado representa o processo descrito no texto. Ser fiel, aqui, é representar o que o texto diz sem inventar conteúdo: um modelo que acrescenta atividades ou decisões que o texto não sustenta é penalizado, mesmo que o acréscimo seja plausível, porque inventar conteúdo é justamente o erro que mais importa detectar nas saídas de um modelo de linguagem.
 
@@ -285,7 +277,7 @@ Nenhuma das medidas atingiu os três limiares. O DF-F1 falhou na invariância: a
 
 Como o juiz não atingiu todos os critérios, a fidelidade é reportada como medida exploratória, e nenhuma conclusão principal depende dela. O DF-F1 não é usado na comparação dos braços, porque não reconhece o mesmo processo descrito com outras palavras e depende de referências que, em parte, não são confiáveis. O juiz foi aplicado às saídas válidas dos braços A1, A1g, A2, A2g, A2r e A4, já que uma saída inválida não tem modelo a julgar. A nota de um braço em um item é a média das notas das suas saídas válidas, e cada braço é reportado com a sua cobertura, isto é, o número de itens em que teve ao menos uma saída válida. Como os 24 itens de origem do Zenodo têm textos vagos, a fidelidade também é reportada separadamente para eles e para os 22 demais.
 
-\subsection{Execução e análise estatística}\label{sec:protocolo}
+\section{Execução e análise estatística}\label{sec:protocolo}
 
 Cada braço gerou uma saída para cada um dos 46 itens do conjunto de teste, três vezes, num total de 138 gerações. Os modelos de grande porte foram chamados por provedores, com temperatura zero, o que reduz a variação entre as repetições sem eliminá-la. O modelo pequeno rodou localmente, em uma RTX 2080 Ti de 11~GB de VRAM, com o modelo base em 4 \textit{bits}, cálculos em 16 \textit{bits} de ponto flutuante e decodificação gulosa. A configuração é a mesma com e sem o adaptador, para que a diferença entre esses braços meça o efeito do ajuste, e não da forma de execução. O limite de \textit{tokens} de saída foi de 8.192 nos braços que emitem XML e de 2.048 nos que emitem DSL, diferença que acompanha o tamanho de cada formato. Uma saída que atinge o limite é registrada como truncada e conta como inválida, o que ocorreu em 3 gerações do A1, 2 do A1g e 81 do A3m. Nenhuma geração foi repetida em caso de falha, já que a falha é parte do resultado do braço, e cada geração foi gravada com o modelo, o \textit{hash} do \textit{prompt} e a versão do código que a produziu.
 

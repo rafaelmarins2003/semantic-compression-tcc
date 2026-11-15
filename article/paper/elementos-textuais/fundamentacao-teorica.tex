@@ -1,19 +1,14 @@
 \chapter{Fundamentação Teórica}
 \label{cap:fundamentacao-teorica}
 
-Este capítulo reúne os conceitos necessários para acompanhar a proposta e a sua avaliação. A Seção~\ref{sec:bpmn} apresenta a modelagem de processos e a notação BPMN 2.0, que é o formato de saída dos experimentos. A Seção~\ref{sec:llms} trata dos modelos de linguagem, de como geram texto e de por que o custo de uso depende do número de \textit{tokens}. A Seção~\ref{sec:dsl-compressao} apresenta as linguagens de domínio específico, as gramáticas formais e a transpilação, que são a base da BPMN-DSL e do transpilador. A Seção~\ref{sec:adaptacao} descreve o ajuste de modelos a uma tarefa, usado para especializar o modelo de pequeno porte. A Seção~\ref{sec:nl-bpmn} trata da extração de modelos de processo a partir de texto e das medidas e dos métodos estatísticos usados para avaliar e comparar as abordagens.
+Este capítulo reúne os conceitos necessários para acompanhar a proposta e a sua avaliação. A Seção~\ref{sec:bpmn} apresenta a modelagem de processos e a notação BPMN 2.0, que é o formato de saída dos experimentos. A Seção~\ref{sec:llms} trata dos modelos de linguagem, de como geram texto e de por que o custo de uso depende do número de \textit{tokens}. A Seção~\ref{sec:dsl-compressao} apresenta as linguagens de domínio específico, as gramáticas formais, a transpilação e a compressão semântica, que são a base da BPMN-DSL e do transpilador. A Seção~\ref{sec:adaptacao} descreve o ajuste de modelos a uma tarefa, usado para especializar o modelo de pequeno porte. A Seção~\ref{sec:nl-bpmn} trata da extração de modelos de processo a partir de texto e das medidas usadas para avaliá-los, e a Seção~\ref{sec:estatistica}, dos métodos estatísticos usados para comparar as abordagens.
 
-\section{Modelagem de Processos de Negócio e a Notação BPMN 2.0}
-\label{sec:bpmn}\label{subsec:bpm}
+\section{Processos de Negócio e a Notação BPMN 2.0}
+\label{sec:bpmn}\label{subsec:bpm}\label{subsec:bpmn-notacao}\label{subsec:bpmn-xml}
 
-Um modelo de processo descreve quais atividades uma organização executa, em que ordem, sob quais condições e por quem. Esta seção apresenta a área que trata desses modelos, a notação BPMN 2.0, que é a linguagem de saída dos experimentos, e a forma como um modelo nessa notação é gravado em arquivo.
-
-O Gerenciamento de Processos de Negócio (BPM, do inglês \textit{Business Process Management}) trata os processos de uma organização como objetos que podem ser descritos, analisados, executados e melhorados de forma sistemática \cite{dumas2018fundamentals}. A área reúne contribuições da administração, da engenharia de software e da pesquisa operacional, e ganha importância quando o processo deixa de ser uma prática informal e passa a ser um artefato que pode ser verificado \cite{weske2019business}.
+Um modelo de processo descreve quais atividades uma organização executa, em que ordem, sob quais condições e por quem. O Gerenciamento de Processos de Negócio (BPM, do inglês \textit{Business Process Management}) trata os processos de uma organização como objetos que podem ser descritos, analisados, executados e melhorados de forma sistemática \cite{dumas2018fundamentals}. A área reúne contribuições da administração, da engenharia de software e da pesquisa operacional, e ganha importância quando o processo deixa de ser uma prática informal e passa a ser um artefato que pode ser verificado \cite{weske2019business}.
 
 Essa formalização é necessária porque a automação, a auditoria e a verificação de conformidade dependem de uma representação do processo que todos os envolvidos interpretem da mesma forma. A notação usada precisa atender a dois públicos ao mesmo tempo. Analistas e gestores devem conseguir ler o modelo sem formação técnica, e programas precisam de uma definição precisa para analisar ou executar o processo. A BPMN atende aos dois com uma notação gráfica de leitura relativamente simples, apoiada por uma especificação formal \cite{omg2011bpmn}.
-
-\subsection{A Notação BPMN 2.0}
-\label{subsec:bpmn-notacao}
 
 A \textit{Business Process Model and Notation}, em sua versão 2.0, é mantida pelo \textit{Object Management Group} (OMG) e é a principal referência para a representação de processos de negócio \cite{omg2011bpmn}. A especificação define duas coisas: os símbolos gráficos usados pelos analistas e um modelo formal dos mesmos elementos, com uma forma de gravação em XML. Com isso, um mesmo modelo pode ser lido por pessoas, no desenho, e processado por ferramentas, no arquivo.
 
@@ -25,9 +20,6 @@ Os \textit{gateways} controlam a divergência e a convergência do fluxo. O excl
 
 Com esses elementos, a BPMN representa os padrões mais comuns de processos, como decisões, execuções paralelas, repetições, esperas e trocas de mensagens entre participantes. A notação é extensa, e \citeonline{dumas2018fundamentals} observam que essa extensão exige aprendizado tanto de quem modela quanto de qualquer sistema que tente manipular os modelos automaticamente.
 
-\subsection{Gravação em XML e Validação por Esquema}
-\label{subsec:bpmn-xml}
-
 A especificação define a gravação de um modelo BPMN 2.0 em XML (\textit{Extensible Markup Language}), uma linguagem de marcação em que o conteúdo é organizado em elementos delimitados por \textit{tags}, aninhados uns nos outros, com atributos e com um único elemento raiz \cite{bray2008xml}. Em um arquivo BPMN, o elemento raiz \texttt{definitions} declara os espaços de nomes (\textit{namespaces}) usados e contém um ou mais processos. Cada nó do processo é um elemento com um identificador próprio, no atributo \texttt{id}. Cada fluxo de sequência é um elemento à parte, que aponta para a origem e para o destino pelos atributos \texttt{sourceRef} e \texttt{targetRef}. As coordenadas usadas para desenhar o modelo ficam em uma seção separada do arquivo, a de intercâmbio de diagramas (BPMNDI), que não altera o significado do processo \cite{omg2011bpmn}.
 
 Um documento XML pode estar correto em dois níveis. Ele é bem formado quando segue as regras da própria linguagem, como ter todas as \textit{tags} fechadas na ordem certa e um único elemento raiz \cite{bray2008xml}. Ele é válido quando, além disso, obedece a um esquema, que define quais elementos podem aparecer, em que ordem, com quais atributos e com quais tipos de valor. O esquema da BPMN 2.0 é escrito em XSD (\textit{XML Schema Definition}), a linguagem de esquemas do W3C \cite{thompson2004xmlschema}, e é publicado junto com a especificação. A validação contra o esquema é feita por programa e tem resultado binário: o documento é aceito ou rejeitado.
@@ -36,13 +28,10 @@ O esquema verifica a estrutura, mas não o comportamento do processo. Ele exige,
 
 A gravação em XML favorece a troca de modelos entre ferramentas, mas produz arquivos muito maiores que a descrição do processo. Mesmo um processo pequeno exige declarar os espaços de nomes, um identificador para cada nó, um elemento para cada ligação e as referências de cada ligação aos nós que ela une. O mesmo identificador aparece em vários pontos do arquivo e precisa ser escrito da mesma forma em todos eles. Para uma ferramenta de modelagem, que gera o arquivo por programa, essa repetição não é um problema. Para um modelo de linguagem, que gera o arquivo símbolo a símbolo, ela significa uma saída longa, repetitiva e sensível a desvios pequenos: uma \textit{tag} esquecida torna o documento malformado, e um identificador trocado liga elementos errados.
 
-\section{Modelos de Linguagem de Grande Escala}
-\label{sec:llms}
+\section{Modelos de Linguagem}
+\label{sec:llms}\label{subsec:transformer}\label{subsec:tokenizacao}\label{subsec:saidas-estruturadas}
 
 Os modelos de linguagem de grande escala (LLMs, do inglês \textit{Large Language Models}) usados nos experimentos, tanto os de grande quanto os de pequeno porte, compartilham a mesma arquitetura e o mesmo modo de gerar texto. Esta seção descreve essa arquitetura, a divisão do texto em \textit{tokens}, que é a unidade em que os provedores cobram o uso dos modelos, e as dificuldades de gerar textos que precisam obedecer a regras formais.
-
-\subsection{Arquitetura Transformer, Geração Autorregressiva e Tokenização}
-\label{subsec:transformer}\label{subsec:tokenizacao}
 
 A arquitetura Transformer, proposta por \citeonline{vaswani2017attention}, substituiu o processamento sequencial das redes recorrentes por um mecanismo de atenção que relaciona diretamente todas as posições de uma sequência. Cada posição é representada por um vetor, do qual se obtêm uma consulta ($Q$), uma chave ($K$) e um valor ($V$). A saída da atenção é
 \begin{equation}
@@ -66,22 +55,16 @@ Os modelos de linguagem não operam sobre palavras, mas sobre \textit{tokens}, q
 
 O comprimento da sequência determina o custo de usar o modelo. Na atenção, cada posição se relaciona com todas as anteriores, e o custo cresce com o quadrado do comprimento. Os \textit{tokens} de entrada são processados em paralelo, de uma vez, mas os de saída são gerados um por passo, cada passo exigindo uma passagem pelo modelo inteiro. Por isso a saída é a parte mais lenta da inferência e, nos provedores que cobram por \textit{token}, a mais cara, com preços várias vezes maiores que os da entrada \cite{togetherpricing2026}. Alguns provedores oferecem também um preço menor para a parte da entrada que se repete entre requisições, como as instruções fixas de um \textit{prompt}, que fica guardada em \textit{cache} e não precisa ser processada de novo. O preço por \textit{token} cresce com o porte do modelo, e por isso a troca de um modelo de grande porte por um pequeno reduz o custo mesmo quando o número de \textit{tokens} é o mesmo \cite{belcak2025small}. A forma de cálculo do custo usada nos experimentos está na Seção~\ref{subsec:custo}.
 
-\subsection{Geração de Saídas Estruturadas}
-\label{subsec:saidas-estruturadas}
-
 A geração de artefatos estruturados por modelos de linguagem, como código-fonte, consultas e linguagens de marcação, tornou-se uma linha de pesquisa própria a partir de trabalhos como o de \citeonline{chen2021evaluating}, que avaliaram a geração de programas pela execução de testes. O problema central é que a geração probabilística não garante, por si só, que a saída siga uma sintaxe ou um esquema. Em um texto em linguagem natural, um desvio pequeno é tolerado pelo leitor. Em um arquivo XML, uma inconsistência local pode tornar todo o documento inválido.
 
 \citeonline{poesia2022synchromesh} propõem combinar o modelo probabilístico com mecanismos determinísticos de restrição. Na decodificação restrita, a cada passo, os \textit{tokens} que levariam a uma saída fora da gramática são excluídos antes da escolha, e a saída fica garantidamente correta na sintaxe. Há outras duas formas de controle, que dispensam alterar a decodificação: validar a saída depois de gerada, rejeitando-a ou pedindo uma nova geração quando falha, e pedir ao modelo uma representação intermediária mais simples de gerar e de verificar, convertida depois no formato final por um programa. As três formas não são excludentes. A decodificação restrita garante a sintaxe, mas não reduz o número de \textit{tokens} gerados nem impede erros de conteúdo.
 
-As referências cruzadas são um caso particular de dificuldade. Em formatos em que um elemento aponta para outro por um identificador, como os fluxos do XML do BPMN, a correção de uma referência depende de algo escrito em outro ponto do texto. Quando a referência aponta para trás, para um elemento já escrito, o identificador está no contexto do modelo e basta copiá-lo. Quando o formato exige marcar um elemento no momento em que ele é escrito, para que possa ser referenciado depois, o modelo precisa saber, naquele momento, que voltará a ele, o que é a antecipação descrita na Seção~\ref{subsec:transformer}.
+As referências cruzadas são um caso particular de dificuldade. Em formatos em que um elemento aponta para outro por um identificador, como os fluxos do XML do BPMN, a correção de uma referência depende de algo escrito em outro ponto do texto. Quando a referência aponta para trás, para um elemento já escrito, o identificador está no contexto do modelo e basta copiá-lo. Quando o formato exige marcar um elemento no momento em que ele é escrito, para que possa ser referenciado depois, o modelo precisa saber, naquele momento, que voltará a ele, o que exige a antecipação descrita anteriormente.
 
-\section{Linguagens de Domínio Específico e Transpilação}
-\label{sec:dsl-compressao}
+\section{Linguagens de Domínio Específico e Compressão Semântica}
+\label{sec:dsl-compressao}\label{subsec:dsl}\label{subsec:gramaticas}\label{subsec:compressao-semantica}
 
 Uma forma de reduzir o que o modelo precisa gerar é pedir uma notação mais curta que o formato final e convertê-la depois por programa. Esta seção apresenta as linguagens de domínio específico, que são o tipo de notação usado para isso, as gramáticas formais, que definem essas linguagens com precisão suficiente para que um programa as leia, e a ideia de compressão semântica, que orienta o que a notação curta deve conter.
-
-\subsection{Linguagens de Domínio Específico, Gramáticas e Transpilação}
-\label{subsec:dsl}\label{subsec:gramaticas}
 
 Para \citeonline{fowler2010domain}, uma linguagem de domínio específico (DSL, do inglês \textit{Domain-Specific Language}) é uma linguagem de computador de expressividade limitada, voltada a um domínio particular. A limitação é intencional: por não precisar expressar qualquer programa, a linguagem pode usar os conceitos do próprio domínio e omitir detalhes que uma linguagem de propósito geral exigiria. \citeonline{mernik2005domain} apontam como benefícios recorrentes das DSLs a elevação do nível de abstração, a redução de código repetitivo e a facilidade de verificação e de análise. \citeonline{fowler2010domain} distingue ainda as DSLs internas, escritas dentro de uma linguagem de programação existente, das externas, que têm sintaxe própria e exigem um programa para lê-las.
 
@@ -97,9 +80,6 @@ A partir da gramática, um analisador sintático lê um texto e produz a sua ár
 
 Um transpilador escrito com regras fixas é determinístico: a mesma entrada produz sempre a mesma saída. Isso tem duas consequências para o uso com modelos de linguagem. A primeira é que a correção do transpilador pode ser verificada por programa, sobre todas as entradas disponíveis, independentemente de qualquer modelo. A segunda é que, se o transpilador está correto, toda saída do modelo aceita pela gramática produz um arquivo correto, e os erros que restam são os do próprio modelo, na sintaxe da DSL ou no conteúdo do processo.
 
-\subsection{Compressão Semântica}
-\label{subsec:compressao-semantica}
-
 Compressão semântica é a representação de um artefato por uma forma mais curta que contém apenas o que não pode ser derivado, de modo que a forma completa seja reconstruída por um programa determinístico. Ela difere da compressão de dados convencional, como a dos arquivos compactados, que opera sobre os \textit{bytes} sem considerar o significado e produz uma saída que não pode ser lida nem escrita por um modelo de linguagem. Difere também da compressão de \textit{prompts}, como a do LLMLingua \cite{jiang2023llmlingua}, que remove partes da entrada do modelo e aceita perder informação. Na compressão semântica, o que se reduz é a saída, e a redução não pode perder informação, porque a forma completa precisa ser reconstruída a partir dela.
 
 No caso do BPMN, o que pode ser removido é o que o arquivo repete ou o que segue de regras: os identificadores, que podem ser gerados; os elementos de ligação, que podem ser dados pela ordem em que os nós aparecem; os \textit{gateways} de convergência, que podem ser inferidos do fim de um bloco de ramos; e as declarações de espaços de nomes, que são sempre as mesmas. O que precisa ficar é o conteúdo do processo: os nós, seus tipos e rótulos, a estrutura das decisões e das execuções paralelas e os pontos de retorno.
@@ -110,7 +90,7 @@ O ganho é medido pela razão entre o número de \textit{tokens} da forma comple
 \end{equation}
 Uma razão de 5, por exemplo, significa que a forma comprimida tem um quinto dos \textit{tokens}, ou seja, 80\% a menos. A forma como a razão é calculada nos experimentos está na Seção~\ref{subsec:tcr}. A razão, sozinha, não mede qualidade. Uma forma comprimida só tem valor se o modelo a gerar corretamente, e uma notação mais curta pode ser mais difícil de gerar do que o formato original, por exemplo se for mais distante dos textos vistos no treino do modelo. Por isso a compressão precisa ser avaliada junto com a validade das saídas.
 
-\section{Adaptação de Modelos de Linguagem a Tarefas Específicas}
+\section{Ajuste de Modelos de Linguagem}
 \label{sec:adaptacao}\label{subsec:sft}\label{subsec:lora}
 
 Há duas formas de fazer um modelo de linguagem executar uma tarefa nova. Na primeira, a tarefa é descrita no \textit{prompt}, e o modelo a executa pelo aprendizado em contexto, sem alteração dos pesos (Seção~\ref{subsec:transformer}). Na segunda, os pesos são ajustados com exemplos da tarefa. A segunda forma permite usar um modelo menor e um \textit{prompt} mais curto, o que reduz o custo de cada requisição, e \citeonline{belcak2025small} argumentam que modelos pequenos ajustados são suficientes para tarefas repetitivas e bem delimitadas. Esta seção descreve o ajuste supervisionado e os métodos que o tornam viável com pouca memória.
@@ -131,8 +111,8 @@ em que $B \in \mathbb{R}^{d \times r}$ e $A \in \mathbb{R}^{r \times k}$ são as
 
 O QLoRA, de \citeonline{dettmers2023qlora}, reduz ainda mais a memória ao guardar os pesos congelados do modelo base em 4 \textit{bits}, em um formato próprio chamado \textit{NormalFloat}, e ao quantizar também as constantes da própria quantização, o que os autores chamam de dupla quantização. Os cálculos são feitos em 16 \textit{bits}, com os pesos convertidos no momento do uso, e só o adaptador é mantido e treinado em precisão maior. Os autores relatam desempenho próximo ao do ajuste completo em 16 \textit{bits}, com uma fração da memória.
 
-\section{Extração de Modelos de Processo a partir de Texto e sua Avaliação}
-\label{sec:nl-bpmn}\label{sec:metricas}
+\section{Avaliação de Modelos de Processo Gerados}
+\label{sec:nl-bpmn}\label{sec:metricas}\label{subsec:precisao-recall}\label{subsec:juiz}
 
 A maior parte do conhecimento sobre os processos de uma organização está em textos, como manuais e descrições de procedimentos, e não em modelos. A conversão automática desses textos em modelos de processo é estudada desde antes dos modelos de linguagem atuais. \citeonline{friedrich2011process} geravam modelos BPMN a partir de texto com técnicas tradicionais de Processamento de Linguagem Natural (PLN), como a análise sintática das frases, a resolução de correferências e regras que mapeavam as construções da língua em elementos do modelo. Os resultados mostraram que a tarefa é viável, mas também que os textos de processo deixam muita informação implícita.
 
@@ -140,10 +120,7 @@ Entre as dificuldades da tarefa, \citeonline{vanderaa2018challenges} apontam a a
 
 Como consequência, um modelo de referência feito por uma pessoa é uma interpretação possível do texto, e não o único resultado correto. Um modelo gerado que difere da referência pode estar errado ou pode ser outra interpretação válida, e uma medida que compara o modelo gerado apenas com a referência não distingue os dois casos. Quando o texto é vago, quem modela precisa acrescentar detalhes que o texto não dá, e modeladores diferentes acrescentam detalhes diferentes. Os conjuntos de dados usados nos experimentos e os modelos de referência que eles oferecem estão descritos na Seção~\ref{sec:dados}.
 
-A avaliação de um modelo de processo gerado responde a duas perguntas diferentes: se a saída é um arquivo correto e se ela representa o processo descrito no texto. A primeira pode ser respondida por programa. A segunda exige julgamento, feito por comparação com um modelo de referência ou por um avaliador, humano ou não. Além disso, quando várias configurações são avaliadas sobre os mesmos itens, é preciso decidir se as diferenças observadas entre elas são maiores que a variação do acaso. As subseções seguintes apresentam essas três partes da avaliação.
-
-\subsection{Validade e Comparação com Modelos de Referência}
-\label{subsec:precisao-recall}
+A avaliação de um modelo de processo gerado responde a duas perguntas diferentes: se a saída é um arquivo correto e se ela representa o processo descrito no texto. A primeira pode ser respondida por programa. A segunda exige julgamento, feito por comparação com um modelo de referência ou por um avaliador, humano ou não. Além disso, quando várias configurações são avaliadas sobre os mesmos itens, é preciso decidir se as diferenças observadas entre elas são maiores que a variação do acaso, o que é tratado na Seção~\ref{sec:estatistica}.
 
 A validade é verificada pela validação contra o esquema, descrita na Seção~\ref{subsec:bpmn-xml}. Ela é necessária, porque um arquivo rejeitado pelo esquema não pode ser aberto nem processado pelas ferramentas de modelagem. Não é suficiente, porque o esquema não verifica o comportamento do processo, e um arquivo válido pode descrever o processo errado. A fidelidade ao texto precisa, assim, ser medida à parte.
 
@@ -159,9 +136,6 @@ Medidas mais elaboradas comparam a estrutura ou o comportamento dos modelos. \ci
 
 Todas essas medidas dependem do modelo de referência e herdam o problema descrito no início desta seção: um modelo gerado que represente outra interpretação válida do texto é penalizado como se estivesse errado. Dependem também do alinhamento dos rótulos, e uma paráfrase como ``Verify invoice'' no lugar de ``Check invoice'' pode ser contada como uma atividade a mais e outra a menos.
 
-\subsection{Modelos de Linguagem como Avaliadores}
-\label{subsec:juiz}
-
 Uma alternativa à comparação com a referência é pedir a um modelo de linguagem que julgue a saída diretamente contra o texto de origem. \citeonline{zheng2023judging} avaliaram essa prática, que chamaram de LLM como juiz (\textit{LLM-as-a-judge}), e encontraram concordância entre os juízes mais capazes e avaliadores humanos semelhante à concordância entre dois humanos, na avaliação de respostas a perguntas abertas. Os mesmos autores descrevem vieses desses juízes: a preferência pela resposta apresentada em certa posição, a preferência por respostas mais longas e a preferência por respostas do próprio modelo. \citeonline{panickssery2024llm} mostraram que essa última está ligada à capacidade do juiz de reconhecer o próprio texto: quanto melhor o modelo distingue as próprias saídas, mais ele as favorece.
 
 Esses vieses orientam o desenho de um juiz. Usar um juiz de família diferente da dos modelos avaliados reduz a preferência pelas próprias saídas. Apresentar todas as saídas na mesma forma, sem indicar de onde vieram, impede que o juiz reconheça a origem pelo formato. Uma rubrica com critérios explícitos e a exigência de que o juiz liste os problemas encontrados antes de dar a nota tornam cada julgamento auditável. Repetir o julgamento e resumir as notas pela mediana reduz o efeito da variação entre execuções.
@@ -172,8 +146,8 @@ A concordância observada em uma tarefa não garante concordância em outra, e u
 \end{equation}
 em que $d_i$ é a diferença entre os postos do item $i$ nas duas avaliações e $n$ é o número de itens. A segunda forma é testar o comportamento do juiz com casos construídos, à maneira dos testes de comportamento de \citeonline{ribeiro2020beyond}. Em um teste de invariância, a saída é alterada de um modo que não muda o seu significado, como a troca de rótulos por sinônimos, e a nota não deve mudar. Em um teste direcional, introduz-se um defeito conhecido, como a remoção de uma atividade, e a nota deve cair. Os dois testes não dependem de notas humanas, e por isso podem ser aplicados mesmo quando as notas disponíveis são poucas ou pouco confiáveis.
 
-\subsection{Comparação Pareada e Testes de Equivalência}
-\label{subsec:estatistica}
+\section{Comparação Pareada e Testes de Equivalência}
+\label{sec:estatistica}\label{subsec:estatistica}
 
 Quando todas as configurações são avaliadas sobre os mesmos itens, a comparação entre duas delas pode ser pareada. Para cada item $i$, calcula-se a diferença $d_i$ entre os valores das duas configurações, e a comparação é feita sobre a média dessas diferenças. O pareamento remove da comparação a variação de dificuldade entre os itens, que é comum às duas configurações, e por isso torna a comparação mais precisa do que comparar as médias de cada uma.
 

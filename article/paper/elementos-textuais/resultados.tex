@@ -1,6 +1,6 @@
 \chapter{Resultados}\label{chap:resultados}
 
-Este capítulo segue a ordem das medidas da Seção~\ref{sec:medidas}. Primeiro vêm a validade (Seção~\ref{sec:res-validade}), o custo (Seção~\ref{sec:res-custo}) e a compressão (Seção~\ref{sec:res-compressao}) que sustentam as conclusões principais. Depois é mostrada a fidelidade, que é exploratória (Seção~\ref{sec:res-fidelidade}), e uma análise do modelo especializado, que reúne os braços do modelo pequeno e os braços exploratórios (Seção~\ref{sec:res-modelo-especializado}). A Tabela~\ref{tab:res-panorama} apresenta de forma resumida os braços principais nas três medidas que os comparam diretamente.
+Este capítulo segue a ordem das medidas das Seções~\ref{sec:medidas} e~\ref{subsec:fidelidade}. Primeiro vêm a validade (Seção~\ref{sec:res-validade}) e o custo e a compressão (Seção~\ref{sec:res-custo}), que sustentam as conclusões principais. Depois é mostrada a fidelidade, que é exploratória (Seção~\ref{sec:res-fidelidade}), e uma análise do modelo especializado, que reúne os braços do modelo pequeno e os braços exploratórios (Seção~\ref{sec:res-modelo-especializado}). A Tabela~\ref{tab:res-panorama} apresenta de forma resumida os braços principais nas três medidas que os comparam diretamente.
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-panorama} Panorama dos braços}%
@@ -92,7 +92,7 @@ O A4 e o A2r têm 18 saídas inválidas cada, mas falham de formas diferentes. O
 
 O A3 não tem nenhuma falha de referência. Suas 57 saídas inválidas são erros de sintaxe de outra natureza: palavras-chave inventadas, como \texttt{choice} no lugar de \texttt{xor} e \texttt{parallel} no lugar de \texttt{and}, e construções fora da gramática, como colchetes depois de uma tarefa ou um evento solto depois do fim do processo. O modelo preenche o que não domina da notação com o vocabulário do BPMN que conhece do pré-treinamento. Isso indica que o modelo pequeno sem ajuste não domina a notação nem com a gramática no \textit{prompt}.
 
-\section{Custo}\label{sec:res-custo}
+\section{Custo e compressão}\label{sec:res-custo}\label{sec:res-compressao}
 
 A Tabela~\ref{tab:res-custo} mostra os \textit{tokens} médios de cada braço e o custo calculado com os preços da Tabela~\ref{tab:precos}, por milhão de requisições e por milhão de saídas válidas, nos dois cenários de \textit{cache}.
 
@@ -154,9 +154,7 @@ O preço do A4 inclui um acréscimo estimado pelo adaptador (Seção~\ref{subsec
 
 O caso mais apertado é a comparação com o A2r com \textit{cache}. Mesmo nele, o A4 só deixaria de ser mais barato acima de US\$~0,96 por milhão de \textit{tokens}, 2,1 vezes o preço adotado com o acréscimo pelo adaptador e 3,2 vezes o preço do modelo base. Contra a geração direta de XML, o A4 continuaria mais barato até cerca de US\$~3 a 4 por milhão, mais de sete vezes o preço adotado. A conclusão de que o A4 é o braço de menor custo por saída válida não depende, portanto, do valor exato atribuído ao adaptador, desde que o preço não supere o dobro do adotado.
 
-\section{Compressão}\label{sec:res-compressao}
-
-A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas saídas válidas dos braços que emitem DSL. A TCR compara o número de \textit{tokens} da DSL com o do XML que o transpilador produz a partir dela, sem as coordenadas do \textit{layout} (Seção~\ref{subsec:tcr}).
+Entre os formatos, parte da diferença de custo vem do tamanho da saída. A Tabela~\ref{tab:res-tcr} mostra a razão de compressão (TCR) no corpus e nas saídas válidas dos braços que emitem DSL. A TCR compara o número de \textit{tokens} da DSL com o do XML que o transpilador produz a partir dela, sem as coordenadas do \textit{layout} (Seção~\ref{subsec:tcr}).
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-tcr} Razão de compressão no corpus e nos braços de DSL}%
@@ -247,7 +245,7 @@ O A4 ficou cerca de um ponto abaixo do A2r e do A1, e nos dois casos o intervalo
 
 \section{O modelo especializado}\label{sec:res-modelo-especializado}
 
-A validade dos três braços do modelo pequeno foi apresentada na Seção~\ref{sec:res-validade}. Esta seção usa os braços exploratórios, que repetem o treino do A4 com menos dados e em outras famílias de modelos (Seção~\ref{sec:bracos}), para responder a três perguntas: se mais dados de treino aumentariam a validade, se o resultado depende do Qwen e o que ainda falha nas saídas do modelo especializado. A Tabela~\ref{tab:res-especializado} resume os cinco braços ajustados. Como todos usam decodificação gulosa, as três repetições foram idênticas em todos os 46 itens, e a validade de cada item é, na prática, 0 ou 1.
+A validade dos três braços do modelo pequeno foi apresentada na Seção~\ref{sec:res-validade}. Esta seção usa os braços exploratórios, que repetem o treino do A4 com menos dados e em outras famílias de modelos (Seção~\ref{sec:bracos}), para responder a três perguntas: se mais dados de treino aumentariam a validade, se o resultado depende do Qwen e o que ainda falha nas saídas do modelo especializado. Por fim, mostra em que o A4 perde fidelidade. A Tabela~\ref{tab:res-especializado} resume os cinco braços ajustados. Como todos usam decodificação gulosa, as três repetições foram idênticas em todos os 46 itens, e a validade de cada item é, na prática, 0 ou 1.
 
 \begin{table}[htb]
 	\Caption{\label{tab:res-especializado} Braços com o adaptador treinado}%
@@ -279,9 +277,7 @@ Mais pares melhoraram a previsão dos pares de validação, mas não aumentaram 
 
 O X-gr e o X-mi repetem o treino do A4, com os mesmos pares e hiperparâmetros, no Granite~4.1~8B e no MiMo-7B-RL. A validade foi de 82,6\% e 84,8\%, contra 87,0\% do A4, uma diferença de dois itens e de um item, respectivamente. O patamar alcançado pelo A4 não é, portanto, particular ao Qwen. Os braços sem o adaptador, porém, só foram executados com o Qwen, e por isso o efeito do ajuste nas outras duas famílias não foi medido separadamente.
 
-\subsection{A falha que resta: referências}
-
-Nos cinco braços ajustados, 78 das 99 saídas inválidas falharam pelo mesmo motivo: uma referência a um identificador que a saída nunca declarou. Todas têm o formato dos identificadores de tarefa dos pares de treino, como \verb|#t07|. As outras 21 são blocos sem fechamento (12), outros erros de sintaxe (6, todos do X-lc25) e saídas truncadas (3, do X-mi). A referência é a maior parte das falhas nos três pontos da curva de aprendizado, de modo que mais dados não resolveram o problema.
+Quanto ao que ainda falha, nos cinco braços ajustados, 78 das 99 saídas inválidas falharam pelo mesmo motivo: uma referência a um identificador que a saída nunca declarou. Todas têm o formato dos identificadores de tarefa dos pares de treino, como \verb|#t07|. As outras 21 são blocos sem fechamento (12), outros erros de sintaxe (6, todos do X-lc25) e saídas truncadas (3, do X-mi). A referência é a maior parte das falhas nos três pontos da curva de aprendizado, de modo que mais dados não resolveram o problema.
 
 O Código~\ref{lst:falha-ref} mostra um caso. No pmo\_14, o texto diz que o plano pode passar por várias rodadas de revisão e ajuste. O A4 escreveu o processo inteiro e, no ramo em que o orçamento não é viável, voltou para \verb|#t07|, um identificador que nenhum elemento recebeu. Na mesma saída, a repetição dos ajustes está correta: o \textit{gateway} foi marcado com \verb|#g02| ao ser escrito, e o ramo volta a ele. A diferença entre os dois casos é o momento: o \verb|#g02| foi declarado no \textit{gateway} cujo próprio bloco contém a volta, enquanto o destino de \verb|#t07|, se era uma tarefa anterior, já tinha sido escrito sem marca quando o modelo chegou à volta.
 
@@ -317,8 +313,6 @@ As famílias lidam de forma diferente com essa construção. O Qwen usou referê
 
 No modelo de grande porte, a referência por rótulo reduziu as falhas de referência de 38 para 8 (Seção~\ref{sec:res-validade}). Os pares de treino, porém, só contêm a referência por identificador (Seção~\ref{sec:transpilacao}), e nenhum modelo pequeno foi treinado com a outra forma. Fica sem resposta, portanto, se a referência por rótulo teria o mesmo efeito no modelo especializado.
 
-\subsection{Onde o modelo especializado perde fidelidade}
-
 Na fidelidade, que é exploratória, o A4 ficou cerca de um ponto abaixo do A2r e do A1 (Seção~\ref{sec:res-fidelidade}). A Tabela~\ref{tab:res-problemas} mostra os problemas que o juiz apontou em cada critério da rubrica.
 
 \begin{table}[htb]
@@ -341,13 +335,13 @@ Na fidelidade, que é exploratória, o A4 ficou cerca de um ponto abaixo do A2r 
 
 Em relação ao A2r, o A4 tem quase quatro vezes mais problemas de tarefas, quase três vezes mais de decisões e mais que o dobro de ordem e fluxo. Na boa formação, ao contrário, tem menos problemas que os dois braços de grande porte. O modelo especializado escreve processos bem formados, mas que representam pior o que o texto descreve: deixa de fora ou inventa tarefas, erra decisões e liga os elementos na ordem errada.
 
-A Figura~\ref{fig:qualitativa} mostra um item com a referência e as saídas do A1, do A2r e do A4. O texto descreve uma reclamação que é registrada, encaminhada e avaliada; o cliente é notificado da decisão, o reembolso aprovado é processado pelo financeiro, e o caso é encerrado. As três saídas foram aceitas pelo esquema, mas os erros são de natureza diferente. No A1, a decisão leva os dois ramos à mesma tarefa, e depois da notificação o processo segue por dois caminhos ao mesmo tempo, de modo que o reembolso ocorre mesmo quando é negado; há ainda eventos de fim com fluxos de saída. O A2r reproduz a sequência do texto, mas acrescenta uma segunda decisão, que repete a primeira e permite reembolsar uma reclamação rejeitada; em uma das três avaliações, o juiz não apontou nenhum problema. O A4 tem a estrutura correta das decisões, mas processa o reembolso antes de notificar o cliente, o contrário do texto, e acrescenta uma tarefa de recebimento da notificação que o texto não menciona. O exemplo ilustra os dois pontos desta seção: o A4 erra mais na ordem e nas tarefas do que na forma, e a validade no esquema não garante que o processo esteja correto, como mostra o A1 (Seção~\ref{subsec:validade}).
+A Figura~\ref{fig:qualitativa} mostra um item com a referência e as saídas do A1, do A2r e do A4. O texto descreve uma reclamação que é registrada, encaminhada e avaliada; o cliente é notificado da decisão, o reembolso aprovado é processado pelo financeiro, e o caso é encerrado. As três saídas foram aceitas pelo esquema, mas os erros são de natureza diferente. No A1, a decisão leva os dois ramos à mesma tarefa, e depois da notificação o processo segue por dois caminhos ao mesmo tempo, de modo que o reembolso ocorre mesmo quando é negado; há ainda eventos de fim com fluxos de saída. O A2r reproduz a sequência do texto, mas acrescenta uma segunda decisão, que repete a primeira e permite reembolsar uma reclamação rejeitada; em uma das três avaliações, o juiz não apontou nenhum problema. O A4 tem a estrutura correta das decisões, mas processa o reembolso antes de notificar o cliente, o contrário do texto, e acrescenta uma tarefa de recebimento da notificação que o texto não menciona. O exemplo ilustra dois pontos: o A4 erra mais na ordem e nas tarefas do que na forma, e a validade no esquema não garante que o processo esteja correto, como mostra o A1 (Seção~\ref{subsec:validade}).
 
 \input{figuras/qualitativa}
 
 O desenho não permite separar as causas dessa diferença. Ela pode vir do tamanho do modelo, da destilação, em que o modelo pequeno só aprende o que os modelos de grande porte extraíram dos textos (Seção~\ref{sec:sft}), ou da mudança de domínio, já que 94,4\% dos pares de treino vêm do \textit{handbook} e o teste é feito sobre processos de outros domínios (Seção~\ref{sec:limitacoes}). O juiz não foi aplicado aos braços exploratórios, e por isso também não se sabe se a fidelidade varia com o volume de dados ou com a família do modelo.
 
-% A figura deitada do exemplo (5.6.4) ocupa uma página inteira e, sem a barreira,
+% A figura deitada do exemplo ocupa uma página inteira e, sem a barreira,
 % flutuava para o meio da Síntese.
 \FloatBarrier
 \section{Síntese}\label{sec:res-sintese}
