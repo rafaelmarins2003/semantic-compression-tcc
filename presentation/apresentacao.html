@@ -276,6 +276,10 @@ body.print .pn {
 .cover-by { position: absolute; left: 110px; bottom: 104px; display: flex; flex-direction: column; gap: 12px; }
 .cover-by b { font: 600 32px/1 var(--f-sans); }
 .cover-by span { font: 400 24px/1 var(--f-sans); color: var(--ink-2); }
+.cover-by.duo { flex-direction: row; align-items: flex-end; gap: 140px; }
+.cover-by.duo > div { display: flex; flex-direction: column; gap: 12px; }
+.cover-by.duo > div + div { padding-left: 40px; border-left: 2px solid var(--line, rgba(127,127,127,.3)); }
+.cover-by i { font: 600 18px/1 var(--f-sans); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
 
 /* ── 2. do texto ao BPMN ──────────────────────────────────────────────── */
 .doc {
@@ -614,7 +618,7 @@ g.hit .chip { stroke: var(--good); stroke-width: 3.5; }
 .nx { top: 226px; }
 .nx-h, .nx-r { display: grid; grid-template-columns: 700px 110px 1fr; align-items: center; }
 .nx-h { height: 44px; font: 500 20px/1 var(--f-sans); color: var(--ink-3); opacity: 0; }
-.nx-r { height: 122px; border-top: 1px solid var(--line); opacity: 0; }
+.nx-r { height: 106px; border-top: 1px solid var(--line); opacity: 0; }
 .nx-r span { font: 400 28px/1.25 var(--f-sans); color: var(--ink-2); padding-right: 20px; }
 .nx-r .ic { width: 40px; height: 40px; color: var(--ink-3); stroke-width: 2; }
 .nx-r b { font: 500 33px/1.18 var(--f-display); }
@@ -1155,7 +1159,10 @@ window.DADOS = {
     </div>
     <svg class="fig mm rv fade" data-at="0" style="--d:.7s" viewBox="0 0 360 420" width="360" height="420"></svg>
     <div class="morph"></div>
-    <div class="cover-by rv" data-at="0" style="--d:.5s"><b>Rafael Marins Florenzano</b><span>Orientador: Prof. Caio Marques</span></div>`,
+    <div class="cover-by duo rv" data-at="0" style="--d:.5s">
+      <div><b>Rafael Marins Florenzano</b><span>Orientador: Prof. Me. Caio Marques Silva (UNIFOR)</span></div>
+      <div><i>Banca examinadora</i><span>Prof. Me. André Wescley Oliveira de Aguiar (UNIFOR)</span><span>Prof. Dr. Pedro Pedrosa Rebouças Filho (IFCE)</span></div>
+    </div>`,
     setup: K.morphSetup,
     loop: (t, c, s) => K.morph(c, t, s.still),
   });
@@ -2409,6 +2416,7 @@ window.DADOS = {
     ['46 itens de teste, com intervalos largos', 'Um conjunto de teste maior'],
     ['94,4% dos pares de treino vêm de uma única fonte', 'Dados de outras fontes e de outros domínios'],
     ['Uma linguagem de saída e um prompt por formato', 'Outras linguagens XML e novos braços, como o modelo pequeno em XML'],
+    ['Só dois modelos de grande porte testados', 'Repetir os braços com modelos de grande porte mais recentes'],
   ];
   S.push({
     id: 'limites', act: 'Conclusão', name: 'Limitações e próximos passos',
@@ -2422,7 +2430,7 @@ window.DADOS = {
         draw(p) {
           head.style.opacity = K.seg(p, 0, 0.08);
           rows.forEach((r, i) => {
-            const a = 0.08 + i * 0.16;
+            const a = 0.08 + i * 0.13;
             r.style.opacity = K.seg(p, a, a + 0.08);
             r.children[1].style.opacity = K.seg(p, a + 0.06, a + 0.12);
             show(r.children[2], K.seg(p, a + 0.1, a + 0.22));
@@ -2472,9 +2480,12 @@ window.DADOS = {
   const acts = [];
 
   /* tema */
-  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } } };
-  const theme = Q.get('theme') || store.get('tcc-deck-theme');
+  /* Cada arquivo abre no próprio tema (apresentacao-clara.html já vem com data-theme="light").
+     ?theme= na URL sobrepõe. O tema não fica salvo no navegador: arquivos locais dividem o
+     mesmo armazenamento, e testar T num arquivo faria o outro abrir no tema errado. */
+  const theme = Q.get('theme');
   if (theme === 'light') document.documentElement.dataset.theme = 'light';
+  if (theme === 'dark') delete document.documentElement.dataset.theme;
 
   function fit() {
     if (PRINT) { window.DECK_SCALE = 1; return; }
@@ -2657,7 +2668,6 @@ window.DADOS = {
       t: () => {
         const light = document.documentElement.dataset.theme !== 'light';
         light ? (document.documentElement.dataset.theme = 'light') : delete document.documentElement.dataset.theme;
-        store.set('tcc-deck-theme', light ? 'light' : 'dark');
       },
       b: () => ($('black').style.display = 'block'), '.': () => ($('black').style.display = 'block'),
     }[k.length === 1 ? k.toLowerCase() : k];

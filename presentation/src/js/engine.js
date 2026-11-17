@@ -18,9 +18,12 @@
   const acts = [];
 
   /* tema */
-  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } } };
-  const theme = Q.get('theme') || store.get('tcc-deck-theme');
+  /* Cada arquivo abre no próprio tema (apresentacao-clara.html já vem com data-theme="light").
+     ?theme= na URL sobrepõe. O tema não fica salvo no navegador: arquivos locais dividem o
+     mesmo armazenamento, e testar T num arquivo faria o outro abrir no tema errado. */
+  const theme = Q.get('theme');
   if (theme === 'light') document.documentElement.dataset.theme = 'light';
+  if (theme === 'dark') delete document.documentElement.dataset.theme;
 
   function fit() {
     if (PRINT) { window.DECK_SCALE = 1; return; }
@@ -203,7 +206,6 @@
       t: () => {
         const light = document.documentElement.dataset.theme !== 'light';
         light ? (document.documentElement.dataset.theme = 'light') : delete document.documentElement.dataset.theme;
-        store.set('tcc-deck-theme', light ? 'light' : 'dark');
       },
       b: () => ($('black').style.display = 'block'), '.': () => ($('black').style.display = 'block'),
     }[k.length === 1 ? k.toLowerCase() : k];

@@ -21,6 +21,10 @@
 .cover-by { position: absolute; left: 110px; bottom: 104px; display: flex; flex-direction: column; gap: 12px; }
 .cover-by b { font: 600 32px/1 var(--f-sans); }
 .cover-by span { font: 400 24px/1 var(--f-sans); color: var(--ink-2); }
+.cover-by.duo { flex-direction: row; align-items: flex-end; gap: 140px; }
+.cover-by.duo > div { display: flex; flex-direction: column; gap: 12px; }
+.cover-by.duo > div + div { padding-left: 40px; border-left: 2px solid var(--line, rgba(127,127,127,.3)); }
+.cover-by i { font: 600 18px/1 var(--f-sans); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
 
 /* ── 2. do texto ao BPMN ──────────────────────────────────────────────── */
 .doc {
@@ -359,7 +363,7 @@ g.hit .chip { stroke: var(--good); stroke-width: 3.5; }
 .nx { top: 226px; }
 .nx-h, .nx-r { display: grid; grid-template-columns: 700px 110px 1fr; align-items: center; }
 .nx-h { height: 44px; font: 500 20px/1 var(--f-sans); color: var(--ink-3); opacity: 0; }
-.nx-r { height: 122px; border-top: 1px solid var(--line); opacity: 0; }
+.nx-r { height: 106px; border-top: 1px solid var(--line); opacity: 0; }
 .nx-r span { font: 400 28px/1.25 var(--f-sans); color: var(--ink-2); padding-right: 20px; }
 .nx-r .ic { width: 40px; height: 40px; color: var(--ink-3); stroke-width: 2; }
 .nx-r b { font: 500 33px/1.18 var(--f-display); }

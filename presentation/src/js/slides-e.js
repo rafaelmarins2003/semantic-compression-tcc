@@ -119,6 +119,7 @@
     ['46 itens de teste, com intervalos largos', 'Um conjunto de teste maior'],
     ['94,4% dos pares de treino vêm de uma única fonte', 'Dados de outras fontes e de outros domínios'],
     ['Uma linguagem de saída e um prompt por formato', 'Outras linguagens XML e novos braços, como o modelo pequeno em XML'],
+    ['Só dois modelos de grande porte testados', 'Repetir os braços com modelos de grande porte mais recentes'],
   ];
   S.push({
     id: 'limites', act: 'Conclusão', name: 'Limitações e próximos passos',
@@ -132,7 +133,7 @@
         draw(p) {
           head.style.opacity = K.seg(p, 0, 0.08);
           rows.forEach((r, i) => {
-            const a = 0.08 + i * 0.16;
+            const a = 0.08 + i * 0.13;
             r.style.opacity = K.seg(p, a, a + 0.08);
             r.children[1].style.opacity = K.seg(p, a + 0.06, a + 0.12);
             show(r.children[2], K.seg(p, a + 0.1, a + 0.22));

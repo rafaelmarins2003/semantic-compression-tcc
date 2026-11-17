@@ -58,7 +58,10 @@
     </div>
     <svg class="fig mm rv fade" data-at="0" style="--d:.7s" viewBox="0 0 360 420" width="360" height="420"></svg>
     <div class="morph"></div>
-    <div class="cover-by rv" data-at="0" style="--d:.5s"><b>Rafael Marins Florenzano</b><span>Orientador: Prof. Caio Marques</span></div>`,
+    <div class="cover-by duo rv" data-at="0" style="--d:.5s">
+      <div><b>Rafael Marins Florenzano</b><span>Orientador: Prof. Me. Caio Marques Silva (UNIFOR)</span></div>
+      <div><i>Banca examinadora</i><span>Prof. Me. André Wescley Oliveira de Aguiar (UNIFOR)</span><span>Prof. Dr. Pedro Pedrosa Rebouças Filho (IFCE)</span></div>
+    </div>`,
     setup: K.morphSetup,
     loop: (t, c, s) => K.morph(c, t, s.still),
   });

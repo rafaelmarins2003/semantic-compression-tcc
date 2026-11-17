@@ -1,4 +1,5 @@
-"""Junta src/ em um único arquivo: apresentacao.html (CSS, JS e fontes embutidos).
+"""Junta src/ em arquivos únicos (CSS, JS e fontes embutidos):
+apresentacao.html (tema escuro) e apresentacao-clara.html (tema claro).
 
 Uso: python internal_tests/apresentacao/build.py
 O arquivo gerado abre direto no navegador, sem servidor e sem internet.
@@ -11,6 +12,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "src"
 OUT = HERE / "apresentacao.html"
+OUT_LIGHT = HERE / "apresentacao-clara.html"
 
 
 def font_uri(match):
@@ -39,6 +41,10 @@ def main():
     html = html.replace("<head>", "<head>\n<!-- GERADO por build.py a partir de src/. Edite src/ e rode o build. -->", 1)
     OUT.write_text(html, encoding="utf-8")
     print(f"{OUT.name}: {OUT.stat().st_size / 1024:.0f} KB")
+    clara = html.replace('<html lang="pt-BR">', '<html lang="pt-BR" data-theme="light">', 1)
+    assert clara != html, "tag <html> mudou em src/index.html"
+    OUT_LIGHT.write_text(clara, encoding="utf-8")
+    print(f"{OUT_LIGHT.name}: {OUT_LIGHT.stat().st_size / 1024:.0f} KB")
 
 
 if __name__ == "__main__":
